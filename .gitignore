@@ -161,6 +161,6 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
-metriever_final/TempRAGEval/contriever_output/
-metriever_final/TempRAGEval/BM25_output/
-metriever_final/retrieved
+TempRAGEval/contriever_output/
+TempRAGEval/BM25_output/
+retrieved
