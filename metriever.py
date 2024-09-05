@@ -4,12 +4,8 @@ from prompts import *
 
 import argparse
 from copy import deepcopy
-import torch
-device1 = 'cuda:0'
-device2 = 'cuda:1' if torch.cuda.device_count()>1 else device1
+from vllm import LLM, SamplingParams
 
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import transformers
 from sentence_transformers import CrossEncoder
 from FlagEmbedding import FlagReranker, FlagLLMReranker
 
@@ -26,6 +22,7 @@ def main():
         '--stage2-model', 
         choices=['metriever','minilm6','minilm12','bge','tinybert','bigegemma','monot5', None], 
         default='metriever', #
+        # default='bge', #
         help='Choose a model for stage 2 re-ranking'
     )
     parser.add_argument(
@@ -37,49 +34,37 @@ def main():
     parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/data.json")
     parser.add_argument('--bm25-output', type=str, default="./TempRAGEval/BM25_output/data.json")
     parser.add_argument('--ctx-topk', type=int, default=100)
-    parser.add_argument('--QFS-topk', type=int, default=20)
+    parser.add_argument('--QFS-topk', type=int, default=5)
     parser.add_argument('--snt-topk', type=int, default=200)
     parser.add_argument('--hybrid-score', type=bool, default=True)
     parser.add_argument('--hybrid-base', type=float, default=0.5)
     parser.add_argument('--snt-with-title', type=bool, default=True)
     parser.add_argument('--llm', type=str, default="llama_8b")
-    parser.add_argument('--step-by-step', type=bool, default=False)
 
     args = parser.parse_args()
     args.m1 = retrival_model_names(args.stage1_model)
     args.m2 = retrival_model_names(args.stage2_model) if args.stage2_model is not None else None
     args.m3 = retrival_model_names(args.metriever_model)
     args.l = llm_names(args.llm)
+    args.llm_name = deepcopy(args.llm)
 
+    # load llm
     if args.m2:
-        if args.m2 == 'metriever':
-            # load llm for metriever
-            args.llm.device = device2
-            if args.llm == 'llama_70b':
-                from awq import AutoAWQForCausalLM
-                args.llm = AutoAWQForCausalLM.from_pretrained(
-                    args.l,
-                    torch_dtype=torch.float16,
-                    low_cpu_mem_usage=True,
-                    device_map=device2,
-                    )
-                args.llm.tokenizer = AutoTokenizer.from_pretrained(args.l)
-            else:
-                args.llm = AutoModelForCausalLM.from_pretrained(
-                    args.l,
-                    torch_dtype="auto",  
-                    device_map=device2,
-                    trust_remote_code=True,  
-                ) 
-                args.llm.tokenizer = AutoTokenizer.from_pretrained(args.l)
-
+        flg = '70b' in args.llm_name
+        if flg:
+            args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ")
+        else:
+            args.llm = LLM(args.l, tensor_parallel_size=1, dtype='half', max_model_len=4096)
+        
     # load semantic ranker for stage 2 / metriever
-    if args.metriever_model=='bgegemma':
-        args.model = FlagLLMReranker(args.m3, use_fp16=True, device=device1)
-    elif args.metriever_model=='bge':
-        args.model = FlagReranker(args.m3, use_fp16=True, device=device1)
-    else:
-        args.model = CrossEncoder(args.m3, device=device1)
+    if args.m2:
+        name = args.m3 if args.m2 == 'metriever' else args.m2
+        if 'gemma' in name:
+            args.model = FlagLLMReranker(name, use_fp16=True,)
+        elif 'bge' in name:
+            args.model = FlagReranker(name, use_fp16=True)
+        else:
+            args.model = CrossEncoder(name)
 
     # load examples
     if args.stage1_model == 'contriever':
@@ -100,8 +85,8 @@ def main():
 
     ctx_key = 'ctxs' if args.stage1_model=='contriever' else 'bm25_ctxs'
     if args.m2 == None or args.m2 != 'metriever':
+        print(f'--- Stage 1: {args.stage1_model} ---\n')
         print('\n**** Answers ****')
-        print(f'--- Stage 1: {args.stage1_model} ---')
         print('w/o date')
         eval_recall(examples_notime, ctxs_key=ctx_key, ans_key='answers')
         print('w/ key date')
@@ -109,8 +94,8 @@ def main():
         print('w/ perturb date')
         eval_recall(examples_not_exact, ctxs_key=ctx_key, ans_key='answers')
 
-        print('\n**** Gold Evidences ****')
-        print(f'--- Stage 1: {args.stage1_model} ---')
+        print(f'--- Stage 1: {args.stage1_model} ---\n')
+        print('**** Gold Evidences ****')
         print('w/o date')
         eval_recall(examples_notime, ctxs_key=ctx_key, ans_key='gold_evidences')
         print('w/ key date')
@@ -123,21 +108,23 @@ def main():
     if args.m2 and args.m2 != 'metriever':
         # benchmark baselines
         flg = 'bge' in args.stage2_model
-        for ex in examples:
+        for ex in tqdm(examples, desc="Reranking contexts"):
             question = ex['question']
             latest_ctxs = deepcopy(ex[ctx_key])
+            latest_ctxs = latest_ctxs[:args.ctx_topk]
             model_inputs = [[question, ctx["title"]+" "+ctx["text"]] for ctx in latest_ctxs]
-            scores = args.model.compute_score(model_inputs) if 'bge' in args.metriever_model else args.model.predict(model_inputs)   
+            scores = args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)   
             for i, ctx in enumerate(latest_ctxs):
                 ctx["score"] = float(scores[i])
+            latest_ctxs = sorted(latest_ctxs, key=lambda x: x['score'], reverse=True)
             ex['reranker_ctxs'] = latest_ctxs
         # evaluate reranking results    
         ctx_key = 'reranker_ctxs'
         examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
 
         print('\n\n')
+        print(f'--- Stage 2: {args.stage2_model} ---\n')
         print('\n**** Answers ****')
-        print(f'--- Stage 2: {args.stage2_model} ---')
         print('w/o date')
         eval_recall(examples_notime, ctxs_key=ctx_key, ans_key='answers')
         print('w/ key date')
@@ -145,8 +132,8 @@ def main():
         print('w/ perturb date')
         eval_recall(examples_not_exact, ctxs_key=ctx_key, ans_key='answers')
 
-        print('\n**** Gold Evidences ****')
-        print(f'--- Stage 2: {args.stage2_model} ---')
+        print(f'--- Stage 2: {args.stage2_model} ---\n')
+        print('**** Gold Evidences ****')
         print('w/o date')
         eval_recall(examples_notime, ctxs_key=ctx_key, ans_key='gold_evidences')
         print('w/ key date')
@@ -157,11 +144,11 @@ def main():
         save_json_file(f'./retrieved/{args.stage1_model}_{args.stage2_model}_outputs.json', examples)
         return
 
-    ##### Metriever #####
+    ########## Metriever ##########
 
     # prepare keywords
     question_keyword_map={}
-    for k, ex in enumerate(examples):
+    for k, ex in enumerate(tqdm(examples, desc="Preprocessing questions", total=len(examples))):
         question = ex['question']
         time_relation = ex['time_specifier']
         assert time_relation in question, question
@@ -180,28 +167,38 @@ def main():
         if normalized_question not in question_keyword_map:
             question_keyword_map[normalized_question]=[]
 
-    pipeline = transformers.pipeline(
-        "text-generation", model=args.llm, tokenizer=args.tokenizer, device_map=args.llm.device
-    )
-
+    print('\nstart extracting keywords using llm.')
     prompts = [get_keyword_prompt(q) for q in question_keyword_map]
-    map_q = [q for q in question_keyword_map]
-    keywords = pipeline(prompts, max_new_tokens=100, num_return_sequences=1, temperature=0.1)
-    keywords = [k[0]['generated_text'] for k in keywords]
-    for i in range(len(prompts)):
-        tmp = keywords[i][len(prompts[i]):].strip()
-        tmp = tmp.split('Question:')[0].replace('\n','').strip()
-        tmp = eval(tmp)
-        tmp = expand_keywords(tmp, map_q[i])
-        question_keyword_map[map_q[i]] = tmp
-    
+    questions = [q for q in question_keyword_map]
+    if args.llm_name not in ['gpt']:
+        keyword_responses = call_pipeline(args, prompts)
+    else:
+        raise NotImplemented
 
+    for i, q in enumerate(tqdm(questions, desc="Postprocessing keywords", total=len(questions))):
+        # tmp = keyword_responses[i][len(prompt):].strip()
+        # tmp = tmp.split('Question:')[0].replace('\n','').strip()
+        tmp = eval(keyword_responses[i])
+        revised = []
+        for kw in tmp:
+            while kw.lower() not in q.lower():
+                # revise the extrcated keyword if not match with question
+                kw = ' '.join(kw.split()[:-1])
+            if kw!='' and kw.lower() in q.lower():
+                revised.append(kw)
+        revised = list(set(revised))
+        revised = expand_keywords(revised, q, verbose=True)
+        question_keyword_map[q] = revised
 
+    # main reranking loop
+    print('\nfinished preparation, start modular reranking.')
     for k, ex in enumerate(examples):
         question = ex['question']
         time_relation = ex['time_specifier']
         normalized_question = ex['normalized_question']
         expanded_keyword_list, keyword_type_list = question_keyword_map[normalized_question]
+        print(f'\n---- {k} ----\n{question}\n')
+        print(expanded_keyword_list)
         latest_ctxs = deepcopy(ex['ctxs']) # start from contriever top 1000
 
         # top 1000 ctx_keyword_rank_module
@@ -216,6 +213,7 @@ def main():
 
         # top 100 ctx_semantic_rank_module
         model_inputs = [[normalized_question, ctx["title"]+ ' ' + ctx["text"]] for ctx in latest_ctxs]
+        flg = 'bge' in args.metriever_model
         scores = args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)  
         for i, ctx in enumerate(latest_ctxs):
             ctx["score"] = float(scores[i]) # update contriever score to reranker score
@@ -226,18 +224,27 @@ def main():
         # add QFS summary for top semantic context
         sentence_tuples = []
         get_ctx_by_id = {}
+        # generate summaries
+        QFS_prompts = []
+        for ctx in latest_ctxs[:args.QFS_topk]:
+            QFS_prompts.append(get_QFS_prompt(normalized_question, ctx['title'], ctx['text']))
+
+        if args.llm_name != 'gpt':
+            summary_responses = call_pipeline(args, QFS_prompts)
+        else:
+            raise NotImplemented
+        # summaries = [summary_responses[i][len(QFS_prompts[i]):] for i in range(args.QFS_topk)]
+        # summaries = [s.split('Question:')[0].replace('\n','').strip() for s in summaries]
+
         for idx, ctx in enumerate(latest_ctxs):
             get_ctx_by_id[ctx['id']] = ctx
             snts = sent_tokenize(ctx['text'])
             if args.snt_with_title:
                 snts = [ctx['title']+' '+snt for snt in snts]
             if idx < args.QFS_topk:
-                QFS_prompt = get_QFS_prompt(normalized_question, ctx['title'], ctx['text'])
-                summary = pipeline(QFS_prompt, max_new_tokens=200, num_return_sequences=1, temperature=0.1)
-                summary = summary[0]['generated_text']
-                summary = summary[len(QFS_prompt):]
-                summary = summary.split('Question:')[0].replace('\n','').strip()
-                print(QFS_prompt)
+                summary = summary_responses[idx]
+                print('\n',question,' ',ex['answers'])
+                print(ctx['text'])
                 print(summary)
                 if 'None' in summary:
                     summary = None
@@ -253,7 +260,7 @@ def main():
                 sentence_tuples.append((ctx['id'], snt, snt_kw_score))
         # sort all sentences including summaries
         sentence_tuples = sorted(sentence_tuples, key=lambda x: x[2], reverse=True)
-        print(f'total {len(sentence_tuples)} sentences.')
+        print(f'\ntotal {len(sentence_tuples)} sentences.')
         # get new ctx rank based on sentence rank 
         latest_ctxs = []
         id_included = []
@@ -290,7 +297,7 @@ def main():
                 time_relation_type = 'other'
 
         # compute semantic scores using reranker
-        if 'years' in ex and time_relation_type != 'other' and args.hybrid:
+        if 'years' in ex and time_relation_type != 'other' and args.hybrid_score:
             # for hybrid ranking using question without time
             model_inputs = [[normalized_question, tp[1]] for tp in sentence_tuples]
         else:
@@ -299,7 +306,7 @@ def main():
         semantic_scores =  args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)
         semantic_scores = [float(s) for s in semantic_scores]
 
-        if 'years' in ex and time_relation_type != 'other' and args.hybrid:
+        if 'years' in ex and time_relation_type != 'other' and args.hybrid_score:
             # use temporal-semantic hybrid ranker
             years = ex['years']
             if time_relation=='from' and len(years)<2:
@@ -328,29 +335,30 @@ def main():
         ex['snt_hybrid_rank'] = latest_ctxs
 
     examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
-    if args.step_by_step:
-        print('\n**** Answers ****\n')
-        print('~~~~~~~ctx_keyword_rank~~~~~~~~')
-        eval_recall(examples_notime, ctxs_key='ctx_keyword_rank', ans_key='answers')
-        print('~~~~~~~ctx_semantic_rank~~~~~~~~')
-        eval_recall(examples_notime, ctxs_key='ctx_semantic_rank', ans_key='answers')
-        print('~~~~~~~snt_keyword_rank~~~~~~~~')
-        eval_recall(examples_notime, ctxs_key='snt_keyword_rank', ans_key='answers')
-        print('~~~~~~~snt_hybrid_rank~~~~~~~~')
-        eval_recall(examples_notime, ctxs_key='snt_hybrid_rank', ans_key='answers') 
 
-        print('\n**** Gold Evidences ****\n')
-        print('~~~~~~~ctx_keyword_rank~~~~~~~~')
-        eval_recall(examples_notime, ctxs_key='ctx_keyword_rank', ans_key='gold_evidences')
-        print('~~~~~~~ctx_semantic_rank~~~~~~~~')
-        eval_recall(examples_notime, ctxs_key='ctx_semantic_rank', ans_key='gold_evidences')
-        print('~~~~~~~snt_keyword_rank~~~~~~~~')
-        eval_recall(examples_notime, ctxs_key='snt_keyword_rank', ans_key='gold_evidences')
-        print('~~~~~~~snt_hybrid_rank~~~~~~~~')
-        eval_recall(examples_notime, ctxs_key='snt_hybrid_rank', ans_key='gold_evidences') 
+    print(f'\nMetriever: {args.metriever_model} + {args.llm_name}')
+    print('\n**** Answers ****\n')
+    print('~~~~~~~ctx_keyword_rank~~~~~~~~')
+    eval_recall(examples_not_exact, ctxs_key='ctx_keyword_rank', ans_key='answers')
+    print('~~~~~~~ctx_semantic_rank~~~~~~~~')
+    eval_recall(examples_not_exact, ctxs_key='ctx_semantic_rank', ans_key='answers')
+    print('~~~~~~~snt_keyword_rank~~~~~~~~')
+    eval_recall(examples_not_exact, ctxs_key='snt_keyword_rank', ans_key='answers')
+    print('~~~~~~~snt_hybrid_rank~~~~~~~~')
+    eval_recall(examples_not_exact, ctxs_key='snt_hybrid_rank', ans_key='answers') 
+
+    print('\n**** Gold Evidences ****\n')
+    print('~~~~~~~ctx_keyword_rank~~~~~~~~')
+    eval_recall(examples_not_exact, ctxs_key='ctx_keyword_rank', ans_key='gold_evidences')
+    print('~~~~~~~ctx_semantic_rank~~~~~~~~')
+    eval_recall(examples_not_exact, ctxs_key='ctx_semantic_rank', ans_key='gold_evidences')
+    print('~~~~~~~snt_keyword_rank~~~~~~~~')
+    eval_recall(examples_not_exact, ctxs_key='snt_keyword_rank', ans_key='gold_evidences')
+    print('~~~~~~~snt_hybrid_rank~~~~~~~~')
+    eval_recall(examples_not_exact, ctxs_key='snt_hybrid_rank', ans_key='gold_evidences') 
 
     # save baseline results    
-    save_json_file(f'./retrieved/{args.stage1_model}_{args.stage2_model}_{args.metriever_model}_outputs.json', examples)
+    save_json_file(f'./retrieved/{args.stage1_model}_{args.stage2_model}_{args.metriever_model}_{args.llm_name}_outputs.json', examples)
     return
 
 
@@ -441,6 +449,14 @@ def get_temporal_coeffs(years, sentence_tuples, time_relation_type, implicit_con
         temporal_coeffs.append(coeff)
     return temporal_coeffs
 
+
+def call_pipeline(args, prompts):
+    sampling_params = SamplingParams(temperature=0.7, top_p=0.95, max_tokens=100)
+    outputs = args.llm.generate(prompts, sampling_params)
+    responses = [output.outputs[0].text for output in outputs]
+    responses = [res.split('Question:')[0] for res in responses]
+    responses = [res.replace('\n','').strip() for res in responses]
+    return responses 
 
 
 if __name__ == "__main__":

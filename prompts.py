@@ -2,16 +2,16 @@
 
 def get_keyword_prompt(question):
 
-    prompt = f"""Your task is to extract keywords from the question. Response by a list of keyword strings.
+    prompt = f"""Your task is to extract keywords from the question. Response by a list of keyword strings. Do not include pronouns, prepositions, articles.
 
 Question:
-When was the time the United States hosted the Olympics?
+When was the last time the United States hosted the Olympics?
 
 Keywords:
 ["United States", "hosted", "Olympics"]
 
 Question:
-Who sang the national anthem Super Bowl last year?
+Who sang the national anthem for Super Bowl last year?
 
 Keywords:
 ["sang", "national anthem", "Super Bowl"]
@@ -21,6 +21,18 @@ Most goals in international football?
 
 Keywords:
 ["most", "goals", "international", "football"]
+
+Question:
+How many TV episodes in the series The Crossing?
+
+Keywords:
+["TV", "episodes", "series", "The Crossing"]
+
+Question:
+When is The Good Doctor season 1 episode 11?
+
+Keywords:
+["The Good Doctor", "season", "1", "episode", "11"]
 
 Question:
 Current captain of the England mens cricket team?
@@ -56,7 +68,7 @@ Keywords:
 
 # query focused summarizer
 def get_QFS_prompt(question, title, text):
-    prompt = f"""Summarzie the paragraph by answering the given question, including the date if they are mentioned. If the question can not be answered based on the paragraph, response "None".
+    prompt = f"""Summarzie the paragraph by answering the given question in one sentence, including the date if they are mentioned. If the question can not be answered based on the paragraph, response "None".
 
 Question:
 Who is the president of India

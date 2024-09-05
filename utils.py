@@ -16,6 +16,8 @@ import sys
 sys.path.append('../')
 from contriever.src.evaluation import SimpleTokenizer, has_answer
 
+# EXCL = ['time', 'for', 'new','recent','current']
+
 lemmatizer = WordNetLemmatizer()
 number_map = {
     '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five',
@@ -143,13 +145,16 @@ def expand_keywords(keyword_list, normalized_question, verbose=False):
         else:
             n_words = len(kw_list)
             index = None
-            for i in range(len(q_words)):
-                flgs = []
-                for j in range(len(kw_list)):
-                    flgs.append(q_words[i+j].lower()==kw_list[j].lower())
-                if all(flgs):
-                    index=i
-                    break
+            try:
+                for i in range(len(q_words)):
+                    flgs = []
+                    for j in range(len(kw_list)):
+                        flgs.append(q_words[i+j].lower()==kw_list[j].lower())
+                    if all(flgs):
+                        index=i
+                        break
+            except Exception:
+                import ipdb; ipdb.set_trace()
             assert index is not None
             last_word = kw_list[-1]
             last_index = index + n_words -1
@@ -239,3 +244,5 @@ def eval_recall(examples, ctxs_key, ans_key='answers'):
 def save_json_file(path, object):
    with open(path , "w") as json_file:
         json.dump(object, json_file)
+
+
