@@ -1,0 +1,294 @@
+srun --nodes=1 --tasks-per-node=1 --cpus-per-task=1 --mem=200GB --time=20:00:00 --gres=gpu:1 --pty /bin/bash
+srun --nodes=1 --tasks-per-node=1 --cpus-per-task=1 --mem=200GB --time=20:00:00 --pty /bin/bash
+srun --nodes=1 --tasks-per-node=1 --cpus-per-task=1 --mem=400GB --time=20:00:00 --gres=gpu:1 --pty /bin/bash
+
+srun --nodes=1 --tasks-per-node=1 --cpus-per-task=1 --mem=200GB --time=10:00:00 --gres=gpu:1 --pty /bin/bash
+srun --nodes=1 --tasks-per-node=2 --cpus-per-task=1 --mem=200GB --time=10:00:00 --gres=gpu:rtx8000:2 --pty /bin/bash
+
+srun --nodes=1 --tasks-per-node=1 --cpus-per-task=1 --mem=200GB --time=10:00:00 --pty /bin/bash
+
+singularity exec --nv --overlay /scratch/sz4651/Projects/overlay-share.ext3:rw /scratch/work/public/singularity/cuda12.3.2-cudnn9.0.0-ubuntu-22.04.4.sif /bin/bash
+singularity exec --nv --overlay /scratch/sz4651/Projects/UnifiedSKG/overlay-skg2.ext3:ro /scratch/work/public/singularity/cuda12.3.2-cudnn9.0.0-ubuntu-22.04.4.sif /bin/bash
+
+# 12.1
+singularity exec --nv --overlay /scratch/sz4651/Projects/overlay-share.ext3:rw /scratch/work/public/singularity/cuda12.1.1-cudnn8.9.0-devel-ubuntu22.04.2.sif /bin/bash
+singularity exec --nv --overlay /scratch/sz4651/Projects/UnifiedSKG/overlay-skg2.ext3:ro /scratch/work/public/singularity/cuda12.1.1-cudnn8.9.0-devel-ubuntu22.04.2.sif /bin/bash
+
+# 11.3
+singularity exec --nv --overlay /scratch/sz4651/Projects/UnifiedSKG/overlay-skg2.ext3:ro /scratch/work/public/singularity/cuda11.3.0-cudnn8-devel-ubuntu20.04.sif /bin/bash
+
+cd /scratch/sz4651/Projects/metriever
+conda activate l3
+cd /scratch/sz4651/Projects/modular_retriever
+conda activate llama
+conda activate l3
+conda activate contriever
+
+python run_llama.py --subset temp --split train --num_ctxs 25
+
+--model_path meta-llama/Llama-2-7b-hf
+--model_path meta-llama/Meta-Llama-3-8B
+
+# multi gpu
+torchrun --nnodes 1 \
+ --nproc_per_node 2 \
+ /scratch/sz4651/Projects/porqa/llama/run_llama.py \
+ --model_path meta-llama/Llama-2-7b-hf \
+ --multigpu \
+ --learning_rate 5e-4 \
+ --num_train_epochs 8 \
+ --output_dir /scratch/sz4651/Projects/porqa/llama/results/7b_temp_c20_l4096 \
+ --subset temp \
+ --max_length 4096 \
+ --batch_size 4 \
+ --num_ctxs 20 \
+ --eval_freq 500 \
+ --save_freq 100 \
+ --gradient_accumulation_steps 2 \
+ --continue_from_checkpoint /scratch/sz4651/Projects/porqa/llama/results/7b_temp_c20_l4096/final
+
+
+
+
+ --resume_from_checkpoint /scratch/sz4651/Projects/porqa/llama/results/7b_temp_c20_l4096/checkpoint-700 \
+ --max_train 200 \
+ --max_val 200
+
+
+
+torchrun --nnodes 1 \
+ --nproc_per_node 1 \
+ /scratch/sz4651/Projects/porqa/llama/run_llama.py \
+ --model_path meta-llama/Meta-Llama-3-8B-Instruct \
+ --learning_rate 5e-4 \
+ --num_train_epochs 8 \
+ --output_dir /scratch/sz4651/Projects/porqa/llama/results/8b_ins_temp_c1_l512_full \
+ --subset temp \
+ --max_length 512 \
+ --batch_size 8 \
+ --num_ctxs 1 \
+ --eval_freq 100 \
+ --save_freq 100 \
+ --gradient_accumulation_steps 1 \
+ --test_pos_ctx \
+ --max_val 1000 \
+ --max_train 1000 \
+ --load_8bit False
+
+ torchrun --nnodes 1 \
+ --nproc_per_node 1 \
+ /scratch/sz4651/Projects/porqa/llama/run_llama.py \
+ --model_path meta-llama/Meta-Llama-3-8B \
+ --learning_rate 5e-4 \
+ --num_train_epochs 8 \
+ --output_dir /scratch/sz4651/Projects/porqa/llama/results/8b_temp_c1_l512_full \
+ --subset temp \
+ --max_length 512 \
+ --batch_size 8 \
+ --num_ctxs 1 \
+ --eval_freq 100 \
+ --save_freq 100 \
+ --gradient_accumulation_steps 1 \
+ --test_pos_ctx \
+ --max_val 1000 \
+ --max_train 1000 \
+ --load_8bit False
+
+ --continue_from_checkpoint /scratch/sz4651/Projects/porqa/llama/results/7b_temp_c20_l4096/final
+
+
+#  zero shot chat
+torchrun --nnodes 1 \
+ --nproc_per_node 1 \
+ /scratch/sz4651/Projects/porqa/llama/run_llama.py \
+ --model_path meta-llama/Meta-Llama-3-8B-Instruct \
+ --checkpoint_path /scratch/sz4651/Projects/porqa/llama/results/8b_inst_temp_c1_l512/final \
+ --test \
+ --subset temp \
+ --per_device_eval_batch_size 16 \
+ --max_length 512 \
+ --test_note 8b_inst_dp_c1_l512 \
+ --num_ctxs 1 \
+ --max_new_tokens 100 \
+ --load_8bit False \
+ --direct_prompt True \
+ --max_val 100
+
+torchrun --nnodes 1 \
+ --nproc_per_node 1 \
+ /scratch/sz4651/Projects/porqa/llama/run_llama.py \
+ --model_path meta-llama/Llama-2-7b-chat-hf \
+ --test \
+ --subset temp \
+ --per_device_eval_batch_size 16 \
+ --max_length 512 \
+ --test_note 7b_chat_dp_c1_l512 \
+ --num_ctxs 1 \
+ --max_new_tokens 100 \
+ --load_8bit False \
+ --direct_prompt True \
+ --max_val 100
+
+ --test_pos_ctx \
+
+
+# prediction
+torchrun --nnodes 1 \
+ --nproc_per_node 1 \
+ /scratch/sz4651/Projects/porqa/llama/run_llama.py \
+ --model_path meta-llama/Llama-2-7b-hf \
+ --checkpoint_path /scratch/sz4651/Projects/porqa/llama/results/7b_temp_c10_l2048/final \
+ --test \
+ --predict_split dev \
+ --subset temp \
+ --per_device_eval_batch_size 4 \
+ --max_length 2048 \
+ --test_note 7b_c10_l2048_dev \
+ --num_ctxs 10 \
+ --max_new_tokens 100 
+ 
+ \
+ --max_val 50
+
+ --test_pos_ctx
+
+torchrun --nnodes 1 \
+ --nproc_per_node 2 \
+ /scratch/sz4651/Projects/porqa/llama/run_llama.py \
+ --model_path meta-llama/Meta-Llama-3-8B \
+ --multigpu \
+ --checkpoint_path /scratch/sz4651/Projects/porqa/llama/results/8b_temp_c1_l512/final \
+ --subset temp \
+ --per_device_eval_batch_size 4 \
+ --max_length 512 \
+ --test_note 8b_c1_l512 \
+ --num_ctxs 1 \
+ --test \
+ --test_pos_ctx \
+ --load_8bit False \
+ --max_new_tokens 100
+
+--master_port=25641
+
+
+
+
+
+############
+
+contriever
+
+python finetuning.py \
+--train_data /scratch/sz4651/Projects/porqa/open_domain_data/SQA/geo/finetune/train.json \
+--eval_data /scratch/sz4651/Projects/porqa/open_domain_data/SQA/geo/finetune/dev.json \
+--model_path facebook/contriever \
+--save_freq 1000 \
+--eval_freq 1000 \
+--negative_hard_ratio 0.1 \
+--negative_ctxs 256 \
+--warmup_steps 100 \
+--per_gpu_batch_size 256 \
+--total_steps 20000
+
+
+
+
+##########
+
+
+torchrun --nnodes 1 \
+ --nproc_per_node 1 \
+ /scratch/sz4651/Projects/porqa/llama/run_llama.py \
+ --model_path NousResearch/Llama-2-7b-chat-hf \
+ --learning_rate 3e-4 \
+ --max_steps 3000 \
+ --output_dir /scratch/sz4651/Projects/porqa/llama/results/llama_7b_chat_geo \
+ --subset geo \
+ --batch_size 1 \
+ --gradient_accumulation_steps 16 \
+ --max_length 2048 \
+ --num_ctxs 10 \
+ --max_val 10 \
+ --max_train 10 \
+#  --model_path NousResearch/Llama-2-7b-hf \
+
+meta-llama/Llama-2-7b-chat-hf
+
+--dataset_name /scratch/sz4651/Projects/SituatedQA/hg/SituatedQA.py \
+
+ --model_path meta-llama/Llama-2-7b-chat-hf \
+
+# https://discuss.huggingface.co/t/training-llama-with-lora-on-multiple-gpus-may-exist-bug/47005/7
+accelerate launch qlora.py
+
+# 1 gpu
+torchrun --nnodes 1 \
+ --nproc_per_node 1 \
+ /scratch/sz4651/Projects/porqa/llama/run_llama.py \
+ --model_path meta-llama/Llama-2-7b-chat-hf \
+ --learning_rate 1e-4 \
+ --num_train_epochs 3 \
+ --output_dir /scratch/sz4651/Projects/porqa/llama/results/chat_7b_temp_c10_l2048_e1 \
+ --subset temp \
+ --max_length 2048 \
+ --batch_size 2 \
+ --num_ctxs 10 \
+ --epsilon 1 \
+ --eval_freq 200 \
+ --save_freq 100 \
+ --gradient_accumulation_steps 2 \
+ --gradient_checkpointing \
+ --max_train 100 \
+ --max_val 2
+
+ 
+ --fp16
+
+
+
+
+# multi gpu
+accelerate launch /scratch/sz4651/Projects/porqa/llama/run_llama.py \
+ --model_path meta-llama/Llama-2-7b-hf \
+ --learning_rate 2e-5 \
+ --num_train_epochs 3 \
+ --output_dir /scratch/sz4651/Projects/porqa/llama/results/7b_temp_c10_l2048_e0 \
+ --subset temp \
+ --max_length 2048 \
+ --batch_size 2 \
+ --num_ctxs 10 \
+ --epsilon 0 \
+ --eval_freq 100 \
+ --save_freq 100 \
+ --gradient_accumulation_steps 4 \
+ --gradient_checkpointing 
+ 
+
+
+ --fp16 \
+ --max_train 8 \
+ --max_val 5
+
+
+
+torchrun --nnodes 1 \
+ --nproc_per_node 1 \
+
+accelerate launch /scratch/sz4651/Projects/porqa/llama/run_llama.py \
+ --model_path meta-llama/Llama-2-7b-chat-hf \
+ --checkpoint_path /scratch/sz4651/Projects/porqa/llama/results/chat_7b_temp_c10_l2048_e1/checkpoint-100 \
+ --test \
+ --subset temp \
+ --per_device_eval_batch_size 1 \
+ --max_val 20 \
+ --max_length 2048 \
+ --test_note c10_l2048_e1 \
+ --num_ctxs 10 \
+ --max_new_tokens 100
+
+
+ --master_port 7001 \
+
+#  --max_length 4096 \
+ --model_path NousResearch/Llama-2-7b-hf \
+

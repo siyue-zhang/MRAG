@@ -1,6 +1,7 @@
 from utils import *
 from prompts import *
 # import ipdb; ipdb.set_trace()
+# export VLLM_WORKER_MULTIPROC_METHOD=spawn
 
 import argparse
 from copy import deepcopy
@@ -8,6 +9,15 @@ from vllm import LLM, SamplingParams
 
 from sentence_transformers import CrossEncoder
 from FlagEmbedding import FlagReranker, FlagLLMReranker
+
+debug = None
+debug_question = None
+
+# debug = 'hitting a combined 115 home runs in 1961 and breaking the single-season record'
+# debug_question = 'Which league did Albuquerque Dukes play for since 1972?'
+
+# debug = 'Krista White, Sophie Sumner, Jourdan Miller and India Gants from Cycles 14, 18 the "British Invasion", 20 "Guys & Girls" and 23 respectively.'
+# debug_question = "Who wins America's Next Top Model Cycle 20 as of 2021?"
 
 def main():
     parser = argparse.ArgumentParser(description="Metriever")
@@ -39,7 +49,8 @@ def main():
     parser.add_argument('--hybrid-score', type=bool, default=True)
     parser.add_argument('--hybrid-base', type=float, default=0.5)
     parser.add_argument('--snt-with-title', type=bool, default=True)
-    parser.add_argument('--llm', type=str, default="llama_8b")
+    parser.add_argument('--llm', type=str, default="llama_70b")
+    parser.add_argument('--save-note', type=str, default=None)
 
     args = parser.parse_args()
     args.m1 = retrival_model_names(args.stage1_model)
@@ -79,9 +90,14 @@ def main():
     
     # only keep situatedqa and timeqa samples for this code
     examples = [ex for ex in examples if ex["source"] != 'dbpedia']
+    if debug_question:
+        examples = [ex for ex in examples if ex['question']==debug_question]
 
     # separate samples into different types for comparison
     examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
+
+    #####################################################################################################################
+    # Baselines 
 
     ctx_key = 'ctxs' if args.stage1_model=='contriever' else 'bm25_ctxs'
     if args.m2 == None or args.m2 != 'metriever':
@@ -144,7 +160,9 @@ def main():
         save_json_file(f'./retrieved/{args.stage1_model}_{args.stage2_model}_outputs.json', examples)
         return
 
-    ########## Metriever ##########
+    
+    #####################################################################################################################
+    # Metriever 
 
     # prepare keywords
     question_keyword_map={}
@@ -176,8 +194,6 @@ def main():
         raise NotImplemented
 
     for i, q in enumerate(tqdm(questions, desc="Postprocessing keywords", total=len(questions))):
-        # tmp = keyword_responses[i][len(prompt):].strip()
-        # tmp = tmp.split('Question:')[0].replace('\n','').strip()
         tmp = eval(keyword_responses[i])
         revised = []
         for kw in tmp:
@@ -190,6 +206,20 @@ def main():
         revised = expand_keywords(revised, q, verbose=True)
         question_keyword_map[q] = revised
 
+    # # judge if the question has static answer
+    # question_static_map={}
+    # prompts = [judge_static_prompt(q) for q in questions]
+    # print('aaaaaa')
+    # print(prompts)
+    # if args.llm_name not in ['gpt']:
+    #     responses = call_pipeline(args, prompts)
+    # else:
+    #     raise NotImplemented
+    # for i, q in enumerate(tqdm(questions, desc="Postprocessing keywords (2)", total=len(questions))):
+    #     question_static_map[q] = 'no' in responses[i].lower()
+    # print(responses)
+    # import ipdb; ipdb.set_trace()
+
     # main reranking loop
     print('\nfinished preparation, start modular reranking.')
     for k, ex in enumerate(examples):
@@ -201,6 +231,14 @@ def main():
         print(expanded_keyword_list)
         latest_ctxs = deepcopy(ex['ctxs']) # start from contriever top 1000
 
+        if debug:
+            for l,ctx in enumerate(ex['ctxs']):
+                if debug in ctx['text']:
+                    print(f'/////  contriever ctxs - {l}  /////')
+                    print(ctx['text'])
+                    break
+
+        #####################################################################################################################
         # top 1000 ctx_keyword_rank_module
         ctx_kw_scores=[]
         for ctx in latest_ctxs:
@@ -208,9 +246,19 @@ def main():
             ctx_score = count_keyword_scores(text, expanded_keyword_list, keyword_type_list)
             ctx_kw_scores.append((ctx, ctx_score))
         ctx_kw_scores = sorted(ctx_kw_scores, key=lambda x: x[1], reverse=True)
-        latest_ctxs = [tp[0] for tp in ctx_kw_scores[:args.ctx_topk]] # only keep top 100
+        latest_ctxs = [tp[0] for tp in ctx_kw_scores]
+
+        if debug:
+            for l,ctx in enumerate(latest_ctxs):
+                if debug in ctx['text']:
+                    print(f'/////  ctx_keyword_rank - {l}  /////')
+                    print(ctx['text'])
+                    break
+
+        latest_ctxs = latest_ctxs[:args.ctx_topk] # only keep top 100
         ex['ctx_keyword_rank'] = latest_ctxs
 
+        #####################################################################################################################
         # top 100 ctx_semantic_rank_module
         model_inputs = [[normalized_question, ctx["title"]+ ' ' + ctx["text"]] for ctx in latest_ctxs]
         flg = 'bge' in args.metriever_model
@@ -220,6 +268,14 @@ def main():
         latest_ctxs = sorted(latest_ctxs, key=lambda x: x["score"], reverse=True)
         ex['ctx_semantic_rank'] = latest_ctxs
 
+        if debug:
+            for l,ctx in enumerate(latest_ctxs):
+                if debug in ctx['text']:
+                    print(f'/////  ctx_semantic_rank - {l}  /////')
+                    print(ctx['text'])
+                    break
+
+        #####################################################################################################################
         # top 200 snt_keyword_rank_module
         # add QFS summary for top semantic context
         sentence_tuples = []
@@ -233,8 +289,6 @@ def main():
             summary_responses = call_pipeline(args, QFS_prompts)
         else:
             raise NotImplemented
-        # summaries = [summary_responses[i][len(QFS_prompts[i]):] for i in range(args.QFS_topk)]
-        # summaries = [s.split('Question:')[0].replace('\n','').strip() for s in summaries]
 
         for idx, ctx in enumerate(latest_ctxs):
             get_ctx_by_id[ctx['id']] = ctx
@@ -269,7 +323,15 @@ def main():
                 id_included.append(ctx_id)
                 latest_ctxs.append(get_ctx_by_id[ctx_id])
         ex['snt_keyword_rank'] = latest_ctxs
-        
+
+        if debug:
+            for l,ctx in enumerate(latest_ctxs):
+                if debug in ctx['text']:
+                    print(f'/////  snt_keyword_rank - {l}  /////')
+                    print(ctx['text'])
+                    break
+
+        #####################################################################################################################
         # top 200 snt_hybrid_rank_module
         sentence_tuples_unchange = sentence_tuples[min(len(sentence_tuples),args.snt_topk):]
         sentence_tuples = sentence_tuples[:min(len(sentence_tuples),args.snt_topk)]
@@ -296,6 +358,7 @@ def main():
             else:
                 time_relation_type = 'other'
 
+        # static = question_static_map[normalized_question]
         # compute semantic scores using reranker
         if 'years' in ex and time_relation_type != 'other' and args.hybrid_score:
             # for hybrid ranking using question without time
@@ -306,6 +369,7 @@ def main():
         semantic_scores =  args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)
         semantic_scores = [float(s) for s in semantic_scores]
 
+        # print(f'\nQuestion is static: {static}')
         if 'years' in ex and time_relation_type != 'other' and args.hybrid_score:
             # use temporal-semantic hybrid ranker
             years = ex['years']
@@ -326,6 +390,7 @@ def main():
         sentence_tuples = sorted(sentence_tuples, key=lambda x: x[2], reverse=True)
         sentence_tuples += sentence_tuples_unchange
 
+        ex['top_snts'] = '\n\n'.join([tp[0] for tp in sentence_tuples[:20]])
         latest_ctxs = []
         id_included = []
         for ctx_id, snt, score in sentence_tuples:
@@ -333,6 +398,19 @@ def main():
                 id_included.append(ctx_id)
                 latest_ctxs.append(get_ctx_by_id[ctx_id])
         ex['snt_hybrid_rank'] = latest_ctxs
+
+        if debug:
+            for l,ctx in enumerate(latest_ctxs):
+                if debug in ctx['text']:
+                    print(f'/////  snt_hybrid_rank - {l}  /////')
+                    print(ctx['text'])
+                    break
+            for l, tp in enumerate(sentence_tuples):
+                if l<5 or debug in tp[1]:
+                    print(f'#{l} {tp}')
+            
+        #####################################################################################################################
+
 
     examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
 
@@ -358,7 +436,11 @@ def main():
     eval_recall(examples_not_exact, ctxs_key='snt_hybrid_rank', ans_key='gold_evidences') 
 
     # save baseline results    
-    save_json_file(f'./retrieved/{args.stage1_model}_{args.stage2_model}_{args.metriever_model}_{args.llm_name}_outputs.json', examples)
+    save_name = f'./retrieved/{args.stage1_model}_{args.stage2_model}_{args.metriever_model}_{args.llm_name}_outputs.json'
+    if args.save_note:
+        save_name = save_name.replace('_outputs', f'_{args.save_note}_outputs')
+    if debug==None:
+        save_json_file(save_name, examples)
     return
 
 
@@ -454,7 +536,7 @@ def call_pipeline(args, prompts):
     sampling_params = SamplingParams(temperature=0.7, top_p=0.95, max_tokens=100)
     outputs = args.llm.generate(prompts, sampling_params)
     responses = [output.outputs[0].text for output in outputs]
-    responses = [res.split('Question:')[0] for res in responses]
+    responses = [res.split('Question:')[0] if 'Question:' in res else res for res in responses]
     responses = [res.replace('\n','').strip() for res in responses]
     return responses 
 

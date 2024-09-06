@@ -2,10 +2,6 @@ import json
 from utils import *
 from metriever import separate_samples
 
-def load_json_file(path):
-    with open(path, 'r') as file:
-        data = json.load(file)
-    return data
 
 def print_top_ctx(ex, topk, ctx_key):
     for i, ctx in enumerate(ex[ctx_key]):

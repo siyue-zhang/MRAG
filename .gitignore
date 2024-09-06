@@ -164,3 +164,4 @@ cython_debug/
 TempRAGEval/contriever_output/
 TempRAGEval/BM25_output/
 retrieved
+answered

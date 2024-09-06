@@ -1,5 +1,29 @@
 
 
+def judge_static_prompt(question):
+
+    prompt = f"""Your task is to tell if the answer to the given question would change over the time and in the future. Response "Yes" or "No".
+
+Question:
+Which country won the 2018 World Cup
+
+Response:
+The coutry won the 2018 World Cup does not change as time progresses. No.
+
+Question:
+Who is the president of US
+
+Response:
+The president of the United States is different at different times. Yes.
+
+Question:
+{question}
+
+Response:
+"""
+    return prompt
+
+
 def get_keyword_prompt(question):
 
     prompt = f"""Your task is to extract keywords from the question. Response by a list of keyword strings. Do not include pronouns, prepositions, articles.
@@ -11,10 +35,10 @@ Keywords:
 ["United States", "hosted", "Olympics"]
 
 Question:
-Who sang the national anthem for Super Bowl last year?
+Who sang 1 national anthem for Super Bowl last year?
 
 Keywords:
-["sang", "national anthem", "Super Bowl"]
+["sang", "1", "national anthem", "Super Bowl"]
 
 Question:
 Most goals in international football?
@@ -29,22 +53,28 @@ Keywords:
 ["TV", "episodes", "series", "The Crossing"]
 
 Question:
-When is The Good Doctor season 1 episode 11?
+Who runs the fastest 40-yard dash in the NFL?
 
 Keywords:
-["The Good Doctor", "season", "1", "episode", "11"]
+["runs", "fastest", "40-yard", "dash", "NFL"]
 
 Question:
 Current captain of the England mens cricket team?
     
 Keywords:
-["captain", "England", "mens", "cricket team"]
+["captain", "England", "mens", "cricket", "team"]
+
+Question:
+Top 10 most popular songs of the 2000s?
+
+Keywords:
+["top", "10", "most", "popular", "songs", "2000s"]
 
 Question:
 Who is the highest paid professional sports player?
 
 Keywords:
-["highest", "paid", "professional", "sports player"]
+["highest", "paid", "professional", "sports", "player"]
 
 Question:
 When did Khalid write Young Dumb and Broke?
@@ -103,61 +133,37 @@ Summarization:
 # to be updated
 def zc_prompt(question):
 
-    prompt = f"""You are given a question. Provide a short and brief answer to the question.
+    prompt = f"""You are an expert of world knowledge. I am going to ask you a question and you should provide a short and brief answer to the question.
 
 Question:
-when did england last get to the semi final of a world cup as of 2019
+When did England last get to the semi final of a World Cup before 2019?
 
 Answer:
 2018
 
 Question:
-who sang the national anthem super bowl last year as of 2021
+Who sang the national anthem Super Bowl last year as of 2021?
 
 Answer:
 Jazmine Sullivan and Eric Church
 
 Question:
-current captain of the england mens test cricket team as of 2010
-    
+Current captain of the England mens test cricket team as of 2010?
+
 Answer:
 Alastair Cook
 
 Question:
-when did new york became one of the 50 states as of December 18, 2020
-
-Answer:
-July 26, 1788
-
-Question:
-zelda breath of the wild how many players as of August 09, 2018
-
-Answer:
-1
-
-Question:
-what's the name of the latest pirates of the caribbean as of 2011
+What's the name of the latest Pirates of the Caribbean by 2011?
 
 Answer:
 On Stranger Tides
 
 Question:
-when was the last time the olympics were held in korea as of 2001
+What was the last time France won World Cup between 2018 and 2019?
 
 Answer:
-1988 Summer Olympics Seoul
-
-Question:
-when was the st paul mn cathedral built as of August 21, 2019
-
-Answer:
-1907-1915
-
-Question:
-what was the last time france won world cup as of 2018
-
-Answer:
-2018 FIFA World Cup
+2018
 
 Question:
 {question}
@@ -167,12 +173,13 @@ Answer:
     return prompt
 
 
+
 def c_prompt(query, texts):
 
-    prompt=f"""You are given a question and some contexts. Based on these contexts, you should provide a short and direct answer to the question. Only response by what is asked by the question.
+    prompt=f"""You are an expert of world knowledge. I am going to ask you a question. Your response should be comprehensive and not contradicted with the following contexts if they are relevant. Otherwise, ignore them if they are not relevant.
 
 Question:
-When did england last get to the semi final of a world cup as of 2019?
+When did england last get to the semi final of a world cup before 2019?
 
 Contexts:
 Sport in the United Kingdom Field hockey is the second most popular team recreational sport in the United Kingdom. The Great Britain men's hockey team won the hockey tournament at the 1988 Olympics, while the women's hockey team repeated the success in the 2016 Games.
@@ -188,12 +195,12 @@ Question:
 Who sang the national anthem super bowl last year as of 2021?
 
 Contexts:
-For Super Bowl LV, which took place in February 2021, the national anthem was performed by Jazmine Sullivan and Eric Church. They sang the anthem together as a duet.
+For Super Bowl LV, which took place in February 2021, the national anthem was performed by Jazmine Sullivan. They sang the anthem together as a duet.
 
 For Super Bowl LVI, which took place in February 2022, the national anthem was performed by Mickey Guyton. She delivered a powerful rendition of the anthem.
 
 Answer:
-Jazmine Sullivan and Eric Church
+Jazmine Sullivan
     
 Question:
 {query}

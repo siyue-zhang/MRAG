@@ -246,3 +246,7 @@ def save_json_file(path, object):
         json.dump(object, json_file)
 
 
+def load_json_file(path):
+    with open(path, 'r') as file:
+        data = json.load(file)
+    return data
