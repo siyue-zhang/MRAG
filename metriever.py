@@ -44,7 +44,7 @@ def main():
     parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/data.json")
     parser.add_argument('--bm25-output', type=str, default="./TempRAGEval/BM25_output/data.json")
     parser.add_argument('--ctx-topk', type=int, default=100)
-    parser.add_argument('--QFS-topk', type=int, default=5)
+    parser.add_argument('--QFS-topk', type=int, default=10)
     parser.add_argument('--snt-topk', type=int, default=200)
     parser.add_argument('--hybrid-score', type=bool, default=True)
     parser.add_argument('--hybrid-base', type=float, default=0.5)
@@ -60,7 +60,7 @@ def main():
     args.llm_name = deepcopy(args.llm)
 
     # load llm
-    if args.m2:
+    if args.m2=='metriever':
         flg = '70b' in args.llm_name
         if flg:
             args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ")
@@ -74,6 +74,13 @@ def main():
             args.model = FlagLLMReranker(name, use_fp16=True,)
         elif 'bge' in name:
             args.model = FlagReranker(name, use_fp16=True)
+        elif 'monot5' in name:
+            pass
+            # from pygaggle.rerank.base import Query, Text
+            # from pygaggle.rerank.transformer import MonoT5
+            # import os
+            # os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+            # return MonoT5()
         else:
             args.model = CrossEncoder(name)
 
@@ -123,17 +130,28 @@ def main():
 
     if args.m2 and args.m2 != 'metriever':
         # benchmark baselines
-        flg = 'bge' in args.stage2_model
-        for ex in tqdm(examples, desc="Reranking contexts"):
-            question = ex['question']
-            latest_ctxs = deepcopy(ex[ctx_key])
-            latest_ctxs = latest_ctxs[:args.ctx_topk]
-            model_inputs = [[question, ctx["title"]+" "+ctx["text"]] for ctx in latest_ctxs]
-            scores = args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)   
-            for i, ctx in enumerate(latest_ctxs):
-                ctx["score"] = float(scores[i])
-            latest_ctxs = sorted(latest_ctxs, key=lambda x: x['score'], reverse=True)
-            ex['reranker_ctxs'] = latest_ctxs
+        if args.stage2_model=='monot5':
+            pass
+            # for example in examples:
+            #     query = Query(example["question"])
+            #     passages = example[ctx_key][:100]
+            #     texts = [Text(p["text"], {"id": p["id"], "title": p["title"], "hasanswer": p["hasanswer"]}, p["score"]) for p in passages]
+            #     reranked = model.rerank(query, texts)
+            #     latest_ctxs = [{"id": ex.metadata["id"], "title": ex.metadata["title"], "text": ex.text, "score": ex.score, "hasanswer": ex.metadata["hasanswer"]} for ex in reranked]
+            #     latest_ctxs = sorted(latest_ctxs, key=lambda x: x["score"], reverse=True)
+            #     example['reranker_ctxs'] = latest_ctxs
+        else:
+            flg = 'bge' in args.stage2_model
+            for ex in tqdm(examples, desc="Reranking contexts"):
+                question = ex['question']
+                latest_ctxs = deepcopy(ex[ctx_key])
+                latest_ctxs = latest_ctxs[:args.ctx_topk]
+                model_inputs = [[question, ctx["title"]+" "+ctx["text"]] for ctx in latest_ctxs]
+                scores = args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)   
+                for i, ctx in enumerate(latest_ctxs):
+                    ctx["score"] = float(scores[i])
+                latest_ctxs = sorted(latest_ctxs, key=lambda x: x['score'], reverse=True)
+                ex['reranker_ctxs'] = latest_ctxs
         # evaluate reranking results    
         ctx_key = 'reranker_ctxs'
         examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
@@ -338,10 +356,10 @@ def main():
         print(f'rerank top {args.snt_topk} sentences.\n')
         # classify time relation
         # there are 4 types of time relation and 2 types of implicit condition (first and last)
-        # 1)	before
-        # 2)	after
-        # 3)	between
-        # 4)	other (in, on, around)
+        # 1)	before (before, as of, by until)
+        # 2)	after (after, from, since)
+        # 3)	between (between, from to)
+        # 4)	other (in, on, around, during)
         if 'years' in ex:
             years = ex['years'] # question dates
             time_relation = ex['time_specifier'].lower()
@@ -353,6 +371,8 @@ def main():
                     time_relation_type = 'after'
                 else:
                     time_relation_type = 'between'
+            elif time_relation == 'since':
+                time_relation_type = 'after'
             elif time_relation in ['after','between']:
                 time_relation_type = time_relation
             else:
@@ -435,9 +455,11 @@ def main():
     print('~~~~~~~snt_hybrid_rank~~~~~~~~')
     eval_recall(examples_not_exact, ctxs_key='snt_hybrid_rank', ans_key='gold_evidences') 
 
-    # save baseline results    
+    # save metriever results    
     save_name = f'./retrieved/{args.stage1_model}_{args.stage2_model}_{args.metriever_model}_{args.llm_name}_outputs.json'
-    if args.save_note:
+    if args.QFS_topk and args.QFS_topk>0:
+        save_name = save_name.replace('_outputs', f'_qfs{args.QFS_topk}_outputs')
+    if args.save_note:            
         save_name = save_name.replace('_outputs', f'_{args.save_note}_outputs')
     if debug==None:
         save_json_file(save_name, examples)

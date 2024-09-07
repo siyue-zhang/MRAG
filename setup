@@ -17,12 +17,14 @@ singularity exec --nv --overlay /scratch/sz4651/Projects/UnifiedSKG/overlay-skg2
 # 11.3
 singularity exec --nv --overlay /scratch/sz4651/Projects/UnifiedSKG/overlay-skg2.ext3:ro /scratch/work/public/singularity/cuda11.3.0-cudnn8-devel-ubuntu20.04.sif /bin/bash
 
-cd /scratch/sz4651/Projects/metriever
+cd /scratch/sz4651/Projects/metriever_final
 conda activate l3
 cd /scratch/sz4651/Projects/modular_retriever
 conda activate llama
 conda activate l3
 conda activate contriever
+
+export VLLM_WORKER_MULTIPROC_METHOD=spawn
 
 python run_llama.py --subset temp --split train --num_ctxs 25
 

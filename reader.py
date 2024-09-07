@@ -24,10 +24,10 @@ def main():
     parser = argparse.ArgumentParser(description="Reader")
     parser.add_argument('--max-examples', type=int, default=None)
     parser.add_argument('--llm', type=str, default="llama_70b")
-    parser.add_argument('--retriever-output', type=str, default="contriever_metriever_minilm12_llama_8b_outputs.json")
+    parser.add_argument('--retriever-output', type=str, default="contriever_metriever_minilm12_llama_70b_QFS10_outputs.json")
     parser.add_argument('--ctx-key', type=str, default="snt_hybrid_rank")
-    parser.add_argument('--ctx-topk', type=int, default=10)
-    parser.add_argument('--param-pred', type=bool, default=True)
+    parser.add_argument('--ctx-topk', type=int, default=20)
+    parser.add_argument('--param-pred', type=bool, default=False)
 
     args = parser.parse_args()
     args.l = llm_names(args.llm)
@@ -62,7 +62,7 @@ def main():
     prompts = []
     texts = []
     for ex in examples:
-        text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'] for ctx in ex[args.ctx_key][:args.ctx_topk]])
+        text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'].strip() for ctx in ex[args.ctx_key][:args.ctx_topk]])
         texts.append(text)
         prompt = c_prompt(ex['question'], text)
         prompts.append(prompt)
@@ -145,10 +145,13 @@ def main():
     to_save_df.to_csv(result_name, index=False, encoding='utf-8')
     print(f"Saved as {result_name}")
 
+    ##########
+    print('--- TimeQA ---')
+    to_save_timeqa = [ex for ex in to_save if ex['source']=='timeqa']
     # separate samples into different types for comparison
     exact_param, exact_rag = [], []
     not_exact_param, not_exact_rag = [], []
-    for example in to_save:
+    for example in to_save_timeqa:
         if example['time_relation'] == '':
             pass
         elif int(example['exact']) == 1:
@@ -169,6 +172,32 @@ def main():
     print(f'    w/ key date acc : {round(np.mean(exact_rag),4)}')
     print(f'    w/ perturb date acc : {round(np.mean(not_exact_rag),4)}')
 
+    ##########
+    print('\n--- SituatedQA ---')
+    to_save_situatedqa = [ex for ex in to_save if ex['source']=='situatedqa']
+    # separate samples into different types for comparison
+    exact_param, exact_rag = [], []
+    not_exact_param, not_exact_rag = [], []
+    for example in to_save_situatedqa:
+        if example['time_relation'] == '':
+            pass
+        elif int(example['exact']) == 1:
+            exact_rag.append(example['rag_acc'])
+            if 'param_acc' in example:
+                exact_param.append(example['param_acc'])
+        else:
+            not_exact_rag.append(example['rag_acc'])
+            if 'param_acc' in example:
+                not_exact_param.append(example['param_acc'])
+
+    if args.param_pred:
+        print('Parametric')
+        print(f'    w/ key date acc : {round(np.mean(exact_param),4)}')
+        print(f'    w/ perturb date acc : {round(np.mean(not_exact_param),4)}')
+
+    print('RAG')
+    print(f'    w/ key date acc : {round(np.mean(exact_rag),4)}')
+    print(f'    w/ perturb date acc : {round(np.mean(not_exact_rag),4)}')
 
 if __name__ == "__main__":
     main()

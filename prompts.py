@@ -176,17 +176,18 @@ Answer:
 
 def c_prompt(query, texts):
 
-    prompt=f"""You are an expert of world knowledge. I am going to ask you a question. Your response should be comprehensive and not contradicted with the following contexts if they are relevant. Otherwise, ignore them if they are not relevant.
+    # prompt=f"""You are an expert of world knowledge. I am going to ask you a question. Your response should be short and not contradicted with the following contexts if they are relevant. Otherwise, ignore them if they are not relevant.
+    prompt=f"""Your task is to answer the question based on the given context information and not prior knowledge.
 
 Question:
 When did england last get to the semi final of a world cup before 2019?
 
 Contexts:
-Sport in the United Kingdom Field hockey is the second most popular team recreational sport in the United Kingdom. The Great Britain men's hockey team won the hockey tournament at the 1988 Olympics, while the women's hockey team repeated the success in the 2016 Games.
+Sport in the United Kingdom Field | hockey is the second most popular team recreational sport in the United Kingdom. The Great Britain men's hockey team won the hockey tournament at the 1988 Olympics, while the women's hockey team repeated the success in the 2016 Games.
 
-Three Lions (song) The song reached number one on the UK Singles Chart again in 2018 following England reaching the semi-finals of the 2018 FIFA World Cup, with the line "it's coming home" featuring heavily on social media.
+Three Lions (song) | The song reached number one on the UK Singles Chart again in 2018 following England reaching the semi-finals of the 2018 FIFA World Cup, with the line "it's coming home" featuring heavily on social media.
 
-England national football team They have qualified for the World Cup sixteen times, with fourth-place finishes in the 1990 and 2018 editions.
+England national football team | They have qualified for the World Cup sixteen times, with fourth-place finishes in the 1990 and 2018 editions.
 
 Answer:
 2018
@@ -195,9 +196,9 @@ Question:
 Who sang the national anthem super bowl last year as of 2021?
 
 Contexts:
-For Super Bowl LV, which took place in February 2021, the national anthem was performed by Jazmine Sullivan. They sang the anthem together as a duet.
+Bowl LV | For Super Bowl LV, which took place in February 2021, the national anthem was performed by Jazmine Sullivan. They sang the anthem together as a duet.
 
-For Super Bowl LVI, which took place in February 2022, the national anthem was performed by Mickey Guyton. She delivered a powerful rendition of the anthem.
+Super Bowl LVI | For Super Bowl LVI, which took place in February 2022, the national anthem was performed by Mickey Guyton. She delivered a powerful rendition of the anthem.
 
 Answer:
 Jazmine Sullivan
