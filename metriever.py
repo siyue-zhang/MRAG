@@ -410,7 +410,7 @@ def main():
         sentence_tuples = sorted(sentence_tuples, key=lambda x: x[2], reverse=True)
         sentence_tuples += sentence_tuples_unchange
 
-        ex['top_snts'] = '\n\n'.join([tp[0] for tp in sentence_tuples[:20]])
+        ex['top_snts'] = '\n\n'.join([tp[1] for tp in sentence_tuples[:20]])
         latest_ctxs = []
         id_included = []
         for ctx_id, snt, score in sentence_tuples:
