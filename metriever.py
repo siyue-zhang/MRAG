@@ -31,7 +31,7 @@ def main():
     parser.add_argument(
         '--stage2-model', 
         choices=['metriever','minilm6','minilm12','bge','tinybert','bigegemma','monot5', None], 
-        default='metriever', #
+        default='minilm12', #
         # default='bge', #
         help='Choose a model for stage 2 re-ranking'
     )
@@ -41,10 +41,10 @@ def main():
         default='minilm12',
         help='Choose a model for metriever stage2 re-ranking'
     )
-    parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/data.json")
+    parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/TempRAGEval.json")
     parser.add_argument('--bm25-output', type=str, default="./TempRAGEval/BM25_output/data.json")
     parser.add_argument('--ctx-topk', type=int, default=100)
-    parser.add_argument('--QFS-topk', type=int, default=10)
+    parser.add_argument('--QFS-topk', type=int, default=5)
     parser.add_argument('--snt-topk', type=int, default=200)
     parser.add_argument('--hybrid-score', type=bool, default=True)
     parser.add_argument('--hybrid-base', type=float, default=0.5)
@@ -186,7 +186,7 @@ def main():
     question_keyword_map={}
     for k, ex in enumerate(tqdm(examples, desc="Preprocessing questions", total=len(examples))):
         question = ex['question']
-        time_relation = ex['time_specifier']
+        time_relation = ex['time_relation']
         assert time_relation in question, question
         if time_relation != '':
             parts = question.split(time_relation)
@@ -242,7 +242,7 @@ def main():
     print('\nfinished preparation, start modular reranking.')
     for k, ex in enumerate(examples):
         question = ex['question']
-        time_relation = ex['time_specifier']
+        time_relation = ex['time_relation']
         normalized_question = ex['normalized_question']
         expanded_keyword_list, keyword_type_list = question_keyword_map[normalized_question]
         print(f'\n---- {k} ----\n{question}\n')
@@ -362,7 +362,7 @@ def main():
         # 4)	other (in, on, around, during)
         if 'years' in ex:
             years = ex['years'] # question dates
-            time_relation = ex['time_specifier'].lower()
+            time_relation = ex['time_relation'].lower()
             implicit_condition = ex['implicit_condition']
             if time_relation in ['before','as of','by','until']:
                 time_relation_type = 'before'
@@ -470,7 +470,7 @@ def separate_samples(examples):
     # separate samples into different types for comparison
     examples_notime, examples_exact, examples_not_exact = [], [], []
     for example in examples:
-        if example['time_specifier'] == '':
+        if example['time_relation'] == '':
             examples_notime.append(example)
         elif int(example['exact']) == 1:
             examples_exact.append(example)

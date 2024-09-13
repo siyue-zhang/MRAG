@@ -23,10 +23,10 @@ def reader_pipeline(llm, prompts):
 def main():
     parser = argparse.ArgumentParser(description="Reader")
     parser.add_argument('--max-examples', type=int, default=None)
-    parser.add_argument('--llm', type=str, default="llama_70b")
-    parser.add_argument('--retriever-output', type=str, default="contriever_metriever_minilm12_llama_70b_QFS10_outputs.json")
-    parser.add_argument('--ctx-key', type=str, default="snt_hybrid_rank")
-    parser.add_argument('--ctx-topk', type=int, default=20)
+    parser.add_argument('--llm', type=str, default="llama_8b")
+    parser.add_argument('--retriever-output', type=str, default="contriever_minilm12_outputs.json")
+    parser.add_argument('--ctx-key', type=str, default="reranker_ctxs")
+    parser.add_argument('--ctx-topk', type=int, default=10)
     parser.add_argument('--param-pred', type=bool, default=False)
 
     args = parser.parse_args()
@@ -107,6 +107,11 @@ def main():
         ex['rag_pred'] = rag_pred
         ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
 
+        for item in ['QFS_summary']:
+            if 'QFS_summary' not in ex[args.ctx_key][0]:
+                for ctx in ex[args.ctx_key]:
+                    ctx[item]=''
+
         reranker_ctx_text = '\n\n'.join([f"{t+1} | {ctx['hasanswer']} | {ctx['title']} | {ctx['text']}\nQFS: {ctx['QFS_summary']}" for  t, ctx in enumerate(ex[args.ctx_key][:20])])
         contriever_ctx_text = '\n\n'.join([f" {t+1} | {ctx['hasanswer']} | {ctx['title']} | {ctx['text']}" for t, ctx in enumerate(ex['ctxs'][:20])])
         result = {
@@ -115,7 +120,7 @@ def main():
             'question': question,
             'exact': ex['exact'],
             'answers': ex['answers'],
-            'time_relation': ex['time_specifier'],
+            'time_relation': ex['time_relation'],
             'contriever_ans_hit': ans_index,
             'contriever_gold_hit': gold_index,
             'contriever_ctxs': contriever_ctx_text,
@@ -125,7 +130,7 @@ def main():
             'rag_pred': ex['rag_pred'],
             'rag_acc': ex['rag_acc'],
             'gold_evidences': '\n\n'.join(gold_evidences),
-            'top_snts': ex['top_snts'],
+            'top_snts': ex['top_snts'] if 'top_snts' in ex else '',
             }
 
         if args.param_pred:

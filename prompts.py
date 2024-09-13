@@ -176,8 +176,7 @@ Answer:
 
 def c_prompt(query, texts):
 
-    # prompt=f"""You are an expert of world knowledge. I am going to ask you a question. Your response should be short and not contradicted with the following contexts if they are relevant. Otherwise, ignore them if they are not relevant.
-    prompt=f"""Your task is to answer the question based on the given context information and not prior knowledge.
+    prompt=f"""Your task is to answer the question based on the given context information. Your response should be a brief short-form answer.
 
 Question:
 When did england last get to the semi final of a world cup before 2019?
