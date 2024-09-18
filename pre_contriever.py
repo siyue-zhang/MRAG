@@ -12,6 +12,9 @@ for index, row in df.iterrows():
         gold_evidences.append(row['gold_evidence_1'])
     if row['gold_evidence_2']!='':
         gold_evidences.append(row['gold_evidence_2'])
+    if row['time_relation']!='':
+        # if row['id'] not in ['s_139','s_302','s_453','s_472']:
+        assert row['time_relation'] in row['question'], row
 
     example = {
         'question': row['question'].strip().replace('\n',''),
@@ -19,7 +22,8 @@ for index, row in df.iterrows():
         'exact': row['exact_time'],
         'source': row['original_dataset'],
         'gold_evidences': gold_evidences,
-        'time_relation': row['time_relation']
+        'time_relation': row['time_relation'],
+        'id': row['id']
     }
     to_save.append(example)
 

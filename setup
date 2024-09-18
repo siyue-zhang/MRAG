@@ -21,7 +21,7 @@ cd /scratch/sz4651/Projects/metriever_final
 conda activate l3
 cd /scratch/sz4651/Projects/modular_retriever
 conda activate llama
-conda activate l3
+conda activate /scratch/sz4651/Projects/ext3/miniconda3/envs/metriever
 conda activate contriever
 
 export VLLM_WORKER_MULTIPROC_METHOD=spawn

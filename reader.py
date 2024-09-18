@@ -115,7 +115,7 @@ def main():
         reranker_ctx_text = '\n\n'.join([f"{t+1} | {ctx['hasanswer']} | {ctx['title']} | {ctx['text']}\nQFS: {ctx['QFS_summary']}" for  t, ctx in enumerate(ex[args.ctx_key][:20])])
         contriever_ctx_text = '\n\n'.join([f" {t+1} | {ctx['hasanswer']} | {ctx['title']} | {ctx['text']}" for t, ctx in enumerate(ex['ctxs'][:20])])
         result = {
-            'id': k+1,
+            'id': ex['id'],
             'source': ex['source'],
             'question': question,
             'exact': ex['exact'],
@@ -129,7 +129,8 @@ def main():
             'reranker_ctxs': reranker_ctx_text,
             'rag_pred': ex['rag_pred'],
             'rag_acc': ex['rag_acc'],
-            'gold_evidences': '\n\n'.join(gold_evidences),
+            'gold_evidence_1': gold_evidences[0],
+            'gold_evidence_2': gold_evidences[1] if len(gold_evidences)>1 else '',
             'top_snts': ex['top_snts'] if 'top_snts' in ex else '',
             }
 
