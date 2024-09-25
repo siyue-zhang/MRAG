@@ -42,7 +42,7 @@ def main():
         help='Choose a model for metriever stage2 re-ranking'
     )
     parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/TempRAGEval.json")
-    parser.add_argument('--bm25-output', type=str, default="./TempRAGEval/BM25_output/data.json")
+    parser.add_argument('--bm25-output', type=str, default="./TempRAGEval/BM25_output/TempRAGEval.json")
     parser.add_argument('--ctx-topk', type=int, default=100)
     parser.add_argument('--QFS-topk', type=int, default=5)
     parser.add_argument('--snt-topk', type=int, default=200)
@@ -86,40 +86,71 @@ def main():
 
     # load examples
     if args.stage1_model == 'contriever':
+        ctx_key = 'ctxs'
         path = args.contriever_output
         examples = load_contriever_output(path)
+        
     elif args.stage1_model == 'bm25':
+        ctx_key = 'bm25_ctxs'
         path = args.bm25_output
-        raise NotImplemented
+        with open(path, 'r') as file:
+            examples = json.load(file)
     else:
         # hybrid
+        ctx_key = 'hybrid_ctxs'
         path_contriever = args.contriever_output
+        examples_contriever = load_contriever_output(path)
+
         path_bm25 = args.bm25_output
+        with open(path_bm25, 'r') as file:
+            examples_bm25 = json.load(file)
 
-        # chunk_ids = list(set(ranked_chunk_ids + ranked_bm25_chunk_ids))
-        # chunk_id_to_score = {}
+        assert len(examples_contriever) == len(examples_bm25)
+        ctx_map = {}
+        for idx in range(len(examples_contriever)):
+            ctxs = examples_contriever[idx]['ctxs']
+            ranked_chunk_ids = [ctx['id'] for ctx in ctxs[:min(1000, len(ctxs))]]
+            for ctx in ctxs:
+                if ctx['id'] not in ctx_map:
+                    ctx_map[ctx['id']] = ctx
+            
+            bm25_ctxs = examples_bm25[idx]['bm25_ctxs']
+            ranked_chunk_ids = [ctx['id'] for ctx in bm25_ctxs[:min(1000, len(bm25_ctxs))]]
+            for ctx in bm25_ctxs:
+                if ctx['id'] not in ctx_map:
+                    ctx_map[ctx['id']] = ctx
 
-        # # Initial scoring with weights
-        # for chunk_id in chunk_ids:
-        #     score = 0
-        #     if chunk_id in ranked_chunk_ids:
-        #         index = ranked_chunk_ids.index(chunk_id)
-        #         score += semantic_weight * (1 / (index + 1))  # Weighted 1/n scoring for semantic
-        #     if chunk_id in ranked_bm25_chunk_ids:
-        #         index = ranked_bm25_chunk_ids.index(chunk_id)
-        #         score += bm25_weight * (1 / (index + 1))  # Weighted 1/n scoring for BM25
-        #     chunk_id_to_score[chunk_id] = score
+            chunk_ids = list(set(ranked_chunk_ids + ranked_bm25_chunk_ids))
+            chunk_id_to_score = {}
 
-        # # Sort chunk IDs by their scores in descending order
-        # sorted_chunk_ids = sorted(
-        #     chunk_id_to_score.keys(), key=lambda x: (chunk_id_to_score[x], x[0], x[1]), reverse=True
-        # )
+            semantic_weight = 0.8
+            bm25_weight = 0.2
+            # Initial scoring with weights
+            for chunk_id in chunk_ids:
+                score = 0
+                if chunk_id in ranked_chunk_ids:
+                    index = ranked_chunk_ids.index(chunk_id)
+                    score += semantic_weight * (1 / (index + 1))  # Weighted 1/n scoring for semantic
+                if chunk_id in ranked_bm25_chunk_ids:
+                    index = ranked_bm25_chunk_ids.index(chunk_id)
+                    score += bm25_weight * (1 / (index + 1))  # Weighted 1/n scoring for BM25
+                chunk_id_to_score[chunk_id] = score
 
-        # # Assign new scores based on the sorted order
-        # for index, chunk_id in enumerate(sorted_chunk_ids):
-        #     chunk_id_to_score[chunk_id] = 1 / (index + 1)
+            # Sort chunk IDs by their scores in descending order
+            sorted_chunk_ids = sorted(
+                chunk_id_to_score.keys(), key=lambda x: (chunk_id_to_score[x], x[0], x[1]), reverse=True
+            )
 
-        raise NotImplemented
+            # Assign new scores based on the sorted order
+            for index, chunk_id in enumerate(sorted_chunk_ids):
+                chunk_id_to_score[chunk_id] = 1 / (index + 1)
+
+            new_ctxs = [ctx_map[id] for id in sorted_chunk_ids]
+            for ctx in new_ctxs:
+                ctx['score'] = chunk_id_to_score[ctx['id']]
+            del examples_contriever[idx]['ctxs']
+            examples_contriever[idx][ctx_key] = new_ctxs
+        examples = examples_contriever
 
     if args.max_examples:
         examples = examples[:min(len(examples),args.max_examples)]
@@ -134,8 +165,6 @@ def main():
 
     #####################################################################################################################
     # Baselines 
-
-    ctx_key = 'ctxs' if args.stage1_model=='contriever' else 'bm25_ctxs'
     if args.m2 == None or args.m2 != 'metriever':
         print(f'--- Stage 1: {args.stage1_model} ---\n')
         print('\n**** Answers ****')
