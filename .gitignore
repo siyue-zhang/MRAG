@@ -165,3 +165,5 @@ TempRAGEval/
 retrieved/
 answered/
 monitor/
+bm25/index/
+bm25/monitor/

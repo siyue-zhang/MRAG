@@ -24,7 +24,7 @@ def main():
     parser.add_argument('--max-examples', type=int, default=None)
     parser.add_argument(
         '--stage1-model',
-        choices=['bm25', 'contriever'], 
+        choices=['bm25', 'contriever','hybrid'], 
         default='contriever', #
         help='Choose a model for stage 1 retrival'
     )
@@ -88,8 +88,37 @@ def main():
     if args.stage1_model == 'contriever':
         path = args.contriever_output
         examples = load_contriever_output(path)
-    else:
+    elif args.stage1_model == 'bm25':
         path = args.bm25_output
+        raise NotImplemented
+    else:
+        # hybrid
+        path_contriever = args.contriever_output
+        path_bm25 = args.bm25_output
+
+        # chunk_ids = list(set(ranked_chunk_ids + ranked_bm25_chunk_ids))
+        # chunk_id_to_score = {}
+
+        # # Initial scoring with weights
+        # for chunk_id in chunk_ids:
+        #     score = 0
+        #     if chunk_id in ranked_chunk_ids:
+        #         index = ranked_chunk_ids.index(chunk_id)
+        #         score += semantic_weight * (1 / (index + 1))  # Weighted 1/n scoring for semantic
+        #     if chunk_id in ranked_bm25_chunk_ids:
+        #         index = ranked_bm25_chunk_ids.index(chunk_id)
+        #         score += bm25_weight * (1 / (index + 1))  # Weighted 1/n scoring for BM25
+        #     chunk_id_to_score[chunk_id] = score
+
+        # # Sort chunk IDs by their scores in descending order
+        # sorted_chunk_ids = sorted(
+        #     chunk_id_to_score.keys(), key=lambda x: (chunk_id_to_score[x], x[0], x[1]), reverse=True
+        # )
+
+        # # Assign new scores based on the sorted order
+        # for index, chunk_id in enumerate(sorted_chunk_ids):
+        #     chunk_id_to_score[chunk_id] = 1 / (index + 1)
+
         raise NotImplemented
 
     if args.max_examples:
