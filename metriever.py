@@ -25,13 +25,13 @@ def main():
     parser.add_argument(
         '--stage1-model',
         choices=['bm25', 'contriever','hybrid'], 
-        default='contriever', #
+        default='bm25', #
         help='Choose a model for stage 1 retrival'
     )
     parser.add_argument(
         '--stage2-model', 
         choices=['metriever','minilm6','minilm12','bge','tinybert','bigegemma','monot5', None], 
-        default='minilm12', #
+        default=None, #
         # default='bge', #
         help='Choose a model for stage 2 re-ranking'
     )
@@ -99,7 +99,7 @@ def main():
         # hybrid
         ctx_key = 'hybrid_ctxs'
         path_contriever = args.contriever_output
-        examples_contriever = load_contriever_output(path)
+        examples_contriever = load_contriever_output(path_contriever)
 
         path_bm25 = args.bm25_output
         with open(path_bm25, 'r') as file:
@@ -115,7 +115,7 @@ def main():
                     ctx_map[ctx['id']] = ctx
             
             bm25_ctxs = examples_bm25[idx]['bm25_ctxs']
-            ranked_chunk_ids = [ctx['id'] for ctx in bm25_ctxs[:min(1000, len(bm25_ctxs))]]
+            ranked_bm25_chunk_ids = [ctx['id'] for ctx in bm25_ctxs[:min(1000, len(bm25_ctxs))]]
             for ctx in bm25_ctxs:
                 if ctx['id'] not in ctx_map:
                     ctx_map[ctx['id']] = ctx
@@ -162,6 +162,8 @@ def main():
 
     # separate samples into different types for comparison
     examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
+
+    # complete ctx head and tail sentences
 
     #####################################################################################################################
     # Baselines 
