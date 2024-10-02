@@ -4,6 +4,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import collections
 
 # nltk.download('punkt')
 # nltk.download('averaged_perceptron_tagger')
@@ -240,6 +241,24 @@ def eval_recall(examples, ctxs_key, ans_key='answers'):
     print('\n')
     return records
 
+def _str_f1(target, prediction):
+  """Computes token f1 score for a single target and prediction."""
+  prediction_tokens = prediction.lower().strip().split()
+  target_tokens = target.lower().strip().split()
+  common = (collections.Counter(prediction_tokens) &
+            collections.Counter(target_tokens))
+  num_same = sum(common.values())
+  if num_same == 0:
+    return 0
+  precision = 1.0 * num_same / len(prediction_tokens)
+  recall = 1.0 * num_same / len(target_tokens)
+  f1 = 100 * (2 * precision * recall) / (precision + recall)
+  return f1
+
+def max_token_f1(answers, prediction):
+    f1 = [_str_f1(ans, prediction) for ans in answers]
+    f1 = max(f1)
+    return f1
 
 def save_json_file(path, object):
    with open(path , "w") as json_file:
@@ -250,3 +269,5 @@ def load_json_file(path):
     with open(path, 'r') as file:
         data = json.load(file)
     return data
+
+

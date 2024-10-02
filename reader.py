@@ -118,7 +118,8 @@ def main():
         rag_pred = rag_preds[k]
         ex['rag_pred'] = rag_pred
         ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
-
+        ex['rag_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(rag_pred))
+ 
         for item in ['QFS_summary']:
             if 'QFS_summary' not in ex[args.ctx_key][0]:
                 for ctx in ex[args.ctx_key]:
@@ -142,6 +143,7 @@ def main():
             'reranker_ctxs': s2_ctx_text,
             'rag_pred': ex['rag_pred'],
             'rag_acc': ex['rag_acc'],
+            'rag_f1': ex['rag_f1'],
             'gold_evidence_1': gold_evidences[0] if len(gold_evidences)>0 else '',
             'gold_evidence_2': gold_evidences[1] if len(gold_evidences)>1 else '',
             'top_snts': ex['top_snts'] if 'top_snts' in ex else '',
@@ -151,9 +153,11 @@ def main():
             param_pred = param_preds[k]
             ex['param_pred'] = param_pred
             ex['param_acc'] = int(normalize(param_pred) in [normalize(ans) for ans in ex['answers']])
+            ex['param_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(param_pred))
             result.update({
                 'param_pred': ex['param_pred'],
                 'param_acc': ex['param_acc'],
+                'param_f1': ex['param_f1']
             })
 
         to_save.append(result)

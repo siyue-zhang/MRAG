@@ -5,7 +5,7 @@ from prompts import *
 
 import argparse
 from copy import deepcopy
-from vllm import LLM, SamplingParams
+# from vllm import LLM, SamplingParams
 
 from sentence_transformers import CrossEncoder
 from FlagEmbedding import FlagReranker, FlagLLMReranker
@@ -51,6 +51,7 @@ def main():
     parser.add_argument('--snt-with-title', type=bool, default=True)
     parser.add_argument('--llm', type=str, default="llama_70b")
     parser.add_argument('--save-note', type=str, default=None)
+    parser.add_argument('--dataset', type=str, default='timeqa')
 
     args = parser.parse_args()
     args.m1 = retrival_model_names(args.stage1_model)
@@ -89,7 +90,6 @@ def main():
         ctx_key = 'ctxs'
         path = args.contriever_output
         examples = load_contriever_output(path)
-        
     elif args.stage1_model == 'bm25':
         ctx_key = 'bm25_ctxs'
         path = args.bm25_output
@@ -156,7 +156,12 @@ def main():
         examples = examples[:min(len(examples),args.max_examples)]
     
     # only keep situatedqa and timeqa samples for this code
-    examples = [ex for ex in examples if ex["source"] != 'dbpedia']
+    # examples = [ex for ex in examples if ex["source"] != 'dbpedia']
+    if args.dataset == 'timeqa':
+        examples = [ex for ex in examples if ex["source"] != 'timeqa']
+    if args.dataset == 'situatedqa':
+        examples = [ex for ex in examples if ex["source"] != 'situatedqa']
+
     if debug_question:
         examples = [ex for ex in examples if ex['question']==debug_question]
 
