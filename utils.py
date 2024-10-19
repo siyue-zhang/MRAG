@@ -6,25 +6,28 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import collections
 
+# import nltk
 # nltk.download('punkt')
-# nltk.download('averaged_perceptron_tagger')
+# nltk.download('averaged_perceptron_tagger_eng')
 # nltk.download('wordnet')
 from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.tag import pos_tag
 from nltk.stem import WordNetLemmatizer
+from pattern.en import lexeme
 
 import sys
 sys.path.append('../')
 from contriever.src.evaluation import SimpleTokenizer, has_answer
 
-# EXCL = ['time', 'for', 'new','recent','current']
+EXCL = ['time', 'years', 'for', 'new', 'recent', 'current', 'whom', 'who', 'out', 'place', 'not']
 
 lemmatizer = WordNetLemmatizer()
 number_map = {
     '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five',
     '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine', '10': 'ten',
     '11': 'eleven', '12': 'twelve', '13': 'thirteen', '14': 'fourteen', '15': 'fifteen',
-    '16': 'sixteen', '17': 'seventeen', '18': 'eighteen', '19': 'nineteen', '20': 'twenty'
+    '16': 'sixteen', '17': 'seventeen', '18': 'eighteen', '19': 'nineteen', '20': 'twenty',
+    '1st': 'first', '2nd': 'second', '3rd': 'third', '4th': 'fourth', '5th': 'fifth', '6th': 'sixth', '7th': 'seventh', '8th': 'eighth', '9th': 'ninth',
 }
 number_map_b = {number_map[k]: k for k in number_map}
 tokenizer = SimpleTokenizer()
@@ -42,9 +45,12 @@ def retrival_model_names(m):
         m = 'BAAI/bge-reranker-v2-gemma'
     return m
 
-def llm_names(l):
+def llm_names(l, instruct=False):
     if l == "llama_8b":
-        l = "meta-llama/Meta-Llama-3.1-8B"
+        if instruct:
+            l = "meta-llama/Llama-3.1-8B-Instruct"
+        else:
+            l = "meta-llama/Meta-Llama-3.1-8B"
     elif l== "llama_70b":
         l = "hugging-quants/Meta-Llama-3.1-70B-Instruct-AWQ-INT4"
     elif l== "phi":
@@ -61,37 +67,22 @@ def load_contriever_output(path):
 
 
 def remove_implicit_condition(no_time_question):
-    mapping={
-        'last time': 'time',
-        'the latest': 'the',
-        'first time': 'time',
-        'earliest time': 'time',
-        'the first': '',
-        'the last': '',
-        'latest': '',
-        'most recent': '',
-        'recent':'',
-    }
     mapping_type={
-        'last time': 'last',
-        'the latest': 'last',
-        'first time': 'first',
-        'earliest time': 'first',
-        'the first': 'first',
-        'the last': 'last',
-        'latest': 'last',
-        'most recent': 'last',
-        'recent':'last',
+        ' latest': 'last',
+        ' last': 'last',
+        ' first': 'first',
+        ' earliest': 'first',
+        ' first': 'first',
+        ' most recent': 'last',
+        ' recent':'last',
     }
     implicit_condition = None
-    for key in mapping:
+    for key in mapping_type:
         if key in no_time_question:
-            no_time_question = no_time_question.replace(key, mapping[key])
+            no_time_question = no_time_question.replace(key, '')
             implicit_condition = mapping_type[key]
             break
     no_time_question = no_time_question.strip()
-    if no_time_question.endswith(" right"):
-        no_time_question = no_time_question[:-6]
     if no_time_question[-1] not in '.?':
         no_time_question+='?'
     return no_time_question, implicit_condition
@@ -108,7 +99,14 @@ def get_wordnet_pos(treebank_tag):
         return 'r'  # Adverb
     else:
         return 'n'  # Default to noun
-    
+
+def pattern_stopiteration_workaround():
+    try:
+        print(lexeme('gave'))
+    except:
+        pass
+# Basically, the pattern code will fail the first time you run it, so you first need to run it once and catch the Exception it throws.
+pattern_stopiteration_workaround()
 
 def expand_keywords(keyword_list, normalized_question, verbose=False):
     if verbose:
@@ -133,16 +131,15 @@ def expand_keywords(keyword_list, normalized_question, verbose=False):
     keyword_types={}
     for kw in keyword_dict:
         kw_list = kw.split()
-        new_kw = None
+        new_kw = []
         if kw[0].isupper():
             keyword_types[kw] = 'special'
-        elif kw.isdigit():
+        elif kw.lower() in number_map:
             keyword_types[kw] = 'numeric'
-            if kw in number_map:
-                new_kw = number_map[kw]
+            new_kw.append(number_map[kw.lower()])
         elif kw.lower() in number_map_b:
             keyword_types[kw] = 'numeric'
-            new_kw = number_map_b[kw.lower()]
+            new_kw.append(number_map_b[kw.lower()])
         else:
             n_words = len(kw_list)
             index = None
@@ -155,20 +152,24 @@ def expand_keywords(keyword_list, normalized_question, verbose=False):
                         index=i
                         break
             except Exception:
-                import ipdb; ipdb.set_trace()
-            assert index is not None
-            last_word = kw_list[-1]
-            last_index = index + n_words -1
-            last_tag = q_tags[last_index]
-            if last_tag.startswith('J'):
-                keyword_types[kw] = 'superlative' if last_word[-3:]=='est' or last_word.lower()=='most' else 'adjective'
+                pass
+            if index:
+                last_word = kw_list[-1]
+                last_index = index + n_words -1
+                last_tag = q_tags[last_index]
+                if last_tag.startswith('J'):
+                    keyword_types[kw] = 'superlative' if last_word[-3:]=='est' or last_word.lower()=='most' else 'adjective'
+                else:
+                    keyword_types[kw] = 'general'
+                    new_kw += [kw.replace(last_word, x) for x in lexeme(last_word)]
             else:
                 keyword_types[kw] = 'general'
-                last_lemma = q_lemmas[last_index]
-                new_kw = kw.replace(last_word, last_lemma)
 
-        tmp = [kw, new_kw] if new_kw else [kw]
-        tmp = list(set(tmp))
+        tmp = list(set([kw] + new_kw))
+        if keyword_types[kw] == 'special' and ' and ' in kw:
+            tmp += [kw.replace(' and ','&'), kw.replace(' and ', ' & '), kw.replace(' and ', ' N\' ')]
+        if '-' in kw:
+            tmp.append(kw.replace('-',' '))
         expanded_keyword_list.append(tmp)
         keyword_type_list.append(keyword_types[kw])
 
@@ -181,14 +182,59 @@ def expand_keywords(keyword_list, normalized_question, verbose=False):
     return expanded_keyword_list, keyword_type_list
 
 
+def replace_dates(text):
+    # This regex captures date ranges in the format "1990–93" or "1990-93"
+    pattern = r'(\b\d{4})[–-](\d{2}\b)'
+    
+    # Replacement function that reconstructs the full year range
+    def replace_func(match):
+        start_year = match.group(1)
+        end_year = start_year[:2] + match.group(2)  # Combine first two digits from start year with the last two from the end year
+        return ' '.join([str(i) for i in range(int(start_year),int(end_year)+1)])
+        # return f"{start_year} {end_year}"
+    
+    # Apply the replacement
+    return re.sub(pattern, replace_func, text)
+
+# def replace_date_range(text):
+#     # Regex to match patterns like "1990–1993" or "1990-1993"
+#     pattern = r'(\d{4})[–-](\d{4})'
+    
+#     # Replace with "1990 and 1993"
+#     replaced_text = re.sub(pattern, r'\1 \2', text)
+    
+#     return replaced_text
+
+def expand_year_range(text):
+    # Define a function to replace a range with full years
+    def replace_range(match):
+        start_year = int(match.group(1))
+        end_year = int(match.group(2))
+        # Generate a space-separated string of all years in the range
+        return ' '.join(str(year) for year in range(start_year, end_year + 1))
+
+    # Regular expression to match both en-dash and hyphen date ranges
+    pattern = r'(\d{4})[–-](\d{4})'
+
+    # Replace the ranges using the replace_range function
+    return re.sub(pattern, replace_range, text)
+
+
 def year_identifier(timestamp):
-    pattern = r'\b\d{4}\b'
+    # replace "1990–93" by "1990" and "1993"
+    timestamp = replace_dates(timestamp)
+    timestamp = expand_year_range(timestamp)
+
+    pattern = r'\b(\d{4})(?:s)?\b'
     years = re.findall(pattern, timestamp)
-    if len(years)>0:
-        years = [int(y) for y in years]
-        years = list(set(years))
+    
+    if years:
+        # Convert to integers, remove duplicates, and sort the years
+        years = sorted(set(map(int, years)))
     else:
-        years = None     
+        # If no years are found, return None
+        return None
+    
     return years
 
 
@@ -252,7 +298,7 @@ def _str_f1(target, prediction):
     return 0
   precision = 1.0 * num_same / len(prediction_tokens)
   recall = 1.0 * num_same / len(target_tokens)
-  f1 = 100 * (2 * precision * recall) / (precision + recall)
+  f1 = (2 * precision * recall) / (precision + recall)
   return f1
 
 def max_token_f1(answers, prediction):
@@ -271,3 +317,30 @@ def load_json_file(path):
     return data
 
 
+def eval_reader(to_save, param_pred, subset='situatedqa', metric='acc'):
+
+    to_save_situatedqa = [ex for ex in to_save if ex['source']==subset]
+    exact_param, exact_rag = [], []
+    not_exact_param, not_exact_rag = [], []
+    for example in to_save_situatedqa:
+        if example['time_relation'] == '':
+            pass
+        elif int(example['exact']) == 1:
+            exact_rag.append(example[f'rag_{metric}'])
+            if f'param_{metric}' in example:
+                exact_param.append(example[f'param_{metric}'])
+        else:
+            not_exact_rag.append(example[f'rag_{metric}'])
+            if f'param_{metric}' in example:
+                not_exact_param.append(example[f'param_{metric}'])
+
+    if param_pred:
+        print('Parametric')
+        print(f'    w/ key date {metric} : {round(np.mean(exact_param),4)}')
+        print(f'    w/ perturb date {metric} : {round(np.mean(not_exact_param),4)}')
+
+    print('RAG')
+    print(f'    w/ key date {metric} : {round(np.mean(exact_rag),4) if len(exact_rag)>0 else 0}')
+    print(f'    w/ perturb date {metric} : {round(np.mean(not_exact_rag),4) if len(not_exact_rag)>0 else 0}')
+
+    

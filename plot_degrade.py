@@ -68,19 +68,21 @@ import matplotlib.pyplot as plt
 # Replace these values with your actual data
 
 # Performance on SituatedQA (left subplot)
-answer_recall_situatedqa_normal = [80, 94.7, 95.6, 98.3]    # Recall@1, Recall@5, Recall@10, Recall@20 for normal case
-answer_recall_situatedqa_perturbed = [33.2, 70.4, 83.8, 88.2]  # Perturbed case
+answer_recall_situatedqa_normal = [81.3, 95.1, 95.9, 98.4]    # Recall@1, Recall@5, Recall@10, Recall@20 for normal case
+answer_recall_situatedqa_perturbed = [33.8, 70.9, 84.2, 88.3]  # Perturbed case
 
 # Performance on TimeQA (right subplot)
-answer_recall_timeqa_normal = [77.2, 92.1, 93, 96.5]        # Normal case
-answer_recall_timeqa_perturbed = [33.1, 69.3, 82.7, 87.4]     # Perturbed case
+answer_recall_timeqa_normal = [78.6, 93.2, 94.0, 94.0]        # Normal case
+answer_recall_timeqa_perturbed = [48.3, 84.2, 90.0, 90.5]     # Perturbed case
 
 # Gold Evidence Recall (for bottom row)
-gold_recall_situatedqa_normal = [62.3, 80.7, 84.2, 84.2]  # Gold Recall@1, @5, @10, @20 for normal case
-gold_recall_situatedqa_perturbed = [19.2, 36.4, 48, 51.5]  # Perturbed case
+# SituatedQA
+gold_recall_situatedqa_normal = [62.6, 80.5, 83.7, 83.7]  # Gold Recall@1, @5, @10, @20 for normal case
+gold_recall_situatedqa_perturbed = [18.7, 36.4, 48.1, 51.4]  # Perturbed case
 
-gold_recall_timeqa_normal = [59.7, 77.2, 80.7, 80.7]      # Normal case
-gold_recall_timeqa_perturbed = [18.9, 35.9, 46.3, 49.9]   # Perturbed case
+# TimeQA
+gold_recall_timeqa_normal = [64.1, 72.7, 74.4, 74.4]      # Normal case
+gold_recall_timeqa_perturbed = [30.8, 60.2, 67.3, 68.6]   # Perturbed case
 
 # Recall metric names
 recall_labels = ['R@1', 'R@5', 'R@10', 'R@20']

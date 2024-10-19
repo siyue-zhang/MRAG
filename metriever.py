@@ -5,16 +5,18 @@ from prompts import *
 
 import argparse
 from copy import deepcopy
-# from vllm import LLM, SamplingParams
+from vllm import LLM, SamplingParams
 
 from sentence_transformers import CrossEncoder
 from FlagEmbedding import FlagReranker, FlagLLMReranker
 
+from nltk.tokenize import sent_tokenize
+
 debug = None
 debug_question = None
 
-# debug = 'hitting a combined 115 home runs in 1961 and breaking the single-season record'
-# debug_question = 'Which league did Albuquerque Dukes play for since 1972?'
+# debug = 'He is best known as the drummer for American hard rock band Guns'
+# debug_question = 'Who is the drummer for Guns and Roses after 2006?'
 
 # debug = 'Krista White, Sophie Sumner, Jourdan Miller and India Gants from Cycles 14, 18 the "British Invasion", 20 "Guys & Girls" and 23 respectively.'
 # debug_question = "Who wins America's Next Top Model Cycle 20 as of 2021?"
@@ -25,13 +27,13 @@ def main():
     parser.add_argument(
         '--stage1-model',
         choices=['bm25', 'contriever','hybrid'], 
-        default='bm25', #
+        default='contriever', #
         help='Choose a model for stage 1 retrival'
     )
     parser.add_argument(
         '--stage2-model', 
         choices=['metriever','minilm6','minilm12','bge','tinybert','bigegemma','monot5', None], 
-        default=None, #
+        default='metriever', #
         # default='bge', #
         help='Choose a model for stage 2 re-ranking'
     )
@@ -46,25 +48,28 @@ def main():
     parser.add_argument('--ctx-topk', type=int, default=100)
     parser.add_argument('--QFS-topk', type=int, default=5)
     parser.add_argument('--snt-topk', type=int, default=200)
+    parser.add_argument('--complete-ctx-text', type=bool, default=True)
     parser.add_argument('--hybrid-score', type=bool, default=True)
-    parser.add_argument('--hybrid-base', type=float, default=0.5)
+    parser.add_argument('--hybrid-base', type=float, default=0)
     parser.add_argument('--snt-with-title', type=bool, default=True)
-    parser.add_argument('--llm', type=str, default="llama_70b")
+    parser.add_argument('--llm', type=str, default="llama_8b")
     parser.add_argument('--save-note', type=str, default=None)
-    parser.add_argument('--dataset', type=str, default='timeqa')
+    parser.add_argument('--subset', type=str, default='situatedqa')
+    parser.add_argument('--not-save', type=bool, default=False)
+    parser.add_argument('--load-keywords', type=bool, default=False)
 
     args = parser.parse_args()
     args.m1 = retrival_model_names(args.stage1_model)
     args.m2 = retrival_model_names(args.stage2_model) if args.stage2_model is not None else None
     args.m3 = retrival_model_names(args.metriever_model)
-    args.l = llm_names(args.llm)
+    args.l = llm_names(args.llm, instruct=True)
     args.llm_name = deepcopy(args.llm)
 
     # load llm
     if args.m2=='metriever':
         flg = '70b' in args.llm_name
         if flg:
-            args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ")
+            args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=4096)
         else:
             args.llm = LLM(args.l, tensor_parallel_size=1, dtype='half', max_model_len=4096)
         
@@ -154,21 +159,52 @@ def main():
 
     if args.max_examples:
         examples = examples[:min(len(examples),args.max_examples)]
-    
-    # only keep situatedqa and timeqa samples for this code
-    # examples = [ex for ex in examples if ex["source"] != 'dbpedia']
-    if args.dataset == 'timeqa':
-        examples = [ex for ex in examples if ex["source"] != 'timeqa']
-    if args.dataset == 'situatedqa':
-        examples = [ex for ex in examples if ex["source"] != 'situatedqa']
 
     if debug_question:
         examples = [ex for ex in examples if ex['question']==debug_question]
 
-    # separate samples into different types for comparison
-    examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
+    # temporary
+    for ex in examples:
+        if ' \'s ' in ex['question']:
+            ex['question'] = ex['question'].replace(' \'s ', '\'s ')
+    # examples = examples[300:365]
+
+    # only keep situatedqa and timeqa samples for this code
+    if args.subset == 'timeqa':
+        examples = [ex for ex in examples if ex["source"] == 'timeqa']
+        print('\nkeep only TimeQA subset.')
+    elif args.subset == 'situatedqa':
+        examples = [ex for ex in examples if ex["source"] == 'situatedqa']
+        print('\nkeep only SituatedQA subset.')
 
     # complete ctx head and tail sentences
+    if args.complete_ctx_text:
+        wiki_json = '/scratch/sz4651/Projects/metriever_final/enwiki-dec2021/psgs_w100.json'
+        wiki = load_json_file(wiki_json)
+        complete_ctx_map = {} # id to text
+        for k, ex in enumerate(tqdm(examples, desc="Preprocessing contexts", total=len(examples))):
+            ctxs = ex[ctx_key]
+            complete_ctxs = []
+            for ctx in ctxs:
+                ctx_id = ctx['id']
+                if ctx_id not in complete_ctx_map:
+                    page = wiki[ctx['title']]
+                    flgs = [p['id'] == ctx_id for p in page]
+                    if any(flgs)==True and flgs.index(True)>0:
+                        prev = page[flgs.index(True)-1]
+                        ctx_sentences = sent_tokenize(prev['text'])
+                        ctx_sentences_clean = [s.strip() for s in ctx_sentences]
+                        text = ctx_sentences_clean[-1] + ' ' + ctx['text'].strip()
+                    else:
+                        text = ctx['text']
+                    complete_ctx_map[ctx_id] = text
+                ctx['text'] = complete_ctx_map[ctx_id]
+                complete_ctxs.append(ctx)
+            ex[ctx_key] = complete_ctxs
+
+
+    # separate samples into different types for comparison
+    examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
 
     #####################################################################################################################
     # Baselines 
@@ -240,68 +276,76 @@ def main():
         print('w/ perturb date')
         eval_recall(examples_not_exact, ctxs_key=ctx_key, ans_key='gold_evidences')
         # save baseline results    
-        save_json_file(f'./retrieved/{args.stage1_model}_{args.stage2_model}_outputs.json', examples)
+        save_json_file(f'./retrieved/{args.subset}_{args.stage1_model}_{args.stage2_model}_outputs.json', examples)
         return
 
     
     #####################################################################################################################
     # Metriever 
-
-    # prepare keywords
-    question_keyword_map={}
-    for k, ex in enumerate(tqdm(examples, desc="Preprocessing questions", total=len(examples))):
-        question = ex['question']
-        time_relation = ex['time_relation']
-        assert time_relation in question, question
-        if time_relation != '':
-            parts = question.split(time_relation)
-            no_time_question = time_relation.join(parts[:-1])
-            date = parts[-1]
-            years = year_identifier(date)
-            ex['years'] = years # int
-        else:
-            no_time_question = question
-        normalized_question, implicit_condition = remove_implicit_condition(no_time_question)
-        ex['implicit_condition'] = implicit_condition
-        normalized_question = normalized_question[:-1] if normalized_question[-1] in '.?!' else normalized_question
-        ex['normalized_question'] = normalized_question
-        if normalized_question not in question_keyword_map:
-            question_keyword_map[normalized_question]=[]
-
-    print('\nstart extracting keywords using llm.')
-    prompts = [get_keyword_prompt(q) for q in question_keyword_map]
-    questions = [q for q in question_keyword_map]
-    if args.llm_name not in ['gpt']:
-        keyword_responses = call_pipeline(args, prompts)
+    if args.load_keywords:
+        def load_example_keywords(path='./outputs/tmp_get_keywords.json'):
+            with open(path, 'r') as file:
+                return json.load(file)
+        examples, question_keyword_map = load_example_keywords()
+        print('loaded keywords.')
     else:
-        raise NotImplemented
+        # prepare keywords
+        question_keyword_map={}
+        for k, ex in enumerate(tqdm(examples, desc="Preprocessing questions", total=len(examples))):
+            question = ex['question']
+            time_relation = ex['time_relation']
+            assert time_relation in question, question
+            if time_relation != '':
+                parts = question.split(time_relation)
+                no_time_question = time_relation.join(parts[:-1])
+                date = parts[-1]
+                years = year_identifier(date)
+                ex['years'] = years # int
+            else:
+                no_time_question = question
+            normalized_question, implicit_condition = remove_implicit_condition(no_time_question)
+            ex['implicit_condition'] = implicit_condition
+            normalized_question = normalized_question[:-1] if normalized_question[-1] in '.?!' else normalized_question
+            ex['normalized_question'] = normalized_question
+            if normalized_question not in question_keyword_map:
+                question_keyword_map[normalized_question]=[]
+            print(f'==={k}===')
+            print('Question : ', question)
+            print('Normalized Question : ', normalized_question)
 
-    for i, q in enumerate(tqdm(questions, desc="Postprocessing keywords", total=len(questions))):
-        tmp = eval(keyword_responses[i])
-        revised = []
-        for kw in tmp:
-            while kw.lower() not in q.lower():
-                # revise the extrcated keyword if not match with question
-                kw = ' '.join(kw.split()[:-1])
-            if kw!='' and kw.lower() in q.lower():
-                revised.append(kw)
-        revised = list(set(revised))
-        revised = expand_keywords(revised, q, verbose=True)
-        question_keyword_map[q] = revised
 
-    # # judge if the question has static answer
-    # question_static_map={}
-    # prompts = [judge_static_prompt(q) for q in questions]
-    # print('aaaaaa')
-    # print(prompts)
-    # if args.llm_name not in ['gpt']:
-    #     responses = call_pipeline(args, prompts)
-    # else:
-    #     raise NotImplemented
-    # for i, q in enumerate(tqdm(questions, desc="Postprocessing keywords (2)", total=len(questions))):
-    #     question_static_map[q] = 'no' in responses[i].lower()
-    # print(responses)
-    # import ipdb; ipdb.set_trace()
+        print('\nstart extracting keywords using llm.')
+        prompts = [get_keyword_prompt(q) for q in question_keyword_map]
+        # import ipdb; ipdb.set_trace()
+        
+        questions = [q for q in question_keyword_map]
+        if args.llm_name not in ['gpt']:
+            keyword_responses = call_pipeline(args, prompts)
+        else:
+            raise NotImplemented
+
+        for i, q in enumerate(tqdm(questions, desc="Postprocessing keywords", total=len(questions))):
+            tmp = keyword_responses[i][keyword_responses[i].index('['):(keyword_responses[i].index(']')+1)]
+            tmp = eval(tmp)
+            revised = []
+            for kw in tmp:
+                if kw in EXCL:
+                    continue
+                while kw.lower() not in q.lower():
+                    # revise the extrcated keyword if not match with question
+                    kw = ' '.join(kw.split()[:-1])
+                if kw!='' and kw.lower() in q.lower():
+                    revised.append(kw)
+            revised = list(set(revised))
+            revised = expand_keywords(revised, q, verbose=True)
+            question_keyword_map[q] = revised
+        
+        save_json_file(path='./outputs/tmp_get_keywords.json', object=[examples, question_keyword_map])
+        print('keywords saved.')
+
+
+    if debug_question:
+        examples = [ex for ex in examples if ex['question']==debug_question]
 
     # main reranking loop
     print('\nfinished preparation, start modular reranking.')
@@ -366,12 +410,29 @@ def main():
         # generate summaries
         QFS_prompts = []
         for ctx in latest_ctxs[:args.QFS_topk]:
-            QFS_prompts.append(get_QFS_prompt(normalized_question, ctx['title'], ctx['text']))
+            # ctx_id = ctx['id']
+            # # before/after index
+            # page = wiki[ctx['title']]
+            # pid = [p['id'] for p in page].index(ctx_id)
+            # texts = [p['text'] for p in page]
+            # ctx_bf = pid-1 if pid>0 else None
+            # ctx_af = pid+1 if pid<len(page)-1 else None
+            # ctext = ''
+            # if ctx_bf:
+            #     ctext += texts[ctx_bf] + ' '
+            # ctext += ctx['text'] + ' '
+            # if ctx_af:
+            #     ctext += texts[ctx_af]
+            # ctext = ctext.strip()
+            ctext = ctx['text']
+            QFS_prompts.append(get_QFS_prompt(normalized_question, ctx['title'], ctext))
 
         if args.llm_name != 'gpt':
             summary_responses = call_pipeline(args, QFS_prompts)
         else:
             raise NotImplemented
+
+        
 
         for idx, ctx in enumerate(latest_ctxs):
             get_ctx_by_id[ctx['id']] = ctx
@@ -475,6 +536,7 @@ def main():
         sentence_tuples = sorted(sentence_tuples, key=lambda x: x[2], reverse=True)
         sentence_tuples += sentence_tuples_unchange
 
+        ex['top_snt_id'] = sentence_tuples
         ex['top_snts'] = '\n\n'.join([tp[1] for tp in sentence_tuples[:20]])
         latest_ctxs = []
         id_included = []
@@ -521,13 +583,14 @@ def main():
     eval_recall(examples_not_exact, ctxs_key='snt_hybrid_rank', ans_key='gold_evidences') 
 
     # save metriever results    
-    save_name = f'./retrieved/{args.stage1_model}_{args.stage2_model}_{args.metriever_model}_{args.llm_name}_outputs.json'
+    save_name = f'./retrieved/{args.subset}_{args.stage1_model}_{args.stage2_model}_{args.metriever_model}_{args.llm_name}_outputs.json'
     if args.QFS_topk and args.QFS_topk>0:
         save_name = save_name.replace('_outputs', f'_qfs{args.QFS_topk}_outputs')
     if args.save_note:            
         save_name = save_name.replace('_outputs', f'_{args.save_note}_outputs')
-    if debug==None:
+    if debug==None and args.not_save==False:
         save_json_file(save_name, examples)
+        print('Retrieved result saved.')
     return
 
 
@@ -624,6 +687,9 @@ def call_pipeline(args, prompts):
     outputs = args.llm.generate(prompts, sampling_params)
     responses = [output.outputs[0].text for output in outputs]
     responses = [res.split('Question:')[0] if 'Question:' in res else res for res in responses]
+    responses = [res.split('<doc>')[0] if '<doc>' in res else res for res in responses]
+    responses = [res.split('</doc>')[0] if '</doc>' in res else res for res in responses]
+    responses = [res.split('Note:')[0] if 'Note:' in res else res for res in responses]
     responses = [res.replace('\n','').strip() for res in responses]
     return responses 
 
