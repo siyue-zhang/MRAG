@@ -22,7 +22,7 @@ def reader_pipeline(reader, llm, prompts):
         outputs = llm.generate(prompts, sampling_params)
         responses = [output.outputs[0].text for output in outputs]
     responses = [res.split('<Question>:')[0] for res in responses]
-    responses = [res.split('<doc>')[0] for res in responses]
+    responses = [res.split('<Context>:')[0] for res in responses]
     responses = [res.split('<Answer>:\n')[-1] for res in responses]
     responses = [res.split('\n')[0] for res in responses]
     return responses

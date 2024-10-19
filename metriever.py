@@ -46,7 +46,7 @@ def main():
     parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/TempRAGEval.json")
     parser.add_argument('--bm25-output', type=str, default="./TempRAGEval/BM25_output/TempRAGEval.json")
     parser.add_argument('--ctx-topk', type=int, default=100)
-    parser.add_argument('--QFS-topk', type=int, default=0)
+    parser.add_argument('--QFS-topk', type=int, default=10)
     parser.add_argument('--snt-topk', type=int, default=200)
     parser.add_argument('--complete-ctx-text', type=bool, default=True)
     parser.add_argument('--hybrid-score', type=bool, default=True)
@@ -55,7 +55,7 @@ def main():
     parser.add_argument('--llm', type=str, default="llama_8b")
     parser.add_argument('--save-note', type=str, default=None)
     parser.add_argument('--subset', type=str, default='situatedqa')
-    parser.add_argument('--not-save', type=bool, default=False)
+    parser.add_argument('--save', type=bool, default=True)
     parser.add_argument('--load-keywords', type=bool, default=False)
 
     args = parser.parse_args()
@@ -439,11 +439,11 @@ def main():
             # if ctx_af:
             #     ctext += texts[ctx_af]
             # ctext = ctext.strip()
-            ctext = ctx['text']
-            QFS_prompts.append(get_QFS_prompt(normalized_question, ctx['title'], ctext))
-
+            qfs_prompt = get_QFS_prompt(normalized_question, ctx['title'], ctx['text'])
+            QFS_prompts.append(qfs_prompt)
         if args.llm_name != 'gpt':
             summary_responses = call_pipeline(args, QFS_prompts)
+            # import ipdb; ipdb.set_trace()
         else:
             raise NotImplemented
 
@@ -603,7 +603,7 @@ def main():
         save_name = save_name.replace('_outputs', f'_qfs{args.QFS_topk}_outputs')
     if args.save_note:            
         save_name = save_name.replace('_outputs', f'_{args.save_note}_outputs')
-    if debug==None and args.not_save==False:
+    if debug==None and args.save==True:
         save_json_file(save_name, examples)
         print('Retrieved result saved.')
     return
@@ -700,11 +700,15 @@ def get_temporal_coeffs(years, sentence_tuples, time_relation_type, implicit_con
 def call_pipeline(args, prompts):
     sampling_params = SamplingParams(temperature=0.7, top_p=0.95, max_tokens=100)
     outputs = args.llm.generate(prompts, sampling_params)
+    # print('~~~')
+    # print(prompts[0],'\n<>')
+    # print(outputs[0].outputs[0].text)
+    # print('~~~')
     responses = [output.outputs[0].text for output in outputs]
-    responses = [res.split('Question:')[0] if 'Question:' in res else res for res in responses]
-    responses = [res.split('<doc>')[0] if '<doc>' in res else res for res in responses]
-    responses = [res.split('</doc>')[0] if '</doc>' in res else res for res in responses]
-    responses = [res.split('Note:')[0] if 'Note:' in res else res for res in responses]
+    for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>']:
+        responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
+    for mid_stopper in ['</Thought>']:
+        responses = [res.split(mid_stopper)[-1] if mid_stopper in res else res for res in responses]
     responses = [res.replace('\n','').strip() for res in responses]
     return responses 
 

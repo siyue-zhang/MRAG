@@ -12,147 +12,151 @@ from vllm import LLM, SamplingParams
  
 from temp_eval import normalize
 
-def call_pipeline(args, prompts):
-    sampling_params = SamplingParams(temperature=0.7, top_p=0.95, max_tokens=100)
-    outputs = args.llm.generate(prompts, sampling_params)
-    # print('~~~')
-    # print(prompts[0],'\n<>')
-    # print(outputs[0].outputs[0].text)
-    # print('~~~')
-    responses = [output.outputs[0].text for output in outputs]
-    responses = [res.split('<doc>')[0] if '<doc>' in res else res for res in responses]
-    responses = [res.split('</doc>')[0] if '</doc>' in res else res for res in responses]
-    responses = [res.split('Note:')[0] if 'Note:' in res else res for res in responses]
-    responses = [res.split('Question:')[0] if 'Question:' in res else res for res in responses]
-    responses = [res.split('<Question>')[0] if '<Question>' in res else res for res in responses]
-    responses = [res.split('</Question>')[0] if '</Question>' in res else res for res in responses]
-    responses = [res.split('<Summarization>')[0] if '<Summarization>' in res else res for res in responses]
-    responses = [res.split('\n')[0].strip() for res in responses]
-    # responses = [res.replace('\n','').strip() for res in responses]
-    return responses 
+# def call_pipeline(args, prompts):
+#     sampling_params = SamplingParams(temperature=0.7, top_p=0.95, max_tokens=100)
+#     outputs = args.llm.generate(prompts, sampling_params)
+#     # print('~~~')
+#     # print(prompts[0],'\n<>')
+#     # print(outputs[0].outputs[0].text)
+#     # print('~~~')
+#     responses = [output.outputs[0].text for output in outputs]
+#     responses = [res.split('<Context>:')[0] if '<Context>:' in res else res for res in responses]
+#     responses = [res.split('Note:')[0] if 'Note:' in res else res for res in responses]
+#     responses = [res.split('<Question>:')[0] if '<Question>:' in res else res for res in responses]
+#     responses = [res.split('<Summarization>:')[0] if '<Summarization>:' in res else res for res in responses]
+#     responses = [res.split('\n')[0].strip() for res in responses]
+#     # responses = [res.replace('\n','').strip() for res in responses]
+#     return responses 
 
 def c_bracket_prompt(query, texts):
 
     prompt=f"""Answer the given question, you can refer to the document provided, especially focusing and analyzing on the sentence between brackets "[[text]]".
 As an assistant, your task is to answer the question based on the given knowledge. Your answer should be after <Answer>.
-The given knowledge will be embraced by <doc> and </doc> tags. You can refer to the knowledge to answer the question.
+The given knowledge will be after the <Context> tag. You can refer to the knowledge to answer the question.
 If the knowledge does not contain the answer, answer the question directly.
 There are some examples for you to refer to:
-<doc>
+<Context>:
 Sport in the United Kingdom Field | hockey is the second most popular team recreational sport in the United Kingdom. The Great Britain men's hockey team won the hockey tournament at the 1988 Olympics, while the women's hockey team repeated the success in the 2016 Games.
 
 Three Lions (song) | [[The song reached number one on the UK Singles Chart again in 2018 following England reaching the semi-finals of the 2018 FIFA World Cup, with the line "it's coming home" featuring heavily on social media.]]
 
 England national football team | They have qualified for the World Cup sixteen times, with fourth-place finishes in the 1990 and 2018 editions.
-</doc>
-<Question>: When did England last get to the semi final of a World Cup before 2019?
+</Context>
+<Question>:
+When did England last get to the semi final of a World Cup before 2019?
+</Question>
 <Answer>:
 2018
-<doc>
+</Answer>
+<Context>:
 Bowl LV | [[For Super Bowl LV, which took place in February 2021, the national anthem was performed by Eric Church and Jazmine Sullivan.]] They sang the anthem together as a duet.
 
 Super Bowl LVI | For Super Bowl LVI, which took place in February 2022, the national anthem was performed by Mickey Guyton. She delivered a powerful rendition of the anthem.
-</doc>
-<Question>: Who sang the national anthem in the last Super Bowl as of 2021?
+</Context>
+<Question>:
+Who sang the national anthem in the last Super Bowl as of 2021?
+</Question>
 <Answer>:
 Eric Church and Jazmine Sullivan
-<doc>
+</Answer>
+<Context>:
 Rugby World Cup | Starting in 2021, the women's equivalent tournament was officially renamed the Rugby World Cup to promote equality with the men's tournament.
 
 Rugby union | Rugby union football, commonly known simply as rugby union or more often just rugby, is a close-contact team sport that originated at Rugby School in England in the first half of the 19th century.
-</doc>
-<Question>: Where was the last Rugby World Cup held between 2007 and 2016?
+</Context>
+<Question>:
+Where was the last Rugby World Cup held between 2007 and 2016?
+</Question>
 <Answer>:
 England
+</Answer>
 
-Now your question and reference knowledge are as follows.
-<doc>
+Now your question and context knowledge are as follows.
+<Context>:
 {texts}
-</doc>
-<Question>: {query}
+</Context>
+<Question>:
+{query}
+</Question>
 <Answer>:
 """
     return prompt
 
 
-# query focused summarizer
-def get_QFS_prompt(question, title, text):
-    prompt = f"""You are given a paragraph and a specific question. Your goal is to summarize the paragraph (between <doc> and </doc>) in complete sentences by answering the given question. If dates are mentioned in the paragraph, include them in your answer. If the question cannot be answered based on the paragraph, respond with "None." Ensure that the response is concise and directly addresses the question.
-There are some examples for you to refer to:
-<doc>
-Houston Rockets | The Houston Rockets have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
-</doc>
-<Question>:
-When did the Houston Rockets win the NBA championship
-<Summarization>:
-The Houston Rockets won the NBA championship in 1994 and 1995.
-<doc>
-2019 Grand National | The 2019 Grand National (officially known as the Randox Health 2019 Grand National for sponsorship reasons) was the 172nd annual running of the Grand National horse race at Aintree Racecourse near Liverpool, England. The showpiece steeplechase is the pinnacle of a three-day festival which began on 4 April, followed by Ladies' Day on 5 April.
-</doc>
-<Question>:
-Who won the Grand National
-<Summarization>:
-None
-<doc>
-India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
-</doc>
-<Question>:
-Who serve as President of India
-<Summarization>:
-Neelam Sanjiva Reddy served as President in 1977, K. R. Narayanan in 1997, and Droupadi Murmu in 2022.
+# # query focused summarizer
+# def get_QFS_prompt(question, title, text):
+#     prompt = f"""You are given a paragraph and a specific question. Your goal is to summarize the paragraph after <Context> in complete sentences by answering the given question. If dates are mentioned in the paragraph, include them in your answer. If the question cannot be answered based on the paragraph, respond with "None." Ensure that the response is concise and directly addresses the question.
+# There are some examples for you to refer to:
+# <Context>:
+# Houston Rockets | The Houston Rockets have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
+# <Question>:
+# When did the Houston Rockets win the NBA championship
+# <Summarization>:
+# The Houston Rockets won the NBA championship in 1994 and 1995.
+# <Context>:
+# 2019 Grand National | The 2019 Grand National (officially known as the Randox Health 2019 Grand National for sponsorship reasons) was the 172nd annual running of the Grand National horse race at Aintree Racecourse near Liverpool, England. The showpiece steeplechase is the pinnacle of a three-day festival which began on 4 April, followed by Ladies' Day on 5 April.
+# <Question>:
+# Who won the Grand National
+# <Summarization>:
+# None
+# <Context>:
+# India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
+# <Question>:
+# Who serve as President of India
+# <Summarization>:
+# Neelam Sanjiva Reddy served as President in 1977, K. R. Narayanan in 1997, and Droupadi Murmu in 2022.
 
-Now your question and paragraph are as follows.
-<doc>
-{title} | {text}
-</doc>
-<Question>:
-{question}
-<Summarization>:
-"""
-    return prompt
+# Now your question and paragraph are as follows.
+# <Context>:
+# {title} | {text}
+# <Question>:
+# {question}
+# <Summarization>:
+# """
+#     return prompt
 
-def c_prompt(query, texts):
+# def c_prompt(query, texts):
 
-    prompt=f"""Answer the given question, you can refer to the document provided.
-As an assistant, your task is to answer the question based on the given knowledge. Your answer should be after <Answer>.
-The given knowledge will be embraced by <doc> and </doc> tags. You can refer to the knowledge to answer the question.
-If the knowledge does not contain the answer, answer the question directly.
-There are some examples for you to refer to:
-<doc>
-hockey is the second most popular team recreational sport in the United Kingdom. The Great Britain men's hockey team won the hockey tournament at the 1988 Olympics, while the women's hockey team repeated the success in the 2016 Games.
+#     prompt=f"""Answer the given question, you can refer to the document provided.
+# As an assistant, your task is to answer the question based on the given knowledge. Your answer should be after <Answer>.
+# The given knowledge will be after the <Context> tag. You can refer to the knowledge to answer the question.
+# If the knowledge does not contain the answer, answer the question directly.
+# There are some examples for you to refer to:
+# <Context>:
+# hockey is the second most popular team recreational sport in the United Kingdom. The Great Britain men's hockey team won the hockey tournament at the 1988 Olympics, while the women's hockey team repeated the success in the 2016 Games.
 
-The song reached number one on the UK Singles Chart again in 2018 following England reaching the semi-finals of the 2018 FIFA World Cup, with the line "it's coming home" featuring heavily on social media.
+# The song reached number one on the UK Singles Chart again in 2018 following England reaching the semi-finals of the 2018 FIFA World Cup, with the line "it's coming home" featuring heavily on social media.
 
-They have qualified for the World Cup sixteen times, with fourth-place finishes in the 1990 and 2018 editions.
-</doc>
-<Question>: When did England last get to the semi final of a World Cup before 2019?
-<Answer>:
-2018
-<doc>
-For Super Bowl LV, which took place in February 2021, the national anthem was performed by Eric Church and Jazmine Sullivan. They sang the anthem together as a duet.
+# They have qualified for the World Cup sixteen times, with fourth-place finishes in the 1990 and 2018 editions.
+# <Question>:
+# When did England last get to the semi final of a World Cup before 2019?
+# <Answer>:
+# 2018
+# <Context>:
+# For Super Bowl LV, which took place in February 2021, the national anthem was performed by Eric Church and Jazmine Sullivan. They sang the anthem together as a duet.
 
-For Super Bowl LVI, which took place in February 2022, the national anthem was performed by Mickey Guyton. She delivered a powerful rendition of the anthem.
-</doc>
-<Question>: Who sang the national anthem in the last Super Bowl as of 2021?
-<Answer>:
-Eric Church and Jazmine Sullivan
-<doc>
-Starting in 2021, the women's equivalent tournament was officially renamed the Rugby World Cup to promote equality with the men's tournament.
+# For Super Bowl LVI, which took place in February 2022, the national anthem was performed by Mickey Guyton. She delivered a powerful rendition of the anthem.
+# <Question>:
+# Who sang the national anthem in the last Super Bowl as of 2021?
+# <Answer>:
+# Eric Church and Jazmine Sullivan
+# <Context>:
+# Starting in 2021, the women's equivalent tournament was officially renamed the Rugby World Cup to promote equality with the men's tournament.
 
-Rugby union football, commonly known simply as rugby union or more often just rugby, is a close-contact team sport that originated at Rugby School in England in the first half of the 19th century.
-</doc>
-<Question>: Where was the last Rugby World Cup held between 2007 and 2016?
-<Answer>:
-England
+# Rugby union football, commonly known simply as rugby union or more often just rugby, is a close-contact team sport that originated at Rugby School in England in the first half of the 19th century.
+# <Question>:
+# Where was the last Rugby World Cup held between 2007 and 2016?
+# <Answer>:
+# England
 
-Now your question and reference knowledge are as follows.
-<doc>
-{texts}
-</doc>
-<Question>: {query}
-<Answer>:
-"""
-    return prompt
+# Now your question and reference knowledge are as follows.
+# <Context>:
+# {texts}
+# <Question>:
+# {query}
+# <Answer>:
+# """
+#     return prompt
 
 
 def main():
@@ -174,7 +178,7 @@ def main():
     parser.add_argument('--reader', type=str, default='timellama', choices=['rag', 'metriever', 'timo', 'timellama', 'extract_code'], help="Choose a reader option")
 
     args = parser.parse_args()
-    args.l = llm_names(args.llm, instruct=False)
+    args.l = llm_names(args.llm, instruct=True)
     args.llm_name = deepcopy(args.llm)
 
     if args.stage1_model=='bm25':
@@ -300,7 +304,7 @@ def main():
             prompt = c_prompt(question, '\n\n'.join(new_texts))
             ans = call_pipeline(args, [prompt])
 
-            import ipdb; ipdb.set_trace()
+            # import ipdb; ipdb.set_trace()
 
             rag_pred = ans[0]
             print(rag_pred, ex['answers'])
