@@ -46,7 +46,7 @@ def main():
     parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/TempRAGEval.json")
     parser.add_argument('--bm25-output', type=str, default="./TempRAGEval/BM25_output/TempRAGEval.json")
     parser.add_argument('--ctx-topk', type=int, default=100)
-    parser.add_argument('--QFS-topk', type=int, default=5)
+    parser.add_argument('--QFS-topk', type=int, default=0)
     parser.add_argument('--snt-topk', type=int, default=200)
     parser.add_argument('--complete-ctx-text', type=bool, default=True)
     parser.add_argument('--hybrid-score', type=bool, default=True)
@@ -187,21 +187,36 @@ def main():
             complete_ctxs = []
             for ctx in ctxs:
                 ctx_id = ctx['id']
-                if ctx_id not in complete_ctx_map:
-                    page = wiki[ctx['title']]
+                ctx_title = ctx['title']
+                text = ctx['text'].strip()
+                if ctx_id not in complete_ctx_map and ctx_title in wiki:
+                    page = wiki[ctx_title]
                     flgs = [p['id'] == ctx_id for p in page]
-                    if any(flgs)==True and flgs.index(True)>0:
-                        prev = page[flgs.index(True)-1]
-                        ctx_sentences = sent_tokenize(prev['text'])
-                        ctx_sentences_clean = [s.strip() for s in ctx_sentences]
-                        text = ctx_sentences_clean[-1] + ' ' + ctx['text'].strip()
-                    else:
-                        text = ctx['text']
-                    complete_ctx_map[ctx_id] = text
+                    page_has_ctx = any(flgs)==True
+                    index_in_page = flgs.index(True) if page_has_ctx else None
+                    if  page_has_ctx and index_in_page>0:
+                        prev = page[index_in_page-1]
+                        prev_text = prev['text'].strip()
+                        if prev_text[-1] not in '.!?)}>':
+                            ctx_sentences = sent_tokenize(prev_text)
+                            ctx_sentences_clean = [s.strip() for s in ctx_sentences]
+                            text = ctx_sentences_clean[-1] + ' ' + text
+                    if page_has_ctx and index_in_page<(len(flgs)-1):
+                        if text[-1] not in '.!?)}>':
+                            after = page[index_in_page+1]
+                            after_text = after['text'].strip()
+                            ctx_sentences = sent_tokenize(after_text)
+                            ctx_sentences_clean = [s.strip() for s in ctx_sentences]
+                            text += ' ' + ctx_sentences_clean[0]
+                    # print('\noriginal:')
+                    # print(ctx['text'])
+                    # print('new:')
+                    # print(text)
+                    # import ipdb; ipdb.set_trace()
+                complete_ctx_map[ctx_id] = text
                 ctx['text'] = complete_ctx_map[ctx_id]
                 complete_ctxs.append(ctx)
             ex[ctx_key] = complete_ctxs
-
 
     # separate samples into different types for comparison
     examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
