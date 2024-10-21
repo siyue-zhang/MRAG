@@ -165,7 +165,7 @@ def main():
     parser.add_argument('--llm', type=str, default="llama_8b")
     parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
     # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_minilm12_outputs.json")
-    parser.add_argument('--ctx-topk', type=int, default=5)
+    parser.add_argument('--ctx-topk', type=int, default=10)
     parser.add_argument('--param-pred', type=bool, default=False)
     parser.add_argument('--param-cot', type=bool, default=True)
     parser.add_argument(
@@ -176,6 +176,7 @@ def main():
     parser.add_argument('--ctx-key-s2', type=str, default='snt_hybrid_rank')
     # parser.add_argument('--ctx-key-s2', type=str, default='reranker_ctxs')
     parser.add_argument('--reader', type=str, default='timellama', choices=['rag', 'metriever', 'timo', 'timellama', 'extract_code'], help="Choose a reader option")
+    parser.add_argument('--temporal-filter', type=bool, default=False)
 
     args = parser.parse_args()
     args.l = llm_names(args.llm, instruct=True)
@@ -242,6 +243,9 @@ def main():
     to_save=[]
     for k, ex in enumerate(examples):
         question = ex['question']
+        # if question != "When was the first time Brazil won Miss Universe between 1955 and 1971?":
+        #     continue
+        print('\n------\n',question,'\n------\n')
         if ex['time_relation'] != '':
             new_texts = []
             for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
@@ -250,9 +254,75 @@ def main():
 
                 responses = call_pipeline(args, [prompt])
                 response = responses[0].replace('\n','').strip()
+                print('xxxxx')
+                print(ctx['text'])
+                print('--> ', response)
                 if 'none' not in response.lower():
-                    # new_texts.append(ctx['title']+' | '+response)
-                    new_texts.append(response)
+                    print('before: ', response)
+                    if args.temporal_filter:
+                        summary_years = year_identifier(response)
+                        if summary_years:
+                            def snt_temporal_filter(response, summary_years, y):
+                                if response==None:
+                                    return None
+                                if len(summary_years)>0:
+                                    response_snts = sent_tokenize(response)
+                                    new_snts = []
+                                    for snt in response_snts:
+                                        f_snt = snt.replace(str(y), '')
+                                        if year_identifier(f_snt)!=None:
+                                            print('removed year --> ', y)
+                                            new_snts.append(f_snt)
+                                    if len(new_snts)>0:
+                                        response = ' '.join(new_snts)
+                                        return response
+                                    else:
+                                        return None
+                                else:
+                                    return response
+
+                            # repeat
+                            q_years = ex['years'] # question dates
+                            time_relation = ex['time_relation'].lower()
+                            implicit_condition = ex['implicit_condition']
+                            if time_relation in ['before','as of','by','until']:
+                                time_relation_type = 'before'
+                            elif time_relation == 'from':
+                                if len(q_years)==1:
+                                    time_relation_type = 'after'
+                                else:
+                                    time_relation_type = 'between'
+                            elif time_relation == 'since':
+                                time_relation_type = 'after'
+                            elif time_relation in ['after','between']:
+                                time_relation_type = time_relation
+                            else:
+                                time_relation_type = 'other'
+
+                            # for y in summary_years:
+                            #     if time_relation_type in ['before', 'other']:
+                            #         if y > q_years[0]:
+                            #             response = snt_temporal_filter(response, summary_years, y)
+                            #     # Republican Jim Justice was elected governor in 2016 -->  Who heads the Executive Department of the West Virginia government after April 5, 2018? 
+                            #     # elif time_relation_type == 'after':
+                            #     #     if y < q_years[0] and all([w not in response for w in ['since', 'from']]):
+                            #     #         response = snt_temporal_filter(response, summary_years, y)
+                            #     elif time_relation_type == 'between':
+                            #         if y < min(q_years) or y > max(q_years):
+                            #             response = snt_temporal_filter(response, summary_years, y)
+                            # print('AFTER: ', response)
+
+                        else:
+                            # no years in the sentence
+                            pass
+                        # import ipdb; ipdb.set_trace()
+
+                    if response and response not in new_texts:
+                        new_texts.append(response)
+
+
+
+
 
 #             snts = ex['top_snt_id']
 #             ctx_map = {ctx['id']:ctx for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]}
@@ -299,6 +369,7 @@ def main():
 #                 new_texts.append(title+' | '+response)
             print('------')
             print(question,'\n')
+            new_texts = new_texts[::-1]
             for x in new_texts:
                 print(x,'\n')
             prompt = c_prompt(question, '\n\n'.join(new_texts))

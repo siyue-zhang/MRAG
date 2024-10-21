@@ -115,7 +115,10 @@ How many runs Sachin scored in his first ODI debut?
 
 
 def get_QFS_prompt(question, title, text):
-    prompt = f"""You are given a context paragraph and a specific question. Your goal is to summarize the context paragraph in one sentence by answering the given question. If dates are mentioned in the paragraph, include them in your answer. If the question cannot be answered based on the paragraph, respond with "None". Ensure that the response is complete, concise and directly addressing the question.
+    # prompt = f"""You are given a context paragraph and a specific question. Your goal is to summarize the context paragraph in one sentence by answering the given question. If dates are mentioned in the paragraph, include them in your answer. If the question cannot be answered based on the paragraph, respond with "None". Ensure that the response is complete, concise and directly addressing the question.
+    # Neelam Sanjiva Reddy served as President of India in 1977, K. R. Narayanan in 1997, and Droupadi Murmu in 2022.
+
+    prompt = f"""You are given a context paragraph and a specific question. Your goal is to answer the given question based on the context paragraph in a few sentence, each sentence should have only one subject entity. If dates are mentioned in the paragraph, include them in your answer. If the question cannot be answered based on the paragraph, respond with "None". Ensure that the response is complete, concise and directly addressing the question.
 There are some examples for you to refer to:
 <Context>:
 Houston Rockets | The Houston Rockets have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
@@ -142,7 +145,7 @@ India | India has had several distinguished presidents throughout its history. I
 Who serve as President of India
 </Question>
 <Summarization>:
-Neelam Sanjiva Reddy served as President in 1977, K. R. Narayanan in 1997, and Droupadi Murmu in 2022.
+Neelam Sanjiva Reddy served as President of India since 1977. K. R. Narayanan served as President of India in 1997-2002. Droupadi Murmu served as President of India since 2022.
 </Summarization>
 
 Now your question and paragraph are as follows.

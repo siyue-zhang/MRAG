@@ -518,6 +518,7 @@ def main():
                 time_relation_type = time_relation
             else:
                 time_relation_type = 'other'
+            ex['time_relation_type'] = time_relation_type
 
         # static = question_static_map[normalized_question]
         # compute semantic scores using reranker
