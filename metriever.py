@@ -1,3 +1,6 @@
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+
 from utils import *
 from prompts import *
 # import ipdb; ipdb.set_trace()
@@ -77,7 +80,7 @@ def main():
     if args.m2:
         name = args.m3 if args.m2 == 'metriever' else args.m2
         if 'gemma' in name:
-            args.model = FlagLLMReranker(name, use_fp16=True,)
+            args.model = FlagLLMReranker(name, use_fp16=True)
         elif 'bge' in name:
             args.model = FlagReranker(name, use_fp16=True)
         elif 'monot5' in name:
@@ -698,19 +701,29 @@ def get_temporal_coeffs(years, sentence_tuples, time_relation_type, implicit_con
     return temporal_coeffs
 
 
-def call_pipeline(args, prompts):
-    sampling_params = SamplingParams(temperature=0.7, top_p=0.95, max_tokens=100)
+def call_pipeline(args, prompts, max_tokens=100):
+    sampling_params = SamplingParams(temperature=0.7, top_p=0.95, max_tokens=max_tokens)
     outputs = args.llm.generate(prompts, sampling_params)
     # print('~~~')
     # print(prompts[0],'\n<>')
     # print(outputs[0].outputs[0].text)
     # print('~~~')
+
     responses = [output.outputs[0].text for output in outputs]
-    for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>']:
+    for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>']:
         responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
     for mid_stopper in ['</Thought>']:
         responses = [res.split(mid_stopper)[-1] if mid_stopper in res else res for res in responses]
-    responses = [res.replace('\n','').strip() for res in responses]
+    if responses[0][:2] == '- ':
+        responses = [res.split('- ') for res in responses]
+        tmp = []
+        for res in responses:
+            res = [r.replace('\n','').strip() for r in res]
+            tmp.append([r for r in res if r !=''])
+        responses = tmp
+    else:
+        responses = [res.replace('\n','').strip() for res in responses]
+    # import ipdb; ipdb.set_trace()
     return responses 
 
 

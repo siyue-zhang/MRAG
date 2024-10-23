@@ -1,3 +1,6 @@
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 from utils import *
 from prompts import *
 from metriever import call_pipeline
@@ -28,62 +31,53 @@ from temp_eval import normalize
 #     # responses = [res.replace('\n','').strip() for res in responses]
 #     return responses 
 
-def c_bracket_prompt(query, texts):
+def decontext(title, text, snt):
+    prompt = f"""You will be given a context paragraph and a core section of this context. Your task is to convert the core section into independent sentences.
+Requirements are follows:
+- Write one sentence in one line.
+- Same events occur in different years should be included in one sentence.
+- Different events should be included in separate sentences.
+- Each sentence should stand alone with complete information from the context, such as the name and date.
+- Only use the words "in", "from", and "until" for the date. Use "from until" instead of "from to".
 
-    prompt=f"""Answer the given question, you can refer to the document provided, especially focusing and analyzing on the sentence between brackets "[[text]]".
-As an assistant, your task is to answer the question based on the given knowledge. Your answer should be after <Answer>.
-The given knowledge will be after the <Context> tag. You can refer to the knowledge to answer the question.
-If the knowledge does not contain the answer, answer the question directly.
 There are some examples for you to refer to:
-<Context>:
-Sport in the United Kingdom Field | hockey is the second most popular team recreational sport in the United Kingdom. The Great Britain men's hockey team won the hockey tournament at the 1988 Olympics, while the women's hockey team repeated the success in the 2016 Games.
-
-Three Lions (song) | [[The song reached number one on the UK Singles Chart again in 2018 following England reaching the semi-finals of the 2018 FIFA World Cup, with the line "it's coming home" featuring heavily on social media.]]
-
-England national football team | They have qualified for the World Cup sixteen times, with fourth-place finishes in the 1990 and 2018 editions.
+<Context>
+India | India has been a federal republic since 1950, governed through a democratic parliamentary system. India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
 </Context>
-<Question>:
-When did England last get to the semi final of a World Cup before 2019?
-</Question>
-<Answer>:
-2018
-</Answer>
-<Context>:
-Bowl LV | [[For Super Bowl LV, which took place in February 2021, the national anthem was performed by Eric Church and Jazmine Sullivan.]] They sang the anthem together as a duet.
+<Section>
+In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
+</Section>
+<Sentences>
+- Neelam Sanjiva Reddy served as the President of India from 1977.
+- K. R. Narayanan served as the President of India from 1997 until 2002.
+- Droupadi Murmu served as the President of India from 2022.
+</Sentences>
 
-Super Bowl LVI | For Super Bowl LVI, which took place in February 2022, the national anthem was performed by Mickey Guyton. She delivered a powerful rendition of the anthem.
+<Context>
+Houston Rockets | The Houston Rockets have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
 </Context>
-<Question>:
-Who sang the national anthem in the last Super Bowl as of 2021?
-</Question>
-<Answer>:
-Eric Church and Jazmine Sullivan
-</Answer>
-<Context>:
-Rugby World Cup | Starting in 2021, the women's equivalent tournament was officially renamed the Rugby World Cup to promote equality with the men's tournament.
+<Section>
+Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic.
+</Section>
+<Sentences>
+- The Houston Rockets won the NBA championship in 1994, 1995.
+</Sentences>
 
-Rugby union | Rugby union football, commonly known simply as rugby union or more often just rugby, is a close-contact team sport that originated at Rugby School in England in the first half of the 19th century.
+Now your context paragraph and the core section are as follows.
+<Context>
+{title} | {text}
 </Context>
-<Question>:
-Where was the last Rugby World Cup held between 2007 and 2016?
-</Question>
-<Answer>:
-England
-</Answer>
-
-Now your question and context knowledge are as follows.
-<Context>:
-{texts}
-</Context>
-<Question>:
-{query}
-</Question>
-<Answer>:
+<Section>
+{snt}
+</Section>
+<Sentences>
 """
     return prompt
 
 
-# # query focused summarizer
+
+
+# query focused summarizer
 # def get_QFS_prompt(question, title, text):
 #     prompt = f"""You are given a paragraph and a specific question. Your goal is to summarize the paragraph after <Context> in complete sentences by answering the given question. If dates are mentioned in the paragraph, include them in your answer. If the question cannot be answered based on the paragraph, respond with "None." Ensure that the response is concise and directly addresses the question.
 # There are some examples for you to refer to:
@@ -203,7 +197,10 @@ def main():
     print('examples loaded.')
 
     if args.max_examples:
-        examples = examples[:min(len(examples),args.max_examples)]
+        # examples = examples[:min(len(examples),args.max_examples)]
+        examples = examples[-args.max_examples:]
+
+    
 
     # for k, ex in enumerate(examples):
     #     if ex['time_relation'] != '':
@@ -243,142 +240,238 @@ def main():
     to_save=[]
     for k, ex in enumerate(examples):
         question = ex['question']
-        # if question != "When was the first time Brazil won Miss Universe between 1955 and 1971?":
-        #     continue
-        print('\n------\n',question,'\n------\n')
+        if question != "When was the last time the Dodgers played the Yankees in the World Series before October 2, 2008?":
+            continue
+        print('\n------\n',question,'\n------\n') 
+
+
         if ex['time_relation'] != '':
             new_texts = []
-            for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
-                normalized_question = ex['normalized_question']
-                prompt = get_QFS_prompt(normalized_question, ctx['title'], ctx['text'])
 
-                responses = call_pipeline(args, [prompt])
-                response = responses[0].replace('\n','').strip()
-                print('xxxxx')
-                print(ctx['text'])
-                print('--> ', response)
-                if 'none' not in response.lower():
-                    print('before: ', response)
-                    if args.temporal_filter:
-                        summary_years = year_identifier(response)
-                        if summary_years:
-                            def snt_temporal_filter(response, summary_years, y):
-                                if response==None:
-                                    return None
-                                if len(summary_years)>0:
-                                    response_snts = sent_tokenize(response)
-                                    new_snts = []
-                                    for snt in response_snts:
-                                        f_snt = snt.replace(str(y), '')
-                                        if year_identifier(f_snt)!=None:
-                                            print('removed year --> ', y)
-                                            new_snts.append(f_snt)
-                                    if len(new_snts)>0:
-                                        response = ' '.join(new_snts)
-                                        return response
-                                    else:
-                                        return None
-                                else:
-                                    return response
+            # for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
+            #     normalized_question = ex['normalized_question']
+            #     prompt = get_QFS_prompt(normalized_question, ctx['title'], ctx['text'])
 
-                            # repeat
-                            q_years = ex['years'] # question dates
-                            time_relation = ex['time_relation'].lower()
-                            implicit_condition = ex['implicit_condition']
-                            if time_relation in ['before','as of','by','until']:
-                                time_relation_type = 'before'
-                            elif time_relation == 'from':
-                                if len(q_years)==1:
-                                    time_relation_type = 'after'
-                                else:
-                                    time_relation_type = 'between'
-                            elif time_relation == 'since':
-                                time_relation_type = 'after'
-                            elif time_relation in ['after','between']:
-                                time_relation_type = time_relation
-                            else:
-                                time_relation_type = 'other'
+            #     responses = call_pipeline(args, [prompt])
+            #     response = responses[0].replace('\n','').strip()
+            #     print('xxxxx')
+            #     print(ctx['text'])
+            #     print('--> ', response)
+            #     if 'none' not in response.lower():
+            #         print('before: ', response)
+            #         if args.temporal_filter:
+            #             summary_years = year_identifier(response)
+            #             if summary_years:
+            #                 def snt_temporal_filter(response, summary_years, y):
+            #                     if response==None:
+            #                         return None
+            #                     if len(summary_years)>0:
+            #                         response_snts = sent_tokenize(response)
+            #                         new_snts = []
+            #                         for snt in response_snts:
+            #                             f_snt = snt.replace(str(y), '')
+            #                             if year_identifier(f_snt)!=None:
+            #                                 print('removed year --> ', y)
+            #                                 new_snts.append(f_snt)
+            #                         if len(new_snts)>0:
+            #                             response = ' '.join(new_snts)
+            #                             return response
+            #                         else:
+            #                             return None
+            #                     else:
+            #                         return response
 
-                            # for y in summary_years:
-                            #     if time_relation_type in ['before', 'other']:
-                            #         if y > q_years[0]:
-                            #             response = snt_temporal_filter(response, summary_years, y)
-                            #     # Republican Jim Justice was elected governor in 2016 -->  Who heads the Executive Department of the West Virginia government after April 5, 2018? 
-                            #     # elif time_relation_type == 'after':
-                            #     #     if y < q_years[0] and all([w not in response for w in ['since', 'from']]):
-                            #     #         response = snt_temporal_filter(response, summary_years, y)
-                            #     elif time_relation_type == 'between':
-                            #         if y < min(q_years) or y > max(q_years):
-                            #             response = snt_temporal_filter(response, summary_years, y)
-                            # print('AFTER: ', response)
+            #                 # repeat
+            #                 q_years = ex['years'] # question dates
+            #                 time_relation = ex['time_relation'].lower()
+            #                 implicit_condition = ex['implicit_condition']
+            #                 if time_relation in ['before','as of','by','until']:
+            #                     time_relation_type = 'before'
+            #                 elif time_relation == 'from':
+            #                     if len(q_years)==1:
+            #                         time_relation_type = 'after'
+            #                     else:
+            #                         time_relation_type = 'between'
+            #                 elif time_relation == 'since':
+            #                     time_relation_type = 'after'
+            #                 elif time_relation in ['after','between']:
+            #                     time_relation_type = time_relation
+            #                 else:
+            #                     time_relation_type = 'other'
 
-                        else:
-                            # no years in the sentence
-                            pass
-                        # import ipdb; ipdb.set_trace()
+            #                 # for y in summary_years:
+            #                 #     if time_relation_type in ['before', 'other']:
+            #                 #         if y > q_years[0]:
+            #                 #             response = snt_temporal_filter(response, summary_years, y)
+            #                 #     # Republican Jim Justice was elected governor in 2016 -->  Who heads the Executive Department of the West Virginia government after April 5, 2018? 
+            #                 #     # elif time_relation_type == 'after':
+            #                 #     #     if y < q_years[0] and all([w not in response for w in ['since', 'from']]):
+            #                 #     #         response = snt_temporal_filter(response, summary_years, y)
+            #                 #     elif time_relation_type == 'between':
+            #                 #         if y < min(q_years) or y > max(q_years):
+            #                 #             response = snt_temporal_filter(response, summary_years, y)
+            #                 # print('AFTER: ', response)
 
-                    if response and response not in new_texts:
-                        new_texts.append(response)
+            #             else:
+            #                 # no years in the sentence
+            #                 pass
+            #             # import ipdb; ipdb.set_trace()
 
-
-
+            #         if response and response not in new_texts:
+            #             new_texts.append(response)
 
 
-#             snts = ex['top_snt_id']
-#             ctx_map = {ctx['id']:ctx for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]}
-#             qfs_map = {ctx['id']:ctx['QFS_summary'] for ctx in ex['snt_hybrid_rank'][:args.ctx_topk] if ctx['QFS_summary']}
-#             new_texts = []
-#             for ctx_id, snt, _ in snts:
-#                 if ctx_id not in ctx_map:
-#                     break
-#                 ctx = ctx_map[ctx_id]
-#                 title = ctx['title']
-#                 snt = title.join(snt.split(title)[1:]).strip()
-#                 if ctx_id in qfs_map:
-#                     response = qfs_map[ctx_id]
-#                 else:
-#                     text = title+' | '+ctx['text']
-#                     prompt=f'''You are given a sentence extracted from a larger context. Your task is to rewrite the sentence so that it stands alone, containing all the necessary details (such as names, dates, and places) that would have been understood in the original paragraph. Make sure the new sentence is clear, complete, and unambiguous, providing the reader with all essential information even if they do not have access to the original paragraph.
-# There are some examples for you to refer to:
-# <doc>
-# 1997 tech conference | At the tech conference in San Francisco, industry leaders gathered to discuss the future of electric vehicles and sustainable technology. Among the most anticipated speakers was Jane Smith, the CEO of EV Innovators Inc. She took the stage and shared exciting news about the company's plans. She announced the new product line, which includes a series of long-range electric vehicles aimed at both personal and commercial use. This announcement is expected to significantly impact the market in the coming year.
-# </doc>
-# Original Sentence:
-# She announced the new product line, which includes a series of long-range electric vehicles aimed at both personal and commercial use.
-# Standalone Sentence:
-# Jane Smith, the CEO of EV Innovators Inc., announced the new product line of long-range electric vehicles aimed at both personal and commercial use at the tech conference in San Francisco in 1997.
-# <doc>
-# Los Angeles Lakers | The Los Angeles Lakers had a remarkable game on 1 Jan 2018, led by their star player LeBron James. Playing against the Golden State Warriors at the Staples Center, the Lakers dominated from the start. In the third quarter, LeBron hit a crucial three-pointer, putting his team ahead by 12 points. The crowd erupted as the team secured an important win in their push for the playoffs.
-# </doc>
-# Original Sentence:
-# The crowd erupted as the team secured an important win in their push for the playoffs.
-# Standalone Sentence:
-# The crowd erupted as the Los Angeles Lakers secured an important win in their push for the playoffs in a game on on 1 Jan 2018.
-# Now your task is
-# <doc>
-# {text}
-# </doc>
-# Original Sentence:
-# {snt}
-# Standalone Sentence:
-# '''
-#                     responses = call_pipeline(args, [prompt])
-#                     response = responses[0].replace('\n','').strip()
-#                     # print('\n\n\n',prompt)
-#                     # print('\n', response)
-#                 new_texts.append(title+' | '+response)
-            print('------')
-            print(question,'\n')
-            new_texts = new_texts[::-1]
+
+            snts = ex['top_snt_id']
+            ctx_map = {ctx['id']:ctx for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]}
+            # qfs_map = {ctx['id']:ctx['QFS_summary'] for ctx in ex['snt_hybrid_rank'][:args.ctx_topk] if ctx['QFS_summary']}
+            new_texts = []
+            ctx_ids = []
+            for ctx_id, snt, _ in snts:
+                if ctx_id not in ctx_map or len(ctx_ids)>=args.ctx_topk:
+                    break
+                if ctx_id not in ctx_ids:
+                    ctx_ids.append(ctx_id)
+                ctx = ctx_map[ctx_id]
+                if ctx['QFS_summary'] not in ['', None]:
+                    decontext_snts = [ctx['QFS_summary']]
+                else:
+                    snt = snt[len(ctx['title']):].strip()
+
+                    prompt = decontext(ctx['title'], ctx['text'], snt)
+                    responses = call_pipeline(args, [prompt], 200)
+                    decontext_snts = responses[0]
+                    print('##\n',prompt,'\n',decontext_snts)
+                    import ipdb; ipdb.set_trace()
+                    
+                # repeat
+                q_years = ex['years'] # question dates
+                time_relation = ex['time_relation'].lower()
+                implicit_condition = ex['implicit_condition']
+                if time_relation in ['before','as of','by','until']:
+                    time_relation_type = 'before'
+                elif time_relation == 'from':
+                    if len(q_years)==1:
+                        time_relation_type = 'after'
+                    else:
+                        time_relation_type = 'between'
+                elif time_relation == 'since':
+                    time_relation_type = 'after'
+                elif time_relation in ['after','between']:
+                    time_relation_type = time_relation
+                else:
+                    time_relation_type = 'other'
+
+
+                for snt in decontext_snts:
+                    if len(snt.split())<3:
+                        continue
+                    snt_ = snt.lower()
+                    snt_years = year_identifier(snt)
+                    snt_time_relation_type = None
+                    has_from = False
+                    has_until = False
+                    if snt_years:
+                        for y in snt_years:
+                            if f'in {y}' in snt_ or f'in the {y}' in snt_:
+                                snt_time_relation_type = 'other'
+                            elif f'from {y}' in snt_:
+                                snt_time_relation_type = 'after'
+                                has_from = True
+                            elif f'until {y}' in snt_:
+                                snt_time_relation_type = 'before'
+                                has_until = True
+                    if has_from and has_until:
+                        snt_time_relation_type = 'between'
+
+                    filter_out = False
+                    if snt_time_relation_type == 'before':
+                        if time_relation_type in ['after','other'] and q_years[0]>snt_years[0]:
+                            filter_out = True
+                        elif time_relation_type == 'between' and min(q_years)>snt_years[0]:
+                            filter_out = True
+                     
+                    elif snt_time_relation_type == 'after':
+                        if time_relation_type in ['before','other'] and q_years[0]<snt_years[0]:
+                            filter_out = True
+                        elif time_relation_type == 'between' and max(q_years)<snt_years[0]:
+                            filter_out = True
+
+                    elif snt_time_relation_type == 'between':
+                        if time_relation_type == 'before' and q_years[0]<min(snt_years):
+                            filter_out = True
+                        elif time_relation_type == 'after' and q_years[0]>max(snt_years):
+                            filter_out = True
+                        elif time_relation_type == 'between':
+                            if min(snt_years)>max(q_years) or max(snt_years)<min(q_years):
+                                filter_out = True
+                        elif time_relation_type == 'other':
+                            if q_years[0]>max(q_years) or q_years[0]<min(q_years):
+                                filter_out = True
+                    
+                    elif snt_time_relation_type == 'other':
+                        # 1977, 1978 and 1981 World Series
+                        for y in snt_years:
+                            if time_relation_type == 'before' and q_years[0]<y:
+                                snt = snt.replace(str(y),'')
+                            elif time_relation_type == 'after' and q_years[0]>y:
+                                snt = snt.replace(str(y),'')
+                            elif time_relation_type == 'between':
+                                if y>max(q_years) or y<min(q_years):
+                                    snt = snt.replace(str(y),'')
+                            elif time_relation_type == 'other':
+                                if y != q_years[0]:
+                                    snt = snt.replace(str(y),'')
+                        if year_identifier(snt) == None:
+                            filter_out = True
+
+                    print('==\n', snt)
+                    print(snt_years)
+                    print('type ', snt_time_relation_type)
+                    print('filter ', filter_out)
+                    # import ipdb; ipdb.set_trace()
+                    if (not filter_out) and (snt not in new_texts):
+                        new_texts.append(snt)
+
+
+                # for y in summary_years:
+                #     if time_relation_type in ['before', 'other']:
+                #         if y > q_years[0]:
+                #             response = snt_temporal_filter(response, summary_years, y)
+                #     # Republican Jim Justice was elected governor in 2016 -->  Who heads the Executive Department of the West Virginia government after April 5, 2018? 
+                #     # elif time_relation_type == 'after':
+                #     #     if y < q_years[0] and all([w not in response for w in ['since', 'from']]):
+                #     #         response = snt_temporal_filter(response, summary_years, y)
+                #     elif time_relation_type == 'between':
+                #         if y < min(q_years) or y > max(q_years):
+                #             response = snt_temporal_filter(response, summary_years, y)
+                # print('AFTER: ', response)
+
+
+            # new_texts = new_texts[:1]
+
+            # new_texts[0] = call_pipeline(args, [prompt])[0]
+            # new_texts = new_texts[::-1]
+            # for x in ex['top_snt_id'][:10]:
+            #     print(x, '\n')
+            # print('~~~')
+            # new_texts = [ctx['title'] + ' | ' + ctx['text'] for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]]
+    
+            print('\n------\n',question,'\n------\n') 
+
             for x in new_texts:
                 print(x,'\n')
+            
             prompt = c_prompt(question, '\n\n'.join(new_texts))
             ans = call_pipeline(args, [prompt])
 
-            # import ipdb; ipdb.set_trace()
 
             rag_pred = ans[0]
             print(rag_pred, ex['answers'])
+
+            
+
+
             ex['rag_pred'] = rag_pred
             ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
             ex['rag_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(rag_pred))
