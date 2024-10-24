@@ -115,49 +115,110 @@ How many runs Sachin scored in his first ODI debut?
 
 
 def get_QFS_prompt(question, title, text):
-    # prompt = f"""You are given a context paragraph and a specific question. Your goal is to summarize the context paragraph in one sentence by answering the given question. If dates are mentioned in the paragraph, include them in your answer. If the question cannot be answered based on the paragraph, respond with "None". Ensure that the response is complete, concise and directly addressing the question.
     # Neelam Sanjiva Reddy served as President of India in 1977, K. R. Narayanan in 1997, and Droupadi Murmu in 2022.
 
-    prompt = f"""You are given a context paragraph and a specific question. Your goal is to answer the given question based on the context paragraph in a few sentence, each sentence should have only one subject entity. If dates are mentioned in the paragraph, include them in your answer. If the question cannot be answered based on the paragraph, respond with "None". Ensure that the response is complete, concise and directly addressing the question.
+    # prompt = f"""You are given a context paragraph and a question. Your goal is to answer the given question based on the context paragraph in a few sentence, each sentence should have only one subject entity. If dates are mentioned in the paragraph, include them in your answer. If the question cannot be answered based on the paragraph, respond with "None". Ensure that the response is complete, concise and directly addressing the question.
+    prompt = f"""You are given a context paragraph and a specific question. Your goal is to summarize the context paragraph in one standalone sentence by answering the given question. If dates are mentioned in the paragraph, include them in your answer. If the question cannot be answered based on the paragraph, respond with "None". Ensure that the response is relevant, complete, concise and directly addressing the question.
 There are some examples for you to refer to:
-<Context>:
+<Context>
 Houston Rockets | The Houston Rockets have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
 </Context>
-<Question>:
+<Question>
 When did the Houston Rockets win the NBA championship
 </Question>
-<Summarization>:
-The Houston Rockets won the NBA championship in 1994 and 1995.
+<Summarization>
+The Houston Rockets have won the NBA championship in 1994 and 1995.
 </Summarization>
-<Context>:
+<Context>
 2019 Grand National | The 2019 Grand National (officially known as the Randox Health 2019 Grand National for sponsorship reasons) was the 172nd annual running of the Grand National horse race at Aintree Racecourse near Liverpool, England. The showpiece steeplechase is the pinnacle of a three-day festival which began on 4 April, followed by Ladies' Day on 5 April.
 </Context>
-<Question>:
+<Question>
 Who won the Grand National
 </Question>
-<Summarization>:
+<Summarization>
 None
 </Summarization>
-<Context>:
+<Context>
 India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
 </Context>
-<Question>:
+<Question>
 Who serve as President of India
 </Question>
-<Summarization>:
-Neelam Sanjiva Reddy served as President of India since 1977. K. R. Narayanan served as President of India in 1997-2002. Droupadi Murmu served as President of India since 2022.
+<Summarization>
+Neelam Sanjiva Reddy was elected as the President of India in 1977, K. R. Narayanan served as the President of India from 1977 until 2002, Droupadi Murmu was elected as the President of India in 2022.
 </Summarization>
 
 Now your question and paragraph are as follows.
-<Context>:
+<Context>
 {title} | {text}
 </Context>
-<Question>:
+<Question>
 {question}
 </Question>
-<Summarization>:
+<Summarization>
 """
     return prompt
+
+
+
+# def get_QFS_prompt(question, title, text):
+#     prompt = f"""You will be given a context paragraph and a question. Your task is to answer the question in a sentence with the date.
+# Requirements are follows:
+# - If there is no answer from the context paragraph, write "None".
+
+# There are some examples for you to refer to:
+# <Context>
+# India | India has been a federal republic since 1950, governed through a democratic parliamentary system. India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
+# </Context>
+# <Question>
+# Who served as the President of India
+# </Question>
+# <Answer>
+# Neelam Sanjiva Reddy served as the President of India from 1977, K. R. Narayanan from 1997 until 2002, Droupadi Murmu from 2022.
+# </Answer>
+
+# <Context>
+# Houston Rockets | The Houston Rockets have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
+# </Context>
+# <Question>
+# When was the time the Houston Rockets won the NBA championship
+# </Question>
+# <Section>
+# Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic.
+# </Section>
+# <Answer>
+# The Houston Rockets won the NBA championship in 1994 and 1995.
+# </Answer>
+
+# <Context>
+# 2019 Grand National | The 2019 Grand National (officially known as the Randox Health 2019 Grand National for sponsorship reasons) was the 172nd annual running of the Grand National horse race at Aintree Racecourse near Liverpool, England. The showpiece steeplechase is the pinnacle of a three-day festival which began on 4 April, followed by Ladies' Day on 5 April.
+# </Context>
+# <Question>
+# Who won the Grand National
+# </Question>
+# <Answer>
+# None
+# </Answer>
+
+# Now your context paragraph and the question are as follows.
+# <Context>
+# {title} | {text}
+# </Context>
+# <Question>
+# {question}
+# </Question>
+# <Answer>
+# """
+#     return prompt
+
+
+
+
+
+
+
+
+
 
 
 #     prompt = f"""You are an expert of world knowledge. I am going to ask you a question and you should provide a short and brief answer to the question.

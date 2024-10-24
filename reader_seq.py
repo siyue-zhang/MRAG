@@ -31,48 +31,116 @@ from temp_eval import normalize
 #     # responses = [res.replace('\n','').strip() for res in responses]
 #     return responses 
 
-def decontext(title, text, snt):
-    prompt = f"""You will be given a context paragraph and a core section of this context. Your task is to convert the core section into independent sentences.
+def reader(question, title, text):
+    prompt = f"""You will be given a context paragraph and a question. Your task is to find the answer to the given question from the context paragraph. 
 Requirements are follows:
-- Write one sentence in one line.
-- Same events occur in different years should be included in one sentence.
-- Different events should be included in separate sentences.
-- Each sentence should stand alone with complete information from the context, such as the name and date.
-- Only use the words "in", "from", and "until" for the date. Use "from until" instead of "from to".
+- Write one answer per line with the corresponding date.
+- If the question cannot be answered based on the paragraph, respond with "None". 
+- Ensure that the response is relevant, complete, concise and directly addressing the question.
 
 There are some examples for you to refer to:
-<Context>
-India | India has been a federal republic since 1950, governed through a democratic parliamentary system. India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
+<Context>:
+Houston Rockets | The Houston Rockets have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
 </Context>
-<Section>
-In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
-</Section>
-<Sentences>
+<Question>
+When did the Houston Rockets win the NBA championship
+</Question>
+<Answer>
+- The Houston Rockets have won the NBA championship in 1994.
+- The Houston Rockets have won the NBA championship in 1995.
+</Answer>
+<Context>
+2019 Grand National | The 2019 Grand National (officially known as the Randox Health 2019 Grand National for sponsorship reasons) was the 172nd annual running of the Grand National horse race at Aintree Racecourse near Liverpool, England. The showpiece steeplechase is the pinnacle of a three-day festival which began on 4 April, followed by Ladies' Day on 5 April.
+</Context>
+<Question>
+Who won the Grand National
+</Question>
+<Answer>
+None
+</Answer>
+<Context>
+India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
+</Context>
+<Question>
+Who serve as President of India
+</Question>
+<Answer>
 - Neelam Sanjiva Reddy served as the President of India from 1977.
 - K. R. Narayanan served as the President of India from 1997 until 2002.
 - Droupadi Murmu served as the President of India from 2022.
-</Sentences>
-<Context>
-Houston Rockets | The Houston Rockets have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
-</Context>
-<Section>
-Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic.
-</Section>
-<Sentences>
-- The Houston Rockets won the NBA championship in 1994, 1995.
-</Sentences>
+</Answer>
 
-Now your context paragraph and the core section are as follows.
+Now your context paragraph and question are as follows.
 <Context>
 {title} | {text}
 </Context>
-<Section>
-{snt}
-</Section>
-<Sentences>
+<Question>:
+{question}
+</Question>
+<Answer>
 """
     return prompt
 
+
+def formatter(question, answer):
+    
+    prompt = f"""You will be given a question and an answer sentence. Your task is to convert the answer into Json dict format.
+Requirements are follows:
+- The short form answer to the question should be the dict key.
+- The date of the short form answer should be the dict value.
+- Each answer date should be parsed into a dict object with keys ("start_year", "start_month", "end_year", "end_month"). If data is not available, write "0".
+
+There are some examples for you to refer to:
+<Question>
+Who serve as President of India
+</Question>
+<Answer>
+K. R. Narayanan served as the President of India from 1997 until 2002.
+</Answer>
+<Json>
+{{"K. R. Narayanan": {{"start_year": "1997", "start_month": "0", "end_year": "2002", "end_month": "0"}}}}
+</Json>
+
+<Question>
+Who serve as President of India
+</Question>
+<Answer>
+Droupadi Murmu served as the President of India in Jan 2022.
+</Answer>
+<Json>
+{{"Droupadi Murmu": {{"start_year": "2022", "start_month": "1", "end_year": "2022", "end_month": "1"}}}}
+</Json>
+
+<Question>
+When did the Houston Rockets win the NBA championship
+</Question>
+<Answer>
+The Houston Rockets have won the NBA championship in 1994.
+</Answer>
+<Json>
+{{"1994": {{"start_year": "1994", "start_month": "0", "end_year": "1994", "end_month": "0"}}}}
+</Json>
+
+<Question>
+When did the Houston Rockets win the NBA championship
+</Question>
+<Answer>
+The Houston Rockets have won the NBA championship on June 2, 1995.
+</Answer>
+<Json>
+{{"June 2, 1995": {{"start_year": "1995", "start_month": "6", "end_year": "1995", "end_month": "6"}}}}
+</Json>
+
+<Question>
+{question}
+</Question>
+<Answer>
+{answer}
+</Answer>
+<Json>
+"""
+     
+    return prompt
 
 
 

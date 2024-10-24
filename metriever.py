@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "5"
 
 from utils import *
 from prompts import *
@@ -49,7 +49,7 @@ def main():
     parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/TempRAGEval.json")
     parser.add_argument('--bm25-output', type=str, default="./TempRAGEval/BM25_output/TempRAGEval.json")
     parser.add_argument('--ctx-topk', type=int, default=100)
-    parser.add_argument('--QFS-topk', type=int, default=10)
+    parser.add_argument('--QFS-topk', type=int, default=5)
     parser.add_argument('--snt-topk', type=int, default=200)
     parser.add_argument('--complete-ctx-text', type=bool, default=True)
     parser.add_argument('--hybrid-score', type=bool, default=True)
@@ -428,24 +428,10 @@ def main():
         # generate summaries
         QFS_prompts = []
         for ctx in latest_ctxs[:args.QFS_topk]:
-            # ctx_id = ctx['id']
-            # # before/after index
-            # page = wiki[ctx['title']]
-            # pid = [p['id'] for p in page].index(ctx_id)
-            # texts = [p['text'] for p in page]
-            # ctx_bf = pid-1 if pid>0 else None
-            # ctx_af = pid+1 if pid<len(page)-1 else None
-            # ctext = ''
-            # if ctx_bf:
-            #     ctext += texts[ctx_bf] + ' '
-            # ctext += ctx['text'] + ' '
-            # if ctx_af:
-            #     ctext += texts[ctx_af]
-            # ctext = ctext.strip()
             qfs_prompt = get_QFS_prompt(normalized_question, ctx['title'], ctx['text'])
             QFS_prompts.append(qfs_prompt)
         if args.llm_name != 'gpt':
-            summary_responses = call_pipeline(args, QFS_prompts)
+            summary_responses = call_pipeline(args, QFS_prompts, 100)
             # import ipdb; ipdb.set_trace()
         else:
             raise NotImplemented
@@ -710,7 +696,7 @@ def call_pipeline(args, prompts, max_tokens=100):
     # print('~~~')
 
     responses = [output.outputs[0].text for output in outputs]
-    for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>']:
+    for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Json>']:
         responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
     for mid_stopper in ['</Thought>']:
         responses = [res.split(mid_stopper)[-1] if mid_stopper in res else res for res in responses]
