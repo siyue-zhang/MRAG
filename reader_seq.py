@@ -1,5 +1,5 @@
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 
 from utils import *
 from prompts import *
@@ -32,23 +32,25 @@ from temp_eval import normalize
 #     return responses 
 
 def reader(question, title, text):
-    prompt = f"""You will be given a context paragraph and a question. Your task is to find the answer to the given question from the context paragraph. 
+    prompt = f"""You will be given a context paragraph and a question. Your task is to write an independent sentence to answer the given question from the context paragraph. 
 Requirements are follows:
-- Write one answer per line with the corresponding date.
+- Write one answer sentence per line with the corresponding date.
+- Each line should be a complete sentence addressing the question.
+- Each sentence should include the subject, object, and time if mentioned in the context paragraph.
 - If the question cannot be answered based on the paragraph, respond with "None". 
-- Ensure that the response is relevant, complete, concise and directly addressing the question.
 
 There are some examples for you to refer to:
 <Context>:
-Houston Rockets | The Houston Rockets have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
+Houston Rockets | The team have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
 </Context>
 <Question>
-When did the Houston Rockets win the NBA championship
+When was the time the Houston Rockets win the NBA championship
 </Question>
 <Answer>
 - The Houston Rockets have won the NBA championship in 1994.
 - The Houston Rockets have won the NBA championship in 1995.
 </Answer>
+
 <Context>
 2019 Grand National | The 2019 Grand National (officially known as the Randox Health 2019 Grand National for sponsorship reasons) was the 172nd annual running of the Grand National horse race at Aintree Racecourse near Liverpool, England. The showpiece steeplechase is the pinnacle of a three-day festival which began on 4 April, followed by Ladies' Day on 5 April.
 </Context>
@@ -58,6 +60,7 @@ Who won the Grand National
 <Answer>
 None
 </Answer>
+
 <Context>
 India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
 </Context>
@@ -68,6 +71,26 @@ Who serve as President of India
 - Neelam Sanjiva Reddy served as the President of India from 1977.
 - K. R. Narayanan served as the President of India from 1997 until 2002.
 - Droupadi Murmu served as the President of India from 2022.
+</Answer>
+
+<Context>
+The Flash | In the seventh season, Team Flash defeats Eva and creates a new Speed Force while Iris, Kamilla, and Singh escape the Mirror Dimension. It was last aired on July 20, 2021.
+</Context>
+<Question>
+When was the season of The Flash last aired
+</Question>
+<Answer>
+- The seventh season of The Flash was last aired on July 20, 2021.
+</Answer>
+
+<Context>
+The Lost World: Jurassic Park | The Lost World: Jurassic Park is a 1997 American science fiction action film. In Thailand, The Lost World became the country's highest-grossing film of all time. It ultimately grossed $229.1 million in the U.S. and $389.5 million internationally, for a total of $618.6 million worldwide. The film sold an estimated 49,910,000 tickets in North America.
+</Context>
+<Question>
+What was the worldwide box office of Jurassic movie
+</Question>
+<Answer>
+- The Lost World: Jurassic Park has a total of $618.6 million worldwide box office in 1997.
 </Answer>
 
 Now your context paragraph and question are as follows.
@@ -81,63 +104,121 @@ Now your context paragraph and question are as follows.
 """
     return prompt
 
-
 def formatter(question, answer):
     
-    prompt = f"""You will be given a question and an answer sentence. Your task is to convert the answer into Json dict format.
-Requirements are follows:
-- The short form answer to the question should be the dict key.
-- The date of the short form answer should be the dict value.
-- Each answer date should be parsed into a dict object with keys ("start_year", "start_month", "end_year", "end_month"). If data is not available, write "0".
+    prompt = f"""You will be given a question and a sentence. Your task is to first determine if the sentence can clearly answer the question.
+If the sentence does not clearly answer the question, response with "None".
+If the sentence can answer the question, then
+- Write the answer in the first line. 
+- Write the corresponding date (i.e., year, month, day) in the second line in python dictionary format. 
+- Each date should be parsed into a dict object with keys ("start_year", "start_month", "end_year", "end_month"). If data is not available, write "0".
 
 There are some examples for you to refer to:
 <Question>
 Who serve as President of India
 </Question>
-<Answer>
+<Sentence>
 K. R. Narayanan served as the President of India from 1997 until 2002.
+</Sentence>
+<Answer>
+K. R. Narayanan
+{{"start_year": "1997", "start_month": "0", "end_year": "2002", "end_month": "0"}}
 </Answer>
-<Json>
-{{"K. R. Narayanan": {{"start_year": "1997", "start_month": "0", "end_year": "2002", "end_month": "0"}}}}
-</Json>
 
 <Question>
 Who serve as President of India
 </Question>
+<Sentence>
+K. R. Narayanan served as the President of India.
+</Sentence>
 <Answer>
-Droupadi Murmu served as the President of India in Jan 2022.
+K. R. Narayanan
+{{"start_year": "0", "start_month": "0", "end_year": "0", "end_month": "0"}}
 </Answer>
-<Json>
-{{"Droupadi Murmu": {{"start_year": "2022", "start_month": "1", "end_year": "2022", "end_month": "1"}}}}
-</Json>
+
+<Question>
+Who serve as President of India
+</Question>
+<Sentence>
+Droupadi Murmu served as the President of India from Dec 2022.
+</Sentence>
+<Answer>
+Droupadi Murmu
+{{"start_year": "2022", "start_month": "12", "end_year": "0", "end_month": "0"}}
+</Answer>
+
+<Question>
+Who serve as President of India
+</Question>
+<Sentence>
+Droupadi Murmu served as the President of India unitil 2022.
+</Sentence>
+<Answer>
+Droupadi Murmu
+{{"start_year": "0", "start_month": "0", "end_year": "2022", "end_month": "0"}}
+</Answer>
 
 <Question>
 When did the Houston Rockets win the NBA championship
 </Question>
-<Answer>
+<Sentence>
 The Houston Rockets have won the NBA championship in 1994.
+</Sentence>
+<Answer>
+1994
+{{"start_year": "1994", "start_month": "0", "end_year": "1994", "end_month": "0"}}
 </Answer>
-<Json>
-{{"1994": {{"start_year": "1994", "start_month": "0", "end_year": "1994", "end_month": "0"}}}}
-</Json>
 
 <Question>
 When did the Houston Rockets win the NBA championship
 </Question>
-<Answer>
+<Sentence>
 The Houston Rockets have won the NBA championship on June 2, 1995.
+</Sentence>
+<Answer>
+June 2, 1995
+{{"start_year": "1995", "start_month": "6", "end_year": "1995", "end_month": "6"}}
 </Answer>
-<Json>
-{{"June 2, 1995": {{"start_year": "1995", "start_month": "6", "end_year": "1995", "end_month": "6"}}}}
-</Json>
+
+<Question>
+When did the Houston Rockets win the NBA championship
+</Question>
+<Sentence>
+The Houston Rockets won the NBA championship on 10 May 1980.
+</Sentence>
+<Answer>
+10 May 1980
+{{"start_year": "1980", "start_month": "5", "end_year": "1980", "end_month": "5"}}
+</Answer>
+
+<Question>
+When did the Houston Rockets win the NBA championship
+</Question>
+<Sentence>
+The Lakers have won the NBA championship on June 2, 1995.
+</Sentence>
+<Answer>
+None
+</Answer>
+
+<Question>
+What was the worldwide box office of Jurassic movie
+</Question>
+<Sentence>
+The Lost World: Jurassic Park has a total of $618.6 million worldwide box office in 1997.
+</Sentence>
+<Answer>
+$618.6 million
+{{"start_year": "1997", "start_month": "0", "end_year": "1997", "end_month": "0"}}
+</Answer>
 
 <Question>
 {question}
 </Question>
-<Answer>
+<Sentence>
 {answer}
-</Answer>
-<Json>
+</Sentence>
+<Answer>
 """
      
     return prompt
@@ -222,11 +303,11 @@ The Houston Rockets have won the NBA championship on June 2, 1995.
 
 def main():
     parser = argparse.ArgumentParser(description="Reader")
-    parser.add_argument('--max-examples', type=int, default=None)
+    parser.add_argument('--max-examples', type=int, default=301)
     parser.add_argument('--llm', type=str, default="llama_8b")
     parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
     # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_minilm12_outputs.json")
-    parser.add_argument('--ctx-topk', type=int, default=10)
+    parser.add_argument('--ctx-topk', type=int, default=5)
     parser.add_argument('--param-pred', type=bool, default=False)
     parser.add_argument('--param-cot', type=bool, default=True)
     parser.add_argument(
@@ -265,283 +346,232 @@ def main():
 
     if args.max_examples:
         # examples = examples[:min(len(examples),args.max_examples)]
-        examples = examples[-args.max_examples:]
+        examples = examples[-args.max_examples:-args.max_examples+1]
 
     
-
-    # for k, ex in enumerate(examples):
-    #     if ex['time_relation'] != '':
-    #         snts = ex['top_snt_id']
-    #         texts = []
-    #         for ctx in ex['snt_hybrid_rank']:
-    #             ctx_id = ctx['id']
-    #             title = ctx['title']
-    #             ctx_snts = []
-    #             text = title + ' | ' + ctx['text']
-    #             while len(snts)>0 and snts[0][0] == ctx_id:
-    #                 ctx_snts.append(snts.pop(0))
-    #             for snt in ctx_snts:
-    #                 snt = title.join(snt[1].split(title)[1:]).strip()
-    #                 text = text.replace(snt, f"[[{snt}]]")
-    #                 texts.append(text)
-    #         prompt = c_bracket_prompt(ex['question'], '\n'.join(texts))
-    #         responses = call_pipeline(args, [prompt])
-    #         print(prompt, responses[0])
-    #         import ipdb; ipdb.set_trace()
-
-#             prompt=f'''Complete the sentence in the bracket in the context. Resolve the pronoun with specific name, infer the date and year.
-# There are some examples for you to refer to:
-# <Question>:
-# When was the time the Dodgers played the Yankees in the World Series
-# <Context>:
-# 1941 World Series | [In 1947 the Yankees and the Dodgers would meet in the World Series for the second time and again play a dramatic Game 4 which was decided on a lead change with two outs in the ninth inning.] That time the Dodgers would be on the winning side to tie the series but would once again end up losing it. Ironically, in the 1947 game the Dodgers’ winning pitcher was none other than Hugh Casey – the Game 4 loser in 1941 – even though he pitched to only one batter.
-# <Sentence>:
-# The Dodgers played the Yankees in the World Series in 1947.
-# Now your Question is
-# <Question>:
-# {ex['normalized_question']}
-# <Context>:
-# {text}
-# <Sentence>:
-# '''
     to_save=[]
     for k, ex in enumerate(examples):
+
         question = ex['question']
-        if question != "When was the last time the Dodgers played the Yankees in the World Series before October 2, 2008?":
-            continue
+        ex['time_relation'] = ex['time_relation'].strip()
+
+        # temp
+        years = ex['years'] # question dates
+        time_relation = ex['time_relation'].strip().lower()
+        implicit_condition = ex['implicit_condition']
+        if time_relation in ['before','as of','by','until']:
+            time_relation_type = 'before'
+        elif time_relation == 'from':
+            if len(years)==1:
+                time_relation_type = 'after'
+            else:
+                time_relation_type = 'between'
+        elif time_relation == 'since':
+            time_relation_type = 'after'
+        elif time_relation in ['after','between']:
+            time_relation_type = time_relation
+        else:
+            time_relation_type = 'other'
+        ex['time_relation_type'] = time_relation_type
+        
+        # if question != "Most home runs by 2 teammates in a season before 1988.":
+        #     continue
         print('\n------\n',question,'\n------\n') 
 
 
+        date = ''
         if ex['time_relation'] != '':
-            new_texts = []
+            parts = question.split(ex['time_relation'])
+            date = parts[-1]
+        ex['date'] = date
 
-            # for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
-            #     normalized_question = ex['normalized_question']
-            #     prompt = get_QFS_prompt(normalized_question, ctx['title'], ctx['text'])
-
-            #     responses = call_pipeline(args, [prompt])
-            #     response = responses[0].replace('\n','').strip()
-            #     print('xxxxx')
-            #     print(ctx['text'])
-            #     print('--> ', response)
-            #     if 'none' not in response.lower():
-            #         print('before: ', response)
-            #         if args.temporal_filter:
-            #             summary_years = year_identifier(response)
-            #             if summary_years:
-            #                 def snt_temporal_filter(response, summary_years, y):
-            #                     if response==None:
-            #                         return None
-            #                     if len(summary_years)>0:
-            #                         response_snts = sent_tokenize(response)
-            #                         new_snts = []
-            #                         for snt in response_snts:
-            #                             f_snt = snt.replace(str(y), '')
-            #                             if year_identifier(f_snt)!=None:
-            #                                 print('removed year --> ', y)
-            #                                 new_snts.append(f_snt)
-            #                         if len(new_snts)>0:
-            #                             response = ' '.join(new_snts)
-            #                             return response
-            #                         else:
-            #                             return None
-            #                     else:
-            #                         return response
-
-            #                 # repeat
-            #                 q_years = ex['years'] # question dates
-            #                 time_relation = ex['time_relation'].lower()
-            #                 implicit_condition = ex['implicit_condition']
-            #                 if time_relation in ['before','as of','by','until']:
-            #                     time_relation_type = 'before'
-            #                 elif time_relation == 'from':
-            #                     if len(q_years)==1:
-            #                         time_relation_type = 'after'
-            #                     else:
-            #                         time_relation_type = 'between'
-            #                 elif time_relation == 'since':
-            #                     time_relation_type = 'after'
-            #                 elif time_relation in ['after','between']:
-            #                     time_relation_type = time_relation
-            #                 else:
-            #                     time_relation_type = 'other'
-
-            #                 # for y in summary_years:
-            #                 #     if time_relation_type in ['before', 'other']:
-            #                 #         if y > q_years[0]:
-            #                 #             response = snt_temporal_filter(response, summary_years, y)
-            #                 #     # Republican Jim Justice was elected governor in 2016 -->  Who heads the Executive Department of the West Virginia government after April 5, 2018? 
-            #                 #     # elif time_relation_type == 'after':
-            #                 #     #     if y < q_years[0] and all([w not in response for w in ['since', 'from']]):
-            #                 #     #         response = snt_temporal_filter(response, summary_years, y)
-            #                 #     elif time_relation_type == 'between':
-            #                 #         if y < min(q_years) or y > max(q_years):
-            #                 #             response = snt_temporal_filter(response, summary_years, y)
-            #                 # print('AFTER: ', response)
-
-            #             else:
-            #                 # no years in the sentence
-            #                 pass
-            #             # import ipdb; ipdb.set_trace()
-
-            #         if response and response not in new_texts:
-            #             new_texts.append(response)
-
-
-
-            snts = ex['top_snt_id']
-            ctx_map = {ctx['id']:ctx for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]}
-            # qfs_map = {ctx['id']:ctx['QFS_summary'] for ctx in ex['snt_hybrid_rank'][:args.ctx_topk] if ctx['QFS_summary']}
-            new_texts = []
-            ctx_ids = []
-            for ctx_id, snt, _ in snts:
-                if ctx_id not in ctx_map or len(ctx_ids)>=args.ctx_topk:
+        def find_month(w):
+            w = w.lower()
+            month = []
+            for m in month_to_number:
+                if m in w:
+                    month.append(month_to_number[m])
                     break
-                if ctx_id not in ctx_ids:
-                    ctx_ids.append(ctx_id)
-                ctx = ctx_map[ctx_id]
-                if ctx['QFS_summary'] not in ['', None]:
-                    decontext_snts = [ctx['QFS_summary']]
+            for m in short_month_to_number:
+                if m in w:
+                    month.append(short_month_to_number[m])
+                    break
+            if len(month)>0:
+                return month[0]
+            else:
+                return None
+        
+        months = []
+        if ex['time_relation_type']=='between':
+            if 'and' in date:
+                tmp = date.split('and')
+            else:
+                tmp = date.split('to')
+            for w in tmp:
+                m = find_month(w)
+                if m:
+                    months.append(m)
                 else:
-                    snt = snt[len(ctx['title']):].strip()
+                    months.append(0)
+        else:
+            m = find_month(date)
+            if m:
+                months.append(m)
+            else:
+                months.append(0)
+        ex['months'] = months
+        print(months)
+        assert 1==2
 
-                    prompt = decontext(ctx['title'], ctx['text'], snt)
-                    responses = call_pipeline(args, [prompt], 200)
-                    decontext_snts = responses[0]
-                    print('##\n',prompt,'\n',decontext_snts)
-                    import ipdb; ipdb.set_trace()
-                    
-                # repeat
-                q_years = ex['years'] # question dates
-                time_relation = ex['time_relation'].lower()
-                implicit_condition = ex['implicit_condition']
-                if time_relation in ['before','as of','by','until']:
-                    time_relation_type = 'before'
-                elif time_relation == 'from':
-                    if len(q_years)==1:
-                        time_relation_type = 'after'
-                    else:
-                        time_relation_type = 'between'
-                elif time_relation == 'since':
-                    time_relation_type = 'after'
-                elif time_relation in ['after','between']:
-                    time_relation_type = time_relation
-                else:
-                    time_relation_type = 'other'
-
-
-                for snt in decontext_snts:
-                    if len(snt.split())<3:
-                        continue
-                    snt_ = snt.lower()
-                    snt_years = year_identifier(snt)
-                    snt_time_relation_type = None
-                    has_from = False
-                    has_until = False
-                    if snt_years:
-                        for y in snt_years:
-                            if f'in {y}' in snt_ or f'in the {y}' in snt_:
-                                snt_time_relation_type = 'other'
-                            elif f'from {y}' in snt_:
-                                snt_time_relation_type = 'after'
-                                has_from = True
-                            elif f'until {y}' in snt_:
-                                snt_time_relation_type = 'before'
-                                has_until = True
-                    if has_from and has_until:
-                        snt_time_relation_type = 'between'
-
-                    filter_out = False
-                    if snt_time_relation_type == 'before':
-                        if time_relation_type in ['after','other'] and q_years[0]>snt_years[0]:
-                            filter_out = True
-                        elif time_relation_type == 'between' and min(q_years)>snt_years[0]:
-                            filter_out = True
-                     
-                    elif snt_time_relation_type == 'after':
-                        if time_relation_type in ['before','other'] and q_years[0]<snt_years[0]:
-                            filter_out = True
-                        elif time_relation_type == 'between' and max(q_years)<snt_years[0]:
-                            filter_out = True
-
-                    elif snt_time_relation_type == 'between':
-                        if time_relation_type == 'before' and q_years[0]<min(snt_years):
-                            filter_out = True
-                        elif time_relation_type == 'after' and q_years[0]>max(snt_years):
-                            filter_out = True
-                        elif time_relation_type == 'between':
-                            if min(snt_years)>max(q_years) or max(snt_years)<min(q_years):
-                                filter_out = True
-                        elif time_relation_type == 'other':
-                            if q_years[0]>max(q_years) or q_years[0]<min(q_years):
-                                filter_out = True
-                    
-                    elif snt_time_relation_type == 'other':
-                        # 1977, 1978 and 1981 World Series
-                        for y in snt_years:
-                            if time_relation_type == 'before' and q_years[0]<y:
-                                snt = snt.replace(str(y),'')
-                            elif time_relation_type == 'after' and q_years[0]>y:
-                                snt = snt.replace(str(y),'')
-                            elif time_relation_type == 'between':
-                                if y>max(q_years) or y<min(q_years):
-                                    snt = snt.replace(str(y),'')
-                            elif time_relation_type == 'other':
-                                if y != q_years[0]:
-                                    snt = snt.replace(str(y),'')
-                        if year_identifier(snt) == None:
-                            filter_out = True
-
-                    print('==\n', snt)
-                    print(snt_years)
-                    print('type ', snt_time_relation_type)
-                    print('filter ', filter_out)
-                    # import ipdb; ipdb.set_trace()
-                    if (not filter_out) and (snt not in new_texts):
-                        new_texts.append(snt)
-
-
-                # for y in summary_years:
-                #     if time_relation_type in ['before', 'other']:
-                #         if y > q_years[0]:
-                #             response = snt_temporal_filter(response, summary_years, y)
-                #     # Republican Jim Justice was elected governor in 2016 -->  Who heads the Executive Department of the West Virginia government after April 5, 2018? 
-                #     # elif time_relation_type == 'after':
-                #     #     if y < q_years[0] and all([w not in response for w in ['since', 'from']]):
-                #     #         response = snt_temporal_filter(response, summary_years, y)
-                #     elif time_relation_type == 'between':
-                #         if y < min(q_years) or y > max(q_years):
-                #             response = snt_temporal_filter(response, summary_years, y)
-                # print('AFTER: ', response)
-
-
-            # new_texts = new_texts[:1]
-
-            # new_texts[0] = call_pipeline(args, [prompt])[0]
-            # new_texts = new_texts[::-1]
-            # for x in ex['top_snt_id'][:10]:
-            #     print(x, '\n')
-            # print('~~~')
-            # new_texts = [ctx['title'] + ' | ' + ctx['text'] for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]]
-    
+        if ex['time_relation'] != '':
+            # new_texts = []
             print('\n------\n',question,'\n------\n') 
 
-            for x in new_texts:
-                print(x,'\n')
+            ans_list = []
+            errors = []
+            for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
+                normalized_question = ex['normalized_question']
+                prompt = f"""Can you answer the question based on the context paragraph? Response Yes or No.
+<Context>
+{ctx['title']+' | '+ctx['text']}
+<\Context>
+<Question>
+{normalized_question}
+<\Question>
+<Response>
+"""
+                responses = call_pipeline(args, [prompt], 10)
+                response = responses[0]
+                if response[:3].lower()=='yes':
+                    prompt = reader(normalized_question, ctx['title'], ctx['text'])
+                    responses = call_pipeline(args, [prompt], 200)
+                    sentence_list = responses[0]
+                else:
+                    sentence_list = []
+
+
+                print('\n', ctx['title'], ctx['text'])
+                print(sentence_list)
+
+
+                if isinstance(sentence_list, list):
+                    for sentence in sentence_list:
+                        if 'none' not in sentence.lower():
+                            prompt = formatter(normalized_question, sentence)
+                            responses = call_pipeline(args, [prompt])
+                            answer_dict = responses[0]
+                            print('xx ', answer_dict)
+                            try:
+                                answer_dict = answer_dict.split('\n')
+                                answer_dict = [s for s in answer_dict if len(s)>0]
+                                tmp = eval(answer_dict[1])
+                                answer_dict = {answer_dict[0]: tmp}
+                            except Exception as e:
+                                pass
+                            if isinstance(answer_dict, dict):
+                                # revise response
+                                k = next(iter(answer_dict))
+                                if any([ss in sentence.lower() for ss in [f'in {k}', f'on {k}']]):
+                                    answer_dict[k]['start_year'] = answer_dict[k]['end_year']
+                                    answer_dict[k]['start_month'] = answer_dict[k]['end_month']
+                                if answer_dict not in ans_list:
+                                    print(answer_dict)
+                                    ans_list.append(answer_dict)
+                            else:
+                                errors.append(answer_dict)
+
+            for ans_date in ans_list:
+                ans = next(iter(ans_date))
+                ans_date[ans]['start_year'] = int(ans_date[ans]['start_year'])
+                ans_date[ans]['end_year'] = int(ans_date[ans]['end_year'])
+                ans_date[ans]['start_month'] = int(ans_date[ans]['start_month'])
+                ans_date[ans]['end_month'] = int(ans_date[ans]['end_month'])
+
+            print('\n\n')
+            print(ans_list)
+
+            import ipdb; ipdb.set_trace()
+
+            tmp = []
+            if ex['time_relation_type']=='before':
+                q_year = ex['years'][0]
+                q_month = ex['months'][0] if len(ex['months'])>0 else None
+
+                for ans_date in ans_list:
+                    ans = next(iter(ans_date))
+                    end_year = ans_date[ans]['end_year']
+                    end_month = ans_date[ans]['end_month']
+                    start_year = ans_date[ans]['start_year']
+                    start_month = ans_date[ans]['start_month']
+
+                    append_flg = True
+                    if start_year>0:
+                        if start_year==q_year and q_month and start_month>0:
+                            if start_month>q_month:
+                                append_flg=False
+                        else:
+                            if ex['time_relation']=='before':
+                                if start_year>=q_year:
+                                    append_flg=False
+                            else:
+                                if start_year>q_year:
+                                    append_flg=False
+
+                    if append_flg:
+                        tmp.append(ans_date)
+
+            elif ex['time_relation_type']=='after':
+                q_year = ex['years'][0]
+                for ans_date in ans_list:
+                    ans = next(iter(ans_date))
+                    if sum(ans_date[ans].values())==0:
+                        tmp.append(ans_date)
+                    elif ans_date[ans]['start_year']>= q_year or ans_date[ans]['end_year']>= q_year:
+                        tmp.append(ans_date)
+            elif ex['time_relation_type']=='between':
+                q_year_s = min(ex['years'])
+                q_year_e = max(ex['years'])
+                for ans_date in ans_list:
+                    ans = next(iter(ans_date))
+                    if sum(ans_date[ans].values())==0:
+                        tmp.append(ans_date)
+                    elif ans_date[ans]['start_year']>= q_year_s and  ans_date[ans]['start_year']<= q_year_e:
+                        tmp.append(ans_date)
+                    elif ans_date[ans]['end_year']>= q_year_s and  ans_date[ans]['end_year']<= q_year_e:
+                        tmp.append(ans_date)
+
+            ans_list = tmp
+        
+            print('\nafter filter')
+            print(ans_list)
+
+            if len(ans_list)>0:
+                if ex['implicit_condition'] == 'last':
+                    ans_list = sorted(ans_list, key=lambda x: (list(x.values())[0]['start_year'], list(x.values())[0]['start_month']), reverse=True)
+                elif ex['implicit_condition'] == 'first':
+                    ans_list = sorted(ans_list, key=lambda x: (list(x.values())[0]['start_year'], list(x.values())[0]['start_month']), reverse=False)
+                else:
+                    # for rest, look for closest date
+                    ans_list = sorted(ans_list, key=lambda x: abs(list(x.values())[0]['start_year']-ex['years'][0]), reverse=False)
+
+                print('\nafter sort')
+                print(ans_list)
             
-            prompt = c_prompt(question, '\n\n'.join(new_texts))
-            ans = call_pipeline(args, [prompt])
 
-
-            rag_pred = ans[0]
+            if len(ans_list)==0:
+                print('no context is useful.')
+                prompt  = zc_prompt(question)
+                rag_pred = call_pipeline(args, [prompt])[0]
+            else:
+                rag_pred = next(iter(ans_list[0]))
             print(rag_pred, ex['answers'])
 
             
-
-
             ex['rag_pred'] = rag_pred
             ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
             ex['rag_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(rag_pred))
+
+            
 
             to_save.append(ex)
 

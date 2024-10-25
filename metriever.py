@@ -313,14 +313,27 @@ def main():
             question = ex['question']
             time_relation = ex['time_relation']
             assert time_relation in question, question
+            date = ''
             if time_relation != '':
                 parts = question.split(time_relation)
                 no_time_question = time_relation.join(parts[:-1])
                 date = parts[-1]
                 years = year_identifier(date)
                 ex['years'] = years # int
+                months = []
+                for w in date.lower().split():
+                    for m in month_to_number:
+                        if m in w:
+                            months.append(m)
+                            break
+                    for m in short_month_to_number:
+                        if m in w:
+                            months.append(m)
+                            break
+                ex['months'] = months
             else:
                 no_time_question = question
+            ex['date'] = date
             normalized_question, implicit_condition = remove_implicit_condition(no_time_question)
             ex['implicit_condition'] = implicit_condition
             normalized_question = normalized_question[:-1] if normalized_question[-1] in '.?!' else normalized_question
@@ -492,7 +505,7 @@ def main():
         # 4)	other (in, on, around, during)
         if 'years' in ex:
             years = ex['years'] # question dates
-            time_relation = ex['time_relation'].lower()
+            time_relation = ex['time_relation'].strip().lower()
             implicit_condition = ex['implicit_condition']
             if time_relation in ['before','as of','by','until']:
                 time_relation_type = 'before'
@@ -707,7 +720,7 @@ def call_pipeline(args, prompts, max_tokens=100):
             res = [r.replace('\n','').strip() for r in res]
             tmp.append([r for r in res if r !=''])
         responses = tmp
-    else:
+    elif '{"' not in responses[0]:
         responses = [res.replace('\n','').strip() for res in responses]
     # import ipdb; ipdb.set_trace()
     return responses 
