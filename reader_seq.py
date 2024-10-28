@@ -303,11 +303,11 @@ $618.6 million
 
 def main():
     parser = argparse.ArgumentParser(description="Reader")
-    parser.add_argument('--max-examples', type=int, default=301)
+    parser.add_argument('--max-examples', type=int, default=None)
     parser.add_argument('--llm', type=str, default="llama_8b")
     parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
     # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_minilm12_outputs.json")
-    parser.add_argument('--ctx-topk', type=int, default=5)
+    parser.add_argument('--ctx-topk', type=int, default=10)
     parser.add_argument('--param-pred', type=bool, default=False)
     parser.add_argument('--param-cot', type=bool, default=True)
     parser.add_argument(
@@ -344,17 +344,21 @@ def main():
     examples = load_json_file(args.retriever_output)
     print('examples loaded.')
 
-    if args.max_examples:
+    # if args.max_examples:
         # examples = examples[:min(len(examples),args.max_examples)]
-        examples = examples[-args.max_examples:-args.max_examples+1]
+    # examples = examples[500:501]
 
     
     to_save=[]
     for k, ex in enumerate(examples):
+        if ex['time_relation'] == '':
+            continue
 
         question = ex['question']
+        question = question.replace('annd', 'and')
         ex['time_relation'] = ex['time_relation'].strip()
 
+        
         # temp
         years = ex['years'] # question dates
         time_relation = ex['time_relation'].strip().lower()
@@ -374,15 +378,14 @@ def main():
             time_relation_type = 'other'
         ex['time_relation_type'] = time_relation_type
         
-        # if question != "Most home runs by 2 teammates in a season before 1988.":
+        # if question != "When was the last time the Dodgers played the Yankees in the World Series after 1978?":
         #     continue
         print('\n------\n',question,'\n------\n') 
 
 
         date = ''
-        if ex['time_relation'] != '':
-            parts = question.split(ex['time_relation'])
-            date = parts[-1]
+        parts = question.split(ex['time_relation'])
+        date = parts[-1]
         ex['date'] = date
 
         def find_month(w):
@@ -401,37 +404,37 @@ def main():
             else:
                 return None
         
+
         months = []
-        if ex['time_relation_type']=='between':
-            if 'and' in date:
-                tmp = date.split('and')
-            else:
-                tmp = date.split('to')
+
+        def append_month(month_str):
+            m = find_month(month_str)
+            months.append(m if m else 0)
+
+        if ex['time_relation_type'] == 'between':
+            delimiters = ['and', 'to', 'until']
+            d_index = [d in date for d in delimiters]
+            assert any(d_index)
+            delimiter = delimiters[d_index.index(True)]
+            tmp = date.split(delimiter)
             for w in tmp:
-                m = find_month(w)
-                if m:
-                    months.append(m)
-                else:
-                    months.append(0)
+                append_month(w.strip())
         else:
-            m = find_month(date)
-            if m:
-                months.append(m)
-            else:
-                months.append(0)
+            append_month(date.strip())
+
         ex['months'] = months
-        print(months)
-        assert 1==2
+        print('months ', months)
 
-        if ex['time_relation'] != '':
+
+
             # new_texts = []
-            print('\n------\n',question,'\n------\n') 
+        print('\n------\n',question,'\n------\n') 
 
-            ans_list = []
-            errors = []
-            for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
-                normalized_question = ex['normalized_question']
-                prompt = f"""Can you answer the question based on the context paragraph? Response Yes or No.
+        ans_list = []
+        errors = []
+        for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
+            normalized_question = ex['normalized_question']
+            prompt = f"""Can you answer the question based on the context paragraph? Response Yes or No.
 <Context>
 {ctx['title']+' | '+ctx['text']}
 <\Context>
@@ -440,140 +443,165 @@ def main():
 <\Question>
 <Response>
 """
-                responses = call_pipeline(args, [prompt], 10)
-                response = responses[0]
-                if response[:3].lower()=='yes':
-                    prompt = reader(normalized_question, ctx['title'], ctx['text'])
-                    responses = call_pipeline(args, [prompt], 200)
-                    sentence_list = responses[0]
-                else:
-                    sentence_list = []
+            responses = call_pipeline(args, [prompt], 10)
+            response = responses[0]
+            if response[:3].lower()=='yes':
+                prompt = reader(normalized_question, ctx['title'], ctx['text'])
+                responses = call_pipeline(args, [prompt], 200)
+                sentence_list = responses[0]
+            else:
+                sentence_list = []
 
 
-                print('\n', ctx['title'], ctx['text'])
-                print(sentence_list)
+            print('\n', ctx['title'], ctx['text'])
+            print(sentence_list)
 
 
-                if isinstance(sentence_list, list):
-                    for sentence in sentence_list:
-                        if 'none' not in sentence.lower():
-                            prompt = formatter(normalized_question, sentence)
-                            responses = call_pipeline(args, [prompt])
-                            answer_dict = responses[0]
-                            print('xx ', answer_dict)
-                            try:
-                                answer_dict = answer_dict.split('\n')
-                                answer_dict = [s for s in answer_dict if len(s)>0]
-                                tmp = eval(answer_dict[1])
-                                answer_dict = {answer_dict[0]: tmp}
-                            except Exception as e:
-                                pass
-                            if isinstance(answer_dict, dict):
-                                # revise response
-                                k = next(iter(answer_dict))
-                                if any([ss in sentence.lower() for ss in [f'in {k}', f'on {k}']]):
-                                    answer_dict[k]['start_year'] = answer_dict[k]['end_year']
-                                    answer_dict[k]['start_month'] = answer_dict[k]['end_month']
-                                if answer_dict not in ans_list:
-                                    print(answer_dict)
-                                    ans_list.append(answer_dict)
-                            else:
-                                errors.append(answer_dict)
+            if isinstance(sentence_list, list):
+                for sentence in sentence_list:
+                    if 'none' not in sentence.lower():
+                        prompt = formatter(normalized_question, sentence)
+                        responses = call_pipeline(args, [prompt])
+                        answer_dict = responses[0]
+                        print('xx ', answer_dict)
+                        try:
+                            answer_dict = answer_dict.split('\n')
+                            answer_dict = [s for s in answer_dict if len(s)>0]
+                            tmp = eval(answer_dict[1])
+                            answer_dict = {answer_dict[0]: tmp}
+                        except Exception as e:
+                            pass
+                        if isinstance(answer_dict, dict):
+                            # revise response
+                            k = next(iter(answer_dict))
+                            if any([ss in sentence.lower() for ss in [f'in {k}', f'on {k}']]):
+                                print('[[[[]]]]',answer_dict)
+                                if not isinstance(answer_dict[k], dict):
+                                    continue
+                                answer_dict[k]['start_year'] = answer_dict[k]['end_year']
+                                answer_dict[k]['start_month'] = answer_dict[k]['end_month']
+                            if answer_dict not in ans_list:
+                                print(answer_dict)
+                                ans_list.append(answer_dict)
+                        else:
+                            errors.append(answer_dict)
+
+        for ans_date in ans_list:
+            ans = next(iter(ans_date))
+            ans_date[ans]['start_year'] = int(ans_date[ans]['start_year'])
+            ans_date[ans]['end_year'] = int(ans_date[ans]['end_year'])
+            ans_date[ans]['start_month'] = int(ans_date[ans]['start_month'])
+            ans_date[ans]['end_month'] = int(ans_date[ans]['end_month'])
+
+        print('\n\n')
+        print(ans_list)
+
+        # import ipdb; ipdb.set_trace()
+
+        tmp = []
+        if ex['time_relation_type']=='before':
+            q_year = ex['years'][0]
+            q_month = ex['months'][0] if sum(ex['months'])>0 else None
 
             for ans_date in ans_list:
                 ans = next(iter(ans_date))
-                ans_date[ans]['start_year'] = int(ans_date[ans]['start_year'])
-                ans_date[ans]['end_year'] = int(ans_date[ans]['end_year'])
-                ans_date[ans]['start_month'] = int(ans_date[ans]['start_month'])
-                ans_date[ans]['end_month'] = int(ans_date[ans]['end_month'])
+                start_year = ans_date[ans]['start_year']
+                start_month = ans_date[ans]['start_month']
 
-            print('\n\n')
-            print(ans_list)
-
-            import ipdb; ipdb.set_trace()
-
-            tmp = []
-            if ex['time_relation_type']=='before':
-                q_year = ex['years'][0]
-                q_month = ex['months'][0] if len(ex['months'])>0 else None
-
-                for ans_date in ans_list:
-                    ans = next(iter(ans_date))
-                    end_year = ans_date[ans]['end_year']
-                    end_month = ans_date[ans]['end_month']
-                    start_year = ans_date[ans]['start_year']
-                    start_month = ans_date[ans]['start_month']
-
-                    append_flg = True
-                    if start_year>0:
-                        if start_year==q_year and q_month and start_month>0:
-                            if start_month>q_month:
+                append_flg = True
+                if start_year>0:
+                    if start_year==q_year and q_month and start_month>0:
+                        if start_month>q_month:
+                            append_flg=False
+                    else:
+                        if ex['time_relation']=='before':
+                            if start_year>=q_year:
                                 append_flg=False
                         else:
-                            if ex['time_relation']=='before':
-                                if start_year>=q_year:
-                                    append_flg=False
-                            else:
-                                if start_year>q_year:
-                                    append_flg=False
+                            if start_year>q_year:
+                                append_flg=False
 
-                    if append_flg:
-                        tmp.append(ans_date)
+                if append_flg:
+                    tmp.append(ans_date)
 
-            elif ex['time_relation_type']=='after':
-                q_year = ex['years'][0]
-                for ans_date in ans_list:
-                    ans = next(iter(ans_date))
-                    if sum(ans_date[ans].values())==0:
-                        tmp.append(ans_date)
-                    elif ans_date[ans]['start_year']>= q_year or ans_date[ans]['end_year']>= q_year:
-                        tmp.append(ans_date)
-            elif ex['time_relation_type']=='between':
-                q_year_s = min(ex['years'])
-                q_year_e = max(ex['years'])
-                for ans_date in ans_list:
-                    ans = next(iter(ans_date))
-                    if sum(ans_date[ans].values())==0:
-                        tmp.append(ans_date)
-                    elif ans_date[ans]['start_year']>= q_year_s and  ans_date[ans]['start_year']<= q_year_e:
-                        tmp.append(ans_date)
-                    elif ans_date[ans]['end_year']>= q_year_s and  ans_date[ans]['end_year']<= q_year_e:
-                        tmp.append(ans_date)
+        elif ex['time_relation_type']=='after':
+            q_year = ex['years'][0]
+            q_month = ex['months'][0] if sum(ex['months'])>0 else None
 
-            ans_list = tmp
-        
-            print('\nafter filter')
-            print(ans_list)
+            for ans_date in ans_list:
+                ans = next(iter(ans_date))
+                end_year = ans_date[ans]['end_year']
+                end_month = ans_date[ans]['end_month']              
+                
+                append_flg = True
+                if end_year>0:
+                    if end_year==q_year and q_month and end_month>0:
+                        if ex['time_relation']=='since':
+                            if end_month<q_month:
+                                append_flg=False
+                        else:
+                            if end_month<=q_month:
+                                append_flg=False
+                    else:
+                        if end_year<q_year:
+                            append_flg=False
+                
+                if append_flg:
+                    tmp.append(ans_date)
 
-            if len(ans_list)>0:
-                if ex['implicit_condition'] == 'last':
-                    ans_list = sorted(ans_list, key=lambda x: (list(x.values())[0]['start_year'], list(x.values())[0]['start_month']), reverse=True)
-                elif ex['implicit_condition'] == 'first':
-                    ans_list = sorted(ans_list, key=lambda x: (list(x.values())[0]['start_year'], list(x.values())[0]['start_month']), reverse=False)
-                else:
-                    # for rest, look for closest date
-                    ans_list = sorted(ans_list, key=lambda x: abs(list(x.values())[0]['start_year']-ex['years'][0]), reverse=False)
+        elif ex['time_relation_type']=='between':
+            q_year_s = ex['years'][0]
+            # q_month_s = ex['months'][0]
+            q_year_e = ex['years'][1]
+            # q_month_e = ex['months'][1]
+            for ans_date in ans_list:
+                ans = next(iter(ans_date))
+                start_year = ans_date[ans]['start_year']
+                end_year = ans_date[ans]['end_year']
+                
+                append_flg = True
+                if start_year>q_year_e:
+                    append_flg = False
+                if end_year>0 and end_year<q_year_s:
+                    append_flg = False
+                
+                if append_flg:
+                    tmp.append(ans_date)
 
-                print('\nafter sort')
-                print(ans_list)
-            
+        ans_list = tmp
+    
+        print('\nafter filter')
+        print(ans_list)
 
-            if len(ans_list)==0:
-                print('no context is useful.')
-                prompt  = zc_prompt(question)
-                rag_pred = call_pipeline(args, [prompt])[0]
+        if len(ans_list)>0:
+            if ex['implicit_condition'] == 'last':
+                ans_list = sorted(ans_list, key=lambda x: (list(x.values())[0]['start_year'], list(x.values())[0]['start_month']), reverse=True)
+            elif ex['implicit_condition'] == 'first':
+                ans_list = sorted(ans_list, key=lambda x: (list(x.values())[0]['start_year'], list(x.values())[0]['start_month']), reverse=False)
             else:
-                rag_pred = next(iter(ans_list[0]))
-            print(rag_pred, ex['answers'])
+                # for rest, look for closest date
+                ans_list = sorted(ans_list, key=lambda x: abs(list(x.values())[0]['start_year']-ex['years'][0]), reverse=False)
 
-            
-            ex['rag_pred'] = rag_pred
-            ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
-            ex['rag_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(rag_pred))
+            print('\nafter sort')
+            print(ans_list)
+        
 
-            
+        if len(ans_list)==0:
+            print('no context is useful.')
+            prompt  = zc_prompt(question)
+            rag_pred = call_pipeline(args, [prompt])[0]
+        else:
+            rag_pred = next(iter(ans_list[0]))
+        print(rag_pred, ex['answers'])
 
-            to_save.append(ex)
+        
+        ex['rag_pred'] = rag_pred
+        ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
+        ex['rag_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(rag_pred))
+
+        
+
+        to_save.append(ex)
 
     eval_reader(to_save, False, subset='situatedqa', metric='acc')
     eval_reader(to_save, False, subset='situatedqa', metric='f1')
