@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 
 from utils import *
 from prompts import *
@@ -15,72 +15,77 @@ from vllm import LLM, SamplingParams
  
 from temp_eval import normalize
 
-# def call_pipeline(args, prompts):
-#     sampling_params = SamplingParams(temperature=0.7, top_p=0.95, max_tokens=100)
-#     outputs = args.llm.generate(prompts, sampling_params)
-#     # print('~~~')
-#     # print(prompts[0],'\n<>')
-#     # print(outputs[0].outputs[0].text)
-#     # print('~~~')
-#     responses = [output.outputs[0].text for output in outputs]
-#     responses = [res.split('<Context>:')[0] if '<Context>:' in res else res for res in responses]
-#     responses = [res.split('Note:')[0] if 'Note:' in res else res for res in responses]
-#     responses = [res.split('<Question>:')[0] if '<Question>:' in res else res for res in responses]
-#     responses = [res.split('<Summarization>:')[0] if '<Summarization>:' in res else res for res in responses]
-#     responses = [res.split('\n')[0].strip() for res in responses]
-#     # responses = [res.replace('\n','').strip() for res in responses]
-#     return responses 
 
-def reader(question, title, text):
-    prompt = f"""You will be given a context paragraph and a question. Your task is to write an independent sentence to answer the given question from the context paragraph. 
-Requirements are follows:
-- Write one answer sentence per line with the corresponding date.
-- Each line should be a complete sentence addressing the question.
-- Each sentence should include the subject, object, and time if mentioned in the context paragraph.
-- If the question cannot be answered based on the paragraph, respond with "None". 
+def checker(question, context):
+    prompt = f"""Does the context paragraph contain the answer to the question? Response Yes or No.
+There are some examples for you to refer to:
+<Context>
+Grigsby volunteered for World War II in 1942 and served in the Army.
+</Context>
+<Question>
+J. Eugene Grigsby was an employee for whom
+</Question>
+<Response>
+Yes
+</Response>
+
+<Context>
+Lakers won the NBA champion in 2007.
+</Context>
+<Question>
+The time when the Huston Rockets won the NBA champion
+</Question>
+<Response>
+No
+</Response>
+
+Now your context paragraph and question are as follows.
+<Context>
+{context}
+</Context>
+<Question>
+{question}
+</Question>
+<Response>
+"""
+    return prompt
+
+def all_in_one_reader(question, title, text):
+    prompt = f"""You will be given a question and a context paragraph. Your task is to extract the answer and the corresponding date from the context.
+- The result should be in the python dict format: the extracted answer is the dict key and the corresponding date is the dict value.
+- Ensure the dict key is the answer to the question such as a name, date, organization, etc.
+- The date should be parsed into a python dict object with keys ("start_year", "start_month", "end_year", "end_month").
+- If the answer only applies for a specific date, write the same start and end time.
+- If the answer applies from a specific date, write this date as the start time and write "0" for the end time.
+- If the answer applies until a specific date, write this date as the end time and write "0" for the start time.
+- Write "0" if the date data is not available.
 
 There are some examples for you to refer to:
 <Context>:
-Houston Rockets | The team have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
+Houston Rockets | The team have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in May 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
 </Context>
 <Question>
 When was the time the Houston Rockets win the NBA championship
 </Question>
 <Answer>
-- The Houston Rockets have won the NBA championship in 1994.
-- The Houston Rockets have won the NBA championship in 1995.
+{{
+"1994": {{"start_year": 1994, "start_month": 0, "end_year": 1994, "end_month": 0}},
+"May 1995": {{"start_year": 1995, "start_month": 5, "end_year": 1995, "end_month": 5}}
+}}
 </Answer>
 
 <Context>
-2019 Grand National | The 2019 Grand National (officially known as the Randox Health 2019 Grand National for sponsorship reasons) was the 172nd annual running of the Grand National horse race at Aintree Racecourse near Liverpool, England. The showpiece steeplechase is the pinnacle of a three-day festival which began on 4 April, followed by Ladies' Day on 5 April.
+India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president. She served until 2024.
 </Context>
 <Question>
-Who won the Grand National
+Who served as President of India
 </Question>
 <Answer>
-None
-</Answer>
-
-<Context>
-India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
-</Context>
-<Question>
-Who serve as President of India
-</Question>
-<Answer>
-- Neelam Sanjiva Reddy served as the President of India from 1977.
-- K. R. Narayanan served as the President of India from 1997 until 2002.
-- Droupadi Murmu served as the President of India from 2022.
-</Answer>
-
-<Context>
-The Flash | In the seventh season, Team Flash defeats Eva and creates a new Speed Force while Iris, Kamilla, and Singh escape the Mirror Dimension. It was last aired on July 20, 2021.
-</Context>
-<Question>
-When was the season of The Flash last aired
-</Question>
-<Answer>
-- The seventh season of The Flash was last aired on July 20, 2021.
+{{
+"Neelam Sanjiva Reddy": {{"start_year": 1977, "start_month": 0, "end_year": 0, "end_month": 0}},
+"K. R. Narayanan": {{"start_year": 1997, "start_month": 0, "end_year": 2002, "end_month": 0}},
+"Droupadi Murmu": {{"start_year": 0, "start_month": 0, "end_year": 2024, "end_month": 0}}
+}}
 </Answer>
 
 <Context>
@@ -90,138 +95,313 @@ The Lost World: Jurassic Park | The Lost World: Jurassic Park is a 1997 American
 What was the worldwide box office of Jurassic movie
 </Question>
 <Answer>
-- The Lost World: Jurassic Park has a total of $618.6 million worldwide box office in 1997.
+{{
+"$618.6 million": {{"start_year": 1997, "start_month": 0, "end_year": 1997, "end_month": 0}}
+}}
+</Answer>
+
+
+<Context>
+J. Eugene Grigsby | Grigsby volunteered for World War II in 1942 and served in the Army. Starting in 1946 Grigsby served as the Founder and Chair of the Art Department at Carver High School for eight years.
+</Context>
+<Question>
+J. Eugene Grigsby was an employee for whom
+</Question>
+<Answer>
+{{
+"Army": {{"start_year": 1942, "start_month": 0, "end_year": 0, "end_month": 0}},
+"Carver High School": {{"start_year": 1946, "start_month": 0, "end_year": 1954, "end_month": 0}}
+}}
 </Answer>
 
 Now your context paragraph and question are as follows.
 <Context>
 {title} | {text}
 </Context>
-<Question>:
+<Question>
 {question}
 </Question>
 <Answer>
 """
     return prompt
 
-def formatter(question, answer):
-    
-    prompt = f"""You will be given a question and a sentence. Your task is to first determine if the sentence can clearly answer the question.
-If the sentence does not clearly answer the question, response with "None".
-If the sentence can answer the question, then
-- Write the answer in the first line. 
-- Write the corresponding date (i.e., year, month, day) in the second line in python dictionary format. 
-- Each date should be parsed into a dict object with keys ("start_year", "start_month", "end_year", "end_month"). If data is not available, write "0".
+# - The Houston Rockets claimed their second NBA championship in 1995.
+# - Each sentence should contain only one answer with corresponding date.
+# <Context>
+# Madison Marsh | Madison Isabella Marsh (born August 2, 2001) is an American beauty pageant titleholder who was crowned Miss America 2024. She had previously been crowned Miss Colorado 2023.
+# </Context>
+# <Question>
+# When was the time Miss Colorado won Miss America
+# </Question>
+# <Answer>
+# - Madison Marsh, who was crowned Miss Colorado 2023, was crowned Miss America in 2024.
+# </Answer>
+
+# <Context>
+# 2019 Grand National | The 2019 Grand National (officially known as the Randox Health 2019 Grand National for sponsorship reasons) was the 172nd annual running of the Grand National horse race at Aintree Racecourse near Liverpool, England. The showpiece steeplechase is the pinnacle of a three-day festival which began on 4 April, followed by Ladies' Day on 5 April.
+# </Context>
+# <Question>
+# Who won the Grand National
+# </Question>
+# <Answer>
+# None
+# </Answer>
+
+def reader(question, title, text):
+    prompt = f"""You will be given a context paragraph and a question. Your task is to write independent sentences to answer the question based on the context paragraph. 
+Requirements are follows:
+- Write one standalone sentence per line with specific subjects, objects, relations, and actions.
+- If there is no answer to the question from the context paragraph, respond with "None". 
+
+There are some examples for you to refer to:
+<Context>:
+Houston Rockets | The team have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
+</Context>
+<Question>
+When was the time the Houston Rockets win the NBA championship
+</Question>
+<Answer>
+- The Houston Rockets won the NBA championship in 1994 and 1995.
+</Answer>
+
+<Context>
+India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
+</Context>
+<Question>
+Who serve as President of India
+</Question>
+<Answer>
+- Neelam Sanjiva Reddy served as the sixth President of India from 1977.
+- K. R. Narayanan became the first Dalit to serve as the President of India from 1997 until 2002.
+- Droupadi Murmu served as the 15th President of India from 2022.
+</Answer>
+
+<Context>
+The Lost World: Jurassic Park | The Lost World: Jurassic Park is a 1997 American science fiction action film. In Thailand, The Lost World became the country's highest-grossing film of all time. It ultimately grossed $229.1 million in the U.S. and $389.5 million internationally, for a total of $618.6 million worldwide. The film sold an estimated 49,910,000 tickets in North America.
+</Context>
+<Question>
+What was the worldwide box office of Jurassic movie
+</Question>
+<Answer>
+- The movie "The Lost World: Jurassic Park" grossed a total of $618.6 million at the worldwide box office in 1997.
+</Answer>
+
+Now your context paragraph and question are as follows.
+<Context>
+{title} | {text}
+</Context>
+<Question>
+{question}
+</Question>
+<Answer>
+"""
+    return prompt
+
+def formatter(question, sentence):
+    prompt = f"""You will be given a question and a sentence. Your task is to extract the answer and the corresponding date from the sentence.
+- The result should be in the python dict format: the extracted answer is the dict key and the corresponding date is the dict value.
+- Ensure the dict key is the answer to the question such as a name, date, organization, etc.
+- The date should be parsed into a python dict object with keys ("start_year", "start_month", "end_year", "end_month").
+- If the answer only applies for a specific date, write the same start and end time.
+- If the answer applies from a specific date, write this date as the start time and write "0" for the end time.
+- If the answer applies until a specific date, write this date as the end time and write "0" for the start time.
+- Write "0" if the date data is not available.
 
 There are some examples for you to refer to:
 <Question>
-Who serve as President of India
+Who served as President of India
 </Question>
 <Sentence>
-K. R. Narayanan served as the President of India from 1997 until 2002.
+K. R. Narayanan served as the President of India from 1997 until 2002, Droupadi Murmu served until 2024.
 </Sentence>
 <Answer>
-K. R. Narayanan
-{{"start_year": "1997", "start_month": "0", "end_year": "2002", "end_month": "0"}}
-</Answer>
-
-<Question>
-Who serve as President of India
-</Question>
-<Sentence>
-K. R. Narayanan served as the President of India.
-</Sentence>
-<Answer>
-K. R. Narayanan
-{{"start_year": "0", "start_month": "0", "end_year": "0", "end_month": "0"}}
-</Answer>
-
-<Question>
-Who serve as President of India
-</Question>
-<Sentence>
-Droupadi Murmu served as the President of India from Dec 2022.
-</Sentence>
-<Answer>
-Droupadi Murmu
-{{"start_year": "2022", "start_month": "12", "end_year": "0", "end_month": "0"}}
-</Answer>
-
-<Question>
-Who serve as President of India
-</Question>
-<Sentence>
-Droupadi Murmu served as the President of India unitil 2022.
-</Sentence>
-<Answer>
-Droupadi Murmu
-{{"start_year": "0", "start_month": "0", "end_year": "2022", "end_month": "0"}}
-</Answer>
-
-<Question>
-When did the Houston Rockets win the NBA championship
-</Question>
-<Sentence>
-The Houston Rockets have won the NBA championship in 1994.
-</Sentence>
-<Answer>
-1994
-{{"start_year": "1994", "start_month": "0", "end_year": "1994", "end_month": "0"}}
-</Answer>
-
-<Question>
-When did the Houston Rockets win the NBA championship
-</Question>
-<Sentence>
-The Houston Rockets have won the NBA championship on June 2, 1995.
-</Sentence>
-<Answer>
-June 2, 1995
-{{"start_year": "1995", "start_month": "6", "end_year": "1995", "end_month": "6"}}
-</Answer>
-
-<Question>
-When did the Houston Rockets win the NBA championship
-</Question>
-<Sentence>
-The Houston Rockets won the NBA championship on 10 May 1980.
-</Sentence>
-<Answer>
-10 May 1980
-{{"start_year": "1980", "start_month": "5", "end_year": "1980", "end_month": "5"}}
-</Answer>
-
-<Question>
-When did the Houston Rockets win the NBA championship
-</Question>
-<Sentence>
-The Lakers have won the NBA championship on June 2, 1995.
-</Sentence>
-<Answer>
-None
+{{
+"K. R. Narayanan": {{"start_year": 1997, "start_month": 0, "end_year": 2002, "end_month": 0}},
+"Droupadi Murmu": {{"start_year": 0, "start_month": 0, "end_year": 2024, "end_month": 0}}
+}}
 </Answer>
 
 <Question>
 What was the worldwide box office of Jurassic movie
 </Question>
 <Sentence>
-The Lost World: Jurassic Park has a total of $618.6 million worldwide box office in 1997.
+The movie "The Lost World: Jurassic Park" grossed a total of $618.6 million at the worldwide box office in 1997.
 </Sentence>
 <Answer>
-$618.6 million
-{{"start_year": "1997", "start_month": "0", "end_year": "1997", "end_month": "0"}}
+{{
+"$618.6 million": {{"start_year": 1997, "start_month": 0, "end_year": 1997, "end_month": 0}}
+}}
 </Answer>
 
+<Question>
+When was the time the Houston Rockets win the NBA championship
+</Question>
+<Sentence>
+The Houston Rockets won the NBA championship in 1994 and May 1995.
+</Sentence>
+<Answer>
+{{
+"1994": {{"start_year": 1994, "start_month": 0, "end_year": 1994, "end_month": 0}},
+"May 1995": {{"start_year": 1995, "start_month": 5, "end_year": 1995, "end_month": 5}}
+}}
+</Answer>
+
+<Question>
+Who serve as President of India
+</Question>
+<Sentence>
+Neelam Sanjiva Reddy served as the sixth President of India from Dec 1977, K. R. Narayanan - President of India (1997-98).
+</Sentence>
+<Answer>
+{{
+"Neelam Sanjiva": {{"start_year": 1977, "start_month": 12, "end_year": 0, "end_month": 0}},
+"K. R. Narayanan": {{"start_year": 1997, "start_month": 0, "end_year": 1998, "end_month": 0}},
+}}
+</Answer>
+
+<Question>
+J. Eugene Grigsby was an employee for whom
+</Question>
+<Sentence>
+Grigsby volunteered for World War II in 1942 and served in the Army. Starting in 1946 Grigsby served as the Founder and Chair of the Art Department at Carver High School for eight years.
+</Sentence>
+<Answer>
+{{
+"Army": {{"start_year": 1942, "start_month": 0, "end_year": 0, "end_month": 0}},
+"Carver High School": {{"start_year": 1946, "start_month": 0, "end_year": 1954, "end_month": 0}}
+}}
+</Answer>
+
+Now your context sentence and question are as follows.
 <Question>
 {question}
 </Question>
 <Sentence>
-{answer}
+{sentence}
 </Sentence>
 <Answer>
 """
-     
     return prompt
+
+
+# def formatter(question, answer):
+    
+#     prompt = f"""You will be given a question and a sentence. Your task is to first determine if the sentence can clearly answer the question.
+# If the sentence does not clearly answer the question, response with "None".
+# If the sentence can answer the question, then
+# - Write the answer in the first line. 
+# - Write the corresponding date (i.e., year, month, day) in the second line in python dictionary format. 
+# - Each date should be parsed into a dict object with keys ("start_year", "start_month", "end_year", "end_month"). If data is not available, write "0".
+
+# There are some examples for you to refer to:
+# <Question>
+# Who serve as President of India
+# </Question>
+# <Sentence>
+# K. R. Narayanan served as the President of India from 1997 until 2002.
+# </Sentence>
+# <Answer>
+# K. R. Narayanan
+# {{"start_year": "1997", "start_month": "0", "end_year": "2002", "end_month": "0"}}
+# </Answer>
+
+# <Question>
+# Who serve as President of India
+# </Question>
+# <Sentence>
+# K. R. Narayanan served as the President of India.
+# </Sentence>
+# <Answer>
+# K. R. Narayanan
+# {{"start_year": "0", "start_month": "0", "end_year": "0", "end_month": "0"}}
+# </Answer>
+
+# <Question>
+# Who serve as President of India
+# </Question>
+# <Sentence>
+# Droupadi Murmu served as the President of India from Dec 2022.
+# </Sentence>
+# <Answer>
+# Droupadi Murmu
+# {{"start_year": "2022", "start_month": "12", "end_year": "0", "end_month": "0"}}
+# </Answer>
+
+# <Question>
+# Who serve as President of India
+# </Question>
+# <Sentence>
+# Droupadi Murmu served as the President of India unitil 2022.
+# </Sentence>
+# <Answer>
+# Droupadi Murmu
+# {{"start_year": "0", "start_month": "0", "end_year": "2022", "end_month": "0"}}
+# </Answer>
+
+# <Question>
+# When did the Houston Rockets win the NBA championship
+# </Question>
+# <Sentence>
+# The Houston Rockets have won the NBA championship in 1994.
+# </Sentence>
+# <Answer>
+# 1994
+# {{"start_year": "1994", "start_month": "0", "end_year": "1994", "end_month": "0"}}
+# </Answer>
+
+# <Question>
+# When did the Houston Rockets win the NBA championship
+# </Question>
+# <Sentence>
+# The Houston Rockets have won the NBA championship on June 2, 1995.
+# </Sentence>
+# <Answer>
+# June 2, 1995
+# {{"start_year": "1995", "start_month": "6", "end_year": "1995", "end_month": "6"}}
+# </Answer>
+
+# <Question>
+# When did the Houston Rockets win the NBA championship
+# </Question>
+# <Sentence>
+# The Houston Rockets won the NBA championship on 10 May 1980.
+# </Sentence>
+# <Answer>
+# 10 May 1980
+# {{"start_year": "1980", "start_month": "5", "end_year": "1980", "end_month": "5"}}
+# </Answer>
+
+# <Question>
+# When did the Houston Rockets win the NBA championship
+# </Question>
+# <Sentence>
+# The Lakers have won the NBA championship on June 2, 1995.
+# </Sentence>
+# <Answer>
+# None
+# </Answer>
+
+# <Question>
+# What was the worldwide box office of Jurassic movie
+# </Question>
+# <Sentence>
+# The Lost World: Jurassic Park has a total of $618.6 million worldwide box office in 1997.
+# </Sentence>
+# <Answer>
+# $618.6 million
+# {{"start_year": "1997", "start_month": "0", "end_year": "1997", "end_month": "0"}}
+# </Answer>
+
+# <Question>
+# {question}
+# </Question>
+# <Sentence>
+# {answer}
+# </Sentence>
+# <Answer>
+# """
+     
+#     return prompt
 
 
 
@@ -346,7 +526,7 @@ def main():
 
     # if args.max_examples:
         # examples = examples[:min(len(examples),args.max_examples)]
-    # examples = examples[500:501]
+    examples = examples[381:382]
 
     
     to_save=[]
@@ -431,70 +611,89 @@ def main():
         print('\n------\n',question,'\n------\n') 
 
         ans_list = []
-        errors = []
+        # errors = []
+        rel_events = []
         for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
             normalized_question = ex['normalized_question']
-            prompt = f"""Can you answer the question based on the context paragraph? Response Yes or No.
-<Context>
-{ctx['title']+' | '+ctx['text']}
-<\Context>
-<Question>
-{normalized_question}
-<\Question>
-<Response>
-"""
+            prompt = checker(normalized_question, ctx['title']+' | '+ctx['text'])
             responses = call_pipeline(args, [prompt], 10)
             response = responses[0]
             if response[:3].lower()=='yes':
-                prompt = reader(normalized_question, ctx['title'], ctx['text'])
+                prompt = reader(normalized_question+' and when', ctx['title'], ctx['text'])
                 responses = call_pipeline(args, [prompt], 200)
                 sentence_list = responses[0]
             else:
                 sentence_list = []
 
+            rel_events += sentence_list
 
-            print('\n', ctx['title'], ctx['text'])
-            print(sentence_list)
+            # print('\n', ctx['title'], ctx['text'])
+            # print(sentence_list)
+        
+        rel_events = ' '.join(rel_events)
+        prompt = formatter(normalized_question, rel_events)
+        responses = call_pipeline(args, [prompt], 500)
+        response = responses[0]
+        print(rel_events)
+        print(response)
+        import ipdb; ipdb.set_trace()
 
+            # if isinstance(sentence_list, list):
+            #     for sentence in sentence_list:
+            #         prompt = checker(normalized_question, sentence)
+            #         print('vv\n', prompt)
+            #         responses = call_pipeline(args, [prompt], 10)
+            #         response = responses[0]
+            #         print(response)
 
-            if isinstance(sentence_list, list):
-                for sentence in sentence_list:
-                    if 'none' not in sentence.lower():
-                        prompt = formatter(normalized_question, sentence)
-                        responses = call_pipeline(args, [prompt])
-                        answer_dict = responses[0]
-                        print('xx ', answer_dict)
-                        try:
-                            answer_dict = answer_dict.split('\n')
-                            answer_dict = [s for s in answer_dict if len(s)>0]
-                            tmp = eval(answer_dict[1])
-                            answer_dict = {answer_dict[0]: tmp}
-                        except Exception as e:
-                            pass
-                        if isinstance(answer_dict, dict):
-                            # revise response
-                            k = next(iter(answer_dict))
-                            if any([ss in sentence.lower() for ss in [f'in {k}', f'on {k}']]):
-                                print('[[[[]]]]',answer_dict)
-                                if not isinstance(answer_dict[k], dict):
-                                    continue
-                                answer_dict[k]['start_year'] = answer_dict[k]['end_year']
-                                answer_dict[k]['start_month'] = answer_dict[k]['end_month']
-                            if answer_dict not in ans_list:
-                                print(answer_dict)
-                                ans_list.append(answer_dict)
-                        else:
-                            errors.append(answer_dict)
+            #         if response[:3].lower()=='yes':
+            #             prompt = formatter(normalized_question, sentence)
+            #             responses = call_pipeline(args, [prompt])
+            #             answer_dict = responses[0]
+            #             print('formatter response:\n', answer_dict)
+            #             try:
+            #                 # answer_dict = answer_dict.split('\n')
+            #                 # answer_dict = [s for s in answer_dict if len(s)>0]
+            #                 # tmp = eval(answer_dict[1])
+            #                 # answer_dict = {answer_dict[0]: tmp}
+            #                 answer_dict = eval(answer_dict)
+            #                 print('parsing success:\n-->', answer_dict)
+            #             except Exception as e:
+            #                 print('parsing failed.\n')
+            #                 pass
 
-        for ans_date in ans_list:
-            ans = next(iter(ans_date))
-            ans_date[ans]['start_year'] = int(ans_date[ans]['start_year'])
-            ans_date[ans]['end_year'] = int(ans_date[ans]['end_year'])
-            ans_date[ans]['start_month'] = int(ans_date[ans]['start_month'])
-            ans_date[ans]['end_month'] = int(ans_date[ans]['end_month'])
+            #             if isinstance(answer_dict, dict):
+            #                 for ans in answer_dict:
+            #                     tmp = {ans: answer_dict[ans]}
+            #                     print('find one answer: ', tmp)
+            #                     # import ipdb; ipdb.set_trace()
+            #                     if tmp not in ans_list:
+            #                         ans_list.append(tmp)
 
-        print('\n\n')
-        print(ans_list)
+            #                     # k = next(iter(answer_dict))
+            #                     # if any([ss in sentence.lower() for ss in [f'in {k}', f'on {k}']]):
+            #                     #     print('[[[[]]]]',answer_dict)
+            #                     #     if not isinstance(answer_dict[k], dict):
+            #                     #         continue
+            #                     #     answer_dict[k]['start_year'] = answer_dict[k]['end_year']
+            #                     #     answer_dict[k]['start_month'] = answer_dict[k]['end_month']
+            #                     # if answer_dict not in ans_list:
+            #                     #     print(answer_dict)
+            #                     #     ans_list.append(answer_dict)
+            #                 # else:
+            #                 #     errors.append(answer_dict)
+            #         else:
+            #             print('the answer sentence is irrelevant.\n', sentence)
+        print('finish all contexts.')
+        # print(ans_list)
+        # import ipdb; ipdb.set_trace()
+        # for ans_date in ans_list:
+        #     ans = next(iter(ans_date))
+        #     ans_date[ans]['start_year'] = int(ans_date[ans]['start_year'])
+        #     ans_date[ans]['end_year'] = int(ans_date[ans]['end_year'])
+        #     ans_date[ans]['start_month'] = int(ans_date[ans]['start_month'])
+        #     ans_date[ans]['end_month'] = int(ans_date[ans]['end_month'])
+
 
         # import ipdb; ipdb.set_trace()
 

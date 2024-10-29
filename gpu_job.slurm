@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=mreader10r
+#SBATCH --job-name=seq_top10
 #SBATCH --open-mode=append
-#SBATCH --output=./monitor/mreader10r.out
-#SBATCH --error=./monitor/mreader10r.err
+#SBATCH --output=./monitor/seq_top10.out
+#SBATCH --error=./monitor/seq_top10.err
 #SBATCH --export=ALL
 #SBATCH --time=48:00:00
 #SBATCH --gres=gpu:rtx8000:1
@@ -14,7 +14,7 @@ source ~/.bashrc \
 && export VLLM_WORKER_MULTIPROC_METHOD=spawn \
 && conda activate /scratch/sz4651/Projects/ext3/miniconda3/envs/metriever \
 && cd /scratch/sz4651/Projects/metriever_final \
-&& python reader_ours2.py --ctx-topk 10"
+&& python reader_seq2.py --ctx-topk 10"
 
 
 # && python reader.py --retriever-output timeqa_contriever_minilm12_outputs.json \

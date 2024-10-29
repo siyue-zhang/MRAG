@@ -701,7 +701,7 @@ def get_temporal_coeffs(years, sentence_tuples, time_relation_type, implicit_con
 
 
 def call_pipeline(args, prompts, max_tokens=100):
-    sampling_params = SamplingParams(temperature=0.7, top_p=0.95, max_tokens=max_tokens)
+    sampling_params = SamplingParams(temperature=0.1, top_p=0.9, max_tokens=max_tokens)
     outputs = args.llm.generate(prompts, sampling_params)
     # print('~~~')
     # print(prompts[0],'\n<>')
@@ -709,19 +709,20 @@ def call_pipeline(args, prompts, max_tokens=100):
     # print('~~~')
 
     responses = [output.outputs[0].text for output in outputs]
-    for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Json>']:
+    for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Response>']:
         responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
     for mid_stopper in ['</Thought>']:
         responses = [res.split(mid_stopper)[-1] if mid_stopper in res else res for res in responses]
-    if responses[0][:2] == '- ':
-        responses = [res.split('- ') for res in responses]
-        tmp = []
-        for res in responses:
-            res = [r.replace('\n','').strip() for r in res]
-            tmp.append([r for r in res if r !=''])
-        responses = tmp
-    elif '{"' not in responses[0]:
-        responses = [res.replace('\n','').strip() for res in responses]
+
+    # if responses[0][:2] == '- ':
+    #     responses = [res.split('- ') for res in responses]
+    #     tmp = []
+    #     for res in responses:
+    #         res = [r.replace('\n','').strip() for r in res]
+    #         tmp.append([r for r in res if r !=''])
+    #     responses = tmp
+    # elif '{"' not in responses[0]:
+    #     responses = [res.replace('\n','').strip() for res in responses]
     # import ipdb; ipdb.set_trace()
     return responses 
 

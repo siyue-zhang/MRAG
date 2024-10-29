@@ -1,6 +1,6 @@
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 
 from utils import *
 from prompts import *
@@ -15,10 +15,30 @@ from vllm import LLM, SamplingParams
  
 from temp_eval import normalize
 
-
 def checker(question, context):
+    prompt = f"""Does the context paragraph contain the answer to the question? Response Yes or No.
+There are some examples for you to refer to:
+<Context>
+J. Eugene Grigsby | Grigsby volunteered for World War II in 1942 and served in the Army.
+</Context>
+<Question>
+J. Eugene Grigsby was an employee for whom
+</Question>
+<Response>
+Yes
+</Response>
 
-    prompt = f"""Can you answer the question based on the context paragraph? Response Yes or No.
+<Context>
+NBA Finals | Lakers won the NBA championship in 2007.
+</Context>
+<Question>
+The time when the Houston Rockets won the NBA championship
+</Question>
+<Response>
+No
+</Response>
+
+Now your context paragraph and question are as follows.
 <Context>
 {context}
 </Context>
@@ -29,93 +49,447 @@ def checker(question, context):
 """
     return prompt
 
-def decontext(title, text):
-
-    prompt = f"""Your task is to rewrite the context paragraph into independent sentences.
+def reader(question, title, text):
+    prompt = f"""You will be given a context paragraph and a question. Your task is to write independent sentences to answer the question based on the context paragraph. 
 Requirements are follows:
-- Write one sentence per line.
-- Each sentence should standalone with complete information: the specific subject, object, relation, and action.
-- Each sentence should talk about only one thing or event.
-- Each sentence should include the year and the date if it is mentioned or can be inferred.
+- Each independent sentence should be standalone with specific subjects, objects, relations, and actions.
+- Each independent sentence should include the date if it is mentioned or can be inferred in the context paragraph.
 
 There are some examples for you to refer to:
-
-<Title>
-List of international organization leaders in 2007
-<\Title>
-<Context>
-Prohibition of Chemical Weapons (OPCW) ; Director-General - Rogelio Pfirter, Argentina (2002–present) ; Organization of American States ; Secretary-General - José Miguel Insulza, Chile (2005–7) ; Organisation of the Islamic Conference ;
+<Context>:
+Houston Rockets | The team have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
 </Context>
-<Sentences>
-- Rogelio Pfirter, Argentina is the Director-General of the Organisation for the Prohibition of Chemical Weapons (OPCW) from 2002 to the present.
-- José Miguel Insulza, Chile is the Secretary-General of the Organization of American States from 2005 to 2007.
-- Organisation of the Islamic Conference.
-</Sentences>
+<Question>
+When was the time the Houston Rockets win the NBA championship
+</Question>
+<Answer>
+- The Houston Rockets won the NBA championship in 1994 ans 1995.
+</Answer>
 
-<Title>
-1941 World Series
-<\Title>
 <Context>
-This was the first Subway Series between the Brooklyn Dodgers and New York Yankees (though the Yankees had already faced the crosstown New York Giants five times). These two teams would meet a total of seven times from 1941 to 1956 — the Dodgers' only victory coming in 1955 — with an additional five matchups after the Dodgers left for Los Angeles, most recently in 2024.
+India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
 </Context>
-<Sentences>
-- The 1941 World Series was the first Subway Series between the Brooklyn Dodgers and the New York Yankees.
-- The New York Yankees had already faced the crosstown New York Giants five times prior to the 1941 World Series.
-- The Dodgers and Yankees would meet a total of seven times from 1941 to 1956.
-- The Dodgers' only victory in the matchups between the Dodgers and Yankees came in 1955.
-- There were an additional five matchups between the Dodgers and Yankees after the Dodgers left for Los Angeles.
-- The most recent matchup between the Dodgers and Yankees occurred in 2024.
-</Sentences>
+<Question>
+Who serve as President of India
+</Question>
+<Answer>
+- Neelam Sanjiva Reddy served as the sixth President of India from 1977.
+- K. R. Narayanan became the first Dalit to serve as the President of India from 1997 until 2002.
+- Droupadi Murmu served as the 15th President of India from 2022.
+</Answer>
+
+<Context>
+The Lost World: Jurassic Park | The Lost World: Jurassic Park is a 1997 American science fiction action film. In Thailand, The Lost World became the country's highest-grossing film of all time. It ultimately grossed $229.1 million in the U.S. and $389.5 million internationally, for a total of $618.6 million worldwide. The film sold an estimated 49,910,000 tickets in North America.
+</Context>
+<Question>
+What was the worldwide box office of Jurassic movie
+</Question>
+<Answer>
+- The movie, The Lost World: Jurassic Park, grossed a total of $618.6 million at the worldwide box office in 1997.
+</Answer>
 
 Now your context paragraph and question are as follows.
-<Title>
-{title}
-<\Title>
 <Context>
-{text}
+{title} | {text}
 </Context>
-<Sentences>
+<Question>
+{question}
+</Question>
+<Answer>
 """
     return prompt
 
-parser = argparse.ArgumentParser(description="Reader")
-parser.add_argument('--max-examples', type=int, default=None)
-parser.add_argument('--llm', type=str, default="llama_8b")
-parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
-# parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_minilm12_outputs.json")
-parser.add_argument('--ctx-topk', type=int, default=10)
-parser.add_argument('--param-pred', type=bool, default=False)
-parser.add_argument('--param-cot', type=bool, default=True)
-parser.add_argument(
-    '--stage1-model',
-    choices=['bm25', 'contriever','hybrid'], 
-    default='contriever', #
-)
-parser.add_argument('--ctx-key-s2', type=str, default='snt_hybrid_rank')
-# parser.add_argument('--ctx-key-s2', type=str, default='reranker_ctxs')
-parser.add_argument('--reader', type=str, default='timellama', choices=['rag', 'metriever', 'timo', 'timellama', 'extract_code'], help="Choose a reader option")
-parser.add_argument('--temporal-filter', type=bool, default=False)
+def formatter(question, sentence):
+    prompt = f"""You will be given a question and several sentences. Your task is to extract the answer and the corresponding date from the sentences.
+- The result should be in the python dict format: the extracted answer is the dict key and the corresponding date is the dict value.
+- Ensure the dict key is the answer to the question such as a name, date, organization, etc.
+- The date should be parsed into a python dict object with keys ("start_year", "start_month", "end_year", "end_month").
+- If the answer only applies for a specific date, write the same start and end time.
+- If the answer applies from a specific date, write this date as the start time and write "0" for the end time.
+- If the answer applies until a specific date, write this date as the end time and write "0" for the start time.
+- Write "0" if the date data is not available.
 
-args = parser.parse_args()
-args.l = llm_names(args.llm, instruct=True)
-args.llm_name = deepcopy(args.llm)
+There are some examples for you to refer to:
+<Sentence>
+K. R. Narayanan served as the President of India from 1997 until 2002, Droupadi Murmu served until 2024.
+</Sentence>
+<Question>
+Who served as President of India
+</Question>
+<Answer>
+{{
+"K. R. Narayanan": {{"start_year": 1997, "start_month": 0, "end_year": 2002, "end_month": 0}},
+"Droupadi Murmu": {{"start_year": 0, "start_month": 0, "end_year": 2024, "end_month": 0}}
+}}
+</Answer>
 
-if args.stage1_model=='bm25':
-    args.ctx_key_s1 = 'bm25_ctxs'
-elif args.stage1_model=='hybrid':
-    args.ctx_key_s1 = 'hybrid_ctxs'
-else:
-    args.ctx_key_s1 = 'ctxs'
+<Sentence>
+The movie "The Lost World: Jurassic Park" grossed a total of $618.6 million at the worldwide box office in 1997.
+</Sentence>
+<Question>
+What was the worldwide box office of Jurassic movie
+</Question>
+<Answer>
+{{
+"$618.6 million": {{"start_year": 1997, "start_month": 0, "end_year": 1997, "end_month": 0}}
+}}
+</Answer>
+
+<Sentence>
+The Houston Rockets won the NBA championship in 1994 and May 1995.
+</Sentence>
+<Question>
+When was the time the Houston Rockets win the NBA championship
+</Question>
+<Answer>
+{{
+"1994": {{"start_year": 1994, "start_month": 0, "end_year": 1994, "end_month": 0}},
+"May 1995": {{"start_year": 1995, "start_month": 5, "end_year": 1995, "end_month": 5}}
+}}
+</Answer>
+
+<Sentence>
+Neelam Sanjiva Reddy served as the sixth President of India from Dec 1977, K. R. Narayanan - President of India (1997-98).
+</Sentence>
+<Question>
+Who serve as President of India
+</Question>
+<Answer>
+{{
+"Neelam Sanjiva": {{"start_year": 1977, "start_month": 12, "end_year": 0, "end_month": 0}},
+"K. R. Narayanan": {{"start_year": 1997, "start_month": 0, "end_year": 1998, "end_month": 0}},
+}}
+</Answer>
+
+<Sentence>
+Grigsby volunteered for World War II in 1942 and served in the Army. Starting in 1946 Grigsby served as the Founder and Chair of the Art Department at Carver High School for eight years.
+</Sentence>
+<Question>
+J. Eugene Grigsby was an employee for whom
+</Question>
+<Answer>
+{{
+"Army": {{"start_year": 1942, "start_month": 0, "end_year": 0, "end_month": 0}},
+"Carver High School": {{"start_year": 1946, "start_month": 0, "end_year": 1954, "end_month": 0}}
+}}
+</Answer>
+
+Now your context sentence and question are as follows.
+<Sentence>
+{sentence}
+</Sentence>
+<Question>
+{question}
+</Question>
+<Answer>
+"""
+    return prompt
 
 
-flg = '70b' in args.llm_name
-if flg:
-    args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=4096)
-else:
-    args.llm = LLM(args.l, tensor_parallel_size=1, dtype='half', max_model_len=4096)
+def call_pipeline(args, prompts, max_tokens=100):
+    sampling_params = SamplingParams(temperature=0.1, top_p=0.9, max_tokens=max_tokens)
+    outputs = args.llm.generate(prompts, sampling_params)
+    responses = [output.outputs[0].text for output in outputs]
+    for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Response>']:
+        responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
+    for mid_stopper in ['</Thought>']:
+        responses = [res.split(mid_stopper)[-1] if mid_stopper in res else res for res in responses]
+    if '- ' in responses[0]:
+        responses = [res.split('- ') for res in responses]
+        tmp = []
+        for res in responses:
+            res = [r.replace('\n','').strip() for r in res]
+            tmp.append([r for r in res if r !=''])
+        responses = tmp
+    return responses 
+
+def main():
+    parser = argparse.ArgumentParser(description="Reader")
+    parser.add_argument('--max-examples', type=int, default=None)
+    parser.add_argument('--llm', type=str, default="llama_8b")
+    parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
+    # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_minilm12_outputs.json")
+    parser.add_argument('--ctx-topk', type=int, default=10)
+    parser.add_argument('--param-pred', type=bool, default=False)
+    parser.add_argument('--param-cot', type=bool, default=True)
+    parser.add_argument(
+        '--stage1-model',
+        choices=['bm25', 'contriever','hybrid'], 
+        default='contriever', #
+    )
+    parser.add_argument('--ctx-key-s2', type=str, default='snt_hybrid_rank')
+    # parser.add_argument('--ctx-key-s2', type=str, default='reranker_ctxs')
+    parser.add_argument('--reader', type=str, default='timellama', choices=['rag', 'metriever', 'timo', 'timellama', 'extract_code'], help="Choose a reader option")
+    parser.add_argument('--temporal-filter', type=bool, default=False)
+
+    args = parser.parse_args()
+    args.l = llm_names(args.llm, instruct=True)
+    args.llm_name = deepcopy(args.llm)
+
+    if args.stage1_model=='bm25':
+        args.ctx_key_s1 = 'bm25_ctxs'
+    elif args.stage1_model=='hybrid':
+        args.ctx_key_s1 = 'hybrid_ctxs'
+    else:
+        args.ctx_key_s1 = 'ctxs'
 
 
-# prompt = decontext('List of international organization leaders in 2015', 'Secretary-General - Ronald Noble, United States (2000–present) ; President - Mireille Ballestrazzi, France (2012–present) ; International Federation of Red Cross and Red Crescent Societies ; President - Tadateru Konoé, Japan (2009–present) ; International Maritime Organization ; Secretary-General - Koji Sekimizu, Japan (2012–present) ; International Organization for Migration (IOM) ; Director-general - William Lacy Swing, United States (2008–present) ; International Telecommunication Union ; Secretary-General - Hamadoun Touré, Mali (2007–present) ; Organisation for the Prohibition of Chemical Weapons (OPCW) ; Director-General - Ahmet Üzümcü, Turkey (2010–present) ; Organization of the Petroleum Exporting Countries (OPEC) ; Secretary-General – Abdallah Salem el-Badri, Libya (2007–2016) ; Universal Postal Union ; Director-General - Édouard Dayan, France (2005–present) ; World Intellectual Property Organization (WIPO) ; Director-General - Francis Gurry (2008–present)')
-prompt = decontext("Old-Timers' Day","In 1965, Joe DiMaggio hit a grand slam into the left field stands. In 1975, the Yankees held Old Timers' Day at Shea Stadium and prior to the game it was announced that Billy Martin had been hired as Yankees' manager for the first time. In 1978 Martin was re-hired on Old Timers' Day. In 1998, the Yankees celebrated the 20th anniversary of the 1977, 1978 and 1981 World Series that they played against the Los Angeles Dodgers, and invited some members of those Dodger teams. The game was won on a home run by Willie Randolph against Tommy John, who played in all three of those World Series, for the Dodgers in 1977 and 1978 and for ")
-print(call_pipeline(args, [prompt], 500)[0])
+    flg = '70b' in args.llm_name
+    if flg:
+        args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=4096)
+    else:
+        args.llm = LLM(args.l, tensor_parallel_size=1, dtype='half', max_model_len=4096)
 
+    # load examples
+    if 'retrieved' not in args.retriever_output:
+        args.retriever_output = f'./retrieved/{args.retriever_output}'
+    examples = load_json_file(args.retriever_output)
+    print('examples loaded.')
+
+    # if args.max_examples:
+        # examples = examples[:min(len(examples),args.max_examples)]
+    # examples = examples[410:420]
+
+    
+    to_save=[]
+    for k, ex in enumerate(examples):
+        if ex['time_relation'] == '':
+            continue
+
+        question = ex['question']
+        question = question.replace('annd', 'and')
+        ex['time_relation'] = ex['time_relation'].strip()
+
+        # temp
+        years = ex['years'] # question dates
+        time_relation = ex['time_relation'].strip().lower()
+        implicit_condition = ex['implicit_condition']
+        if time_relation in ['before','as of','by','until']:
+            time_relation_type = 'before'
+        elif time_relation == 'from':
+            if len(years)==1:
+                time_relation_type = 'after'
+            else:
+                time_relation_type = 'between'
+        elif time_relation == 'since':
+            time_relation_type = 'after'
+        elif time_relation in ['after','between']:
+            time_relation_type = time_relation
+        else:
+            time_relation_type = 'other'
+        ex['time_relation_type'] = time_relation_type
+        
+        if question != "When was the last time Arsenal won the Premier League after 20 February 1992?":
+            continue
+        print('\n------\n',question,'\n------\n') 
+
+
+        date = ''
+        parts = question.split(ex['time_relation'])
+        date = parts[-1]
+        ex['date'] = date
+
+        def find_month(w):
+            w = w.lower()
+            month = []
+            for m in month_to_number:
+                if m in w:
+                    month.append(month_to_number[m])
+                    break
+            for m in short_month_to_number:
+                if m in w:
+                    month.append(short_month_to_number[m])
+                    break
+            if len(month)>0:
+                return month[0]
+            else:
+                return None
+        
+
+        months = []
+
+        def append_month(month_str):
+            m = find_month(month_str)
+            months.append(m if m else 0)
+
+        if ex['time_relation_type'] == 'between':
+            delimiters = ['and', 'to', 'until']
+            d_index = [d in date for d in delimiters]
+            assert any(d_index)
+            delimiter = delimiters[d_index.index(True)]
+            tmp = date.split(delimiter)
+            for w in tmp:
+                append_month(w.strip())
+        else:
+            append_month(date.strip())
+
+        ex['months'] = months
+        print('months ', months)
+
+
+
+        print('\n------\n',question,'\n------\n') 
+
+        rel_events = []
+        for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
+            normalized_question = ex['normalized_question']
+            prompt = checker(normalized_question, ctx['title']+' | '+ctx['text'])
+            responses = call_pipeline(args, [prompt], 10)
+            response = responses[0]
+            if response[:3].lower()=='yes':
+                if 'when' not in normalized_question.lower():
+                    tmp = normalized_question + ' and when'
+                else:
+                    tmp = normalized_question
+                prompt = reader(tmp, ctx['title'], ctx['text'])
+                responses = call_pipeline(args, [prompt], 500)
+                print(ctx['title'], ' | ', ctx['text'])
+                print('-->')
+                print(responses[0])
+                rel_events += responses[0]
+
+        rel_events = ' '.join(rel_events)
+        prompt = formatter(normalized_question, rel_events)
+        responses = call_pipeline(args, [prompt], 500)
+        response = responses[0]
+
+        try:
+            answer_dict = eval(response)
+        except Exception as e:
+            answer_dict = {}
+        
+        tmp = {}
+        for ans in answer_dict:
+            key_names = ['start_year', 'start_month', 'end_year', 'end_month']
+            flg = [key in answer_dict[ans] for key in key_names]
+            if all(flg) == True:
+                flg = True
+                for key in key_names:
+                    if not isinstance(answer_dict[ans][key], int):
+                        try:
+                            answer_dict[ans][key] = int(answer_dict[ans][key])
+                        except Exception as e:
+                            flg=False
+                            break
+                if flg:
+                    tmp[ans] = answer_dict[ans]
+        answer_dict = tmp
+
+        tmp = []
+        if ex['time_relation_type']=='before':
+            q_year = ex['years'][0]
+            q_month = ex['months'][0] if sum(ex['months'])>0 else None
+
+            for ans in answer_dict:
+                print('check: ', answer_dict[ans])
+                start_year = answer_dict[ans]['start_year']
+                start_month = answer_dict[ans]['start_month']
+
+                append_flg = True
+                if start_year>0:
+                    if start_year==q_year and q_month and start_month>0:
+                        if start_month>q_month:
+                            append_flg=False
+                    else:
+                        if ex['time_relation']=='before':
+                            if start_year>=q_year:
+                                append_flg=False
+                        else:
+                            if start_year>q_year:
+                                append_flg=False
+
+                if append_flg:
+                    tmp.append({ans: answer_dict[ans]})
+
+        elif ex['time_relation_type']=='after':
+            q_year = ex['years'][0]
+            q_month = ex['months'][0] if sum(ex['months'])>0 else None
+
+            for ans in answer_dict:
+                end_year = answer_dict[ans]['end_year']
+                end_month = answer_dict[ans]['end_month']              
+                
+                append_flg = True
+                if end_year>0:
+                    if end_year==q_year and q_month and end_month>0:
+                        if ex['time_relation']=='since':
+                            if end_month<q_month:
+                                append_flg=False
+                        else:
+                            if end_month<=q_month:
+                                append_flg=False
+                    else:
+                        if end_year<q_year:
+                            append_flg=False
+                
+                if append_flg:
+                    tmp.append({ans: answer_dict[ans]})
+
+        elif ex['time_relation_type']=='between':
+            q_year_s = ex['years'][0]
+            # q_month_s = ex['months'][0]
+            q_year_e = ex['years'][1]
+            # q_month_e = ex['months'][1]
+            for ans in answer_dict:
+                start_year = answer_dict[ans]['start_year']
+                end_year = answer_dict[ans]['end_year']
+                
+                append_flg = True
+                if start_year>q_year_e:
+                    append_flg = False
+                if end_year>0 and end_year<q_year_s:
+                    append_flg = False
+                
+                if append_flg:
+                    tmp.append({ans: answer_dict[ans]})
+
+        ans_list = tmp
+    
+        print('\nafter filter')
+        print(ans_list)
+
+        if len(ans_list)>0:
+            if ex['implicit_condition'] == 'last':
+                ans_list = sorted(ans_list, key=lambda x: (list(x.values())[0]['start_year'], list(x.values())[0]['start_month']), reverse=True)
+            elif ex['implicit_condition'] == 'first':
+                ans_list = sorted(ans_list, key=lambda x: (list(x.values())[0]['start_year'], list(x.values())[0]['start_month']), reverse=False)
+            else:
+                # for rest, look for closest date
+                ans_list = sorted(ans_list, key=lambda x: abs(list(x.values())[0]['start_year']-ex['years'][0]), reverse=False)
+
+            print('\nafter sort')
+            print(ans_list)
+        
+
+        if len(ans_list)==0:
+            print('no context is useful.')
+            prompt  = zc_prompt(question)
+            rag_pred = call_pipeline(args, [prompt])[0]
+        else:
+            rag_pred = next(iter(ans_list[0]))
+            tmp = str(ans_list[0][rag_pred]['start_year'])
+            if tmp in rag_pred:
+                rag_pred = tmp
+        print(rag_pred, ex['answers'])
+
+        
+        ex['rag_pred'] = rag_pred
+        ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
+        ex['rag_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(rag_pred))
+
+        
+
+        to_save.append(ex)
+
+    eval_reader(to_save, False, subset='situatedqa', metric='acc')
+    eval_reader(to_save, False, subset='situatedqa', metric='f1')
+
+
+
+
+
+
+
+
+if __name__ == "__main__":
+    main()
