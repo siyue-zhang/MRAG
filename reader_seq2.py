@@ -209,7 +209,7 @@ def main():
     parser.add_argument('--llm', type=str, default="llama_8b")
     parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
     # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_minilm12_outputs.json")
-    parser.add_argument('--ctx-topk', type=int, default=10)
+    parser.add_argument('--ctx-topk', type=int, default=5)
     parser.add_argument('--param-pred', type=bool, default=False)
     parser.add_argument('--param-cot', type=bool, default=True)
     parser.add_argument(
@@ -279,7 +279,7 @@ def main():
             time_relation_type = 'other'
         ex['time_relation_type'] = time_relation_type
         
-        if question != "When was the last time Arsenal won the Premier League after 20 February 1992?":
+        if question != "For which NFL season did the Dallas Cowboys win their most recent Super Bowl as of August 2, 1995?":
             continue
         print('\n------\n',question,'\n------\n') 
 
@@ -343,37 +343,79 @@ def main():
                     tmp = normalized_question
                 prompt = reader(tmp, ctx['title'], ctx['text'])
                 responses = call_pipeline(args, [prompt], 500)
-                print(ctx['title'], ' | ', ctx['text'])
+                print('\n',ctx['title'], ' | ', ctx['text'])
                 print('-->')
-                print(responses[0])
+                print(responses[0],'\n')
                 rel_events += responses[0]
 
-        rel_events = ' '.join(rel_events)
-        prompt = formatter(normalized_question, rel_events)
-        responses = call_pipeline(args, [prompt], 500)
-        response = responses[0]
+        answer_dict = {}
+        while rel_events:
+            batch = []
+            for _ in range(4):
+                if rel_events:
+                    batch.append(rel_events.pop(0))
+            prompt = formatter(normalized_question, ' '.join(batch))
+            responses = call_pipeline(args, [prompt], 500)
+            response = responses[0]
 
-        try:
-            answer_dict = eval(response)
-        except Exception as e:
-            answer_dict = {}
+            print(batch,'\n')
+            print('~~>\n', response,'\n')
+            try:
+                answer_dict_b = eval(response)
+                tmp = {}
+                for ans in answer_dict_b:
+                    key_names = ['start_year', 'start_month', 'end_year', 'end_month']
+                    flg = [key in answer_dict_b[ans] for key in key_names]
+                    if all(flg) == True:
+                        flg = True
+                        for key in key_names:
+                            if not isinstance(answer_dict_b[ans][key], int):
+                                try:
+                                    answer_dict_b[ans][key] = int(answer_dict_b[ans][key])
+                                except Exception as e:
+                                    flg=False
+                                    break
+                        if flg:
+                            tmp[ans] = answer_dict_b[ans]
+                answer_dict.update(tmp)
+            except Exception as e:
+                pass
+
+        import ipdb; ipdb.set_trace()
+
+        # if len(rel_events)>0:
+        #     rel_events = ' '.join(rel_events)
+        #     prompt = formatter(normalized_question, rel_events)
+        #     responses = call_pipeline(args, [prompt], 1000)
+        #     response = responses[0]
+
+        #     print(rel_events,'\n')
+        #     print('~~>\n', response,'\n')
+        #     try:
+        #         answer_dict = eval(response)
+        #     except Exception as e:
+        #         answer_dict = {}
+        #     print('convert into dict.')
+        #     print(answer_dict)
         
-        tmp = {}
-        for ans in answer_dict:
-            key_names = ['start_year', 'start_month', 'end_year', 'end_month']
-            flg = [key in answer_dict[ans] for key in key_names]
-            if all(flg) == True:
-                flg = True
-                for key in key_names:
-                    if not isinstance(answer_dict[ans][key], int):
-                        try:
-                            answer_dict[ans][key] = int(answer_dict[ans][key])
-                        except Exception as e:
-                            flg=False
-                            break
-                if flg:
-                    tmp[ans] = answer_dict[ans]
-        answer_dict = tmp
+        #     tmp = {}
+        #     for ans in answer_dict:
+        #         key_names = ['start_year', 'start_month', 'end_year', 'end_month']
+        #         flg = [key in answer_dict[ans] for key in key_names]
+        #         if all(flg) == True:
+        #             flg = True
+        #             for key in key_names:
+        #                 if not isinstance(answer_dict[ans][key], int):
+        #                     try:
+        #                         answer_dict[ans][key] = int(answer_dict[ans][key])
+        #                     except Exception as e:
+        #                         flg=False
+        #                         break
+        #             if flg:
+        #                 tmp[ans] = answer_dict[ans]
+        #     answer_dict = tmp
+        # else:
+        #     answer_dict = {}
 
         tmp = []
         if ex['time_relation_type']=='before':
