@@ -16,74 +16,96 @@ from vllm import LLM, SamplingParams
 from temp_eval import normalize
 
 def checker(question, context):
-    prompt = f"""Can you find at least one answer to the question from the context paragph? Response Yes or No.
-There are some examples for you to refer to:
-<Context>
-J. Eugene Grigsby | Grigsby volunteered for World War II in 1942 and served in the Army.
-</Context>
-<Question>
-J. Eugene Grigsby was an employee for whom
-</Question>
-<Response>
-Yes
-</Response>
+    prompt = f"""Consider the question and sentence below:
 
-<Context>
-Dallas Cowboys | Cowboys routed the Chicago Bears 37–7 and Minnesota Vikings 23–6 before defeating the Denver Broncos 27–10 in Super Bowl XII in New Orleans. As a testament to Doomsday's dominance in the hard-hitting game, defensive linemen Randy White and Harvey Martin were named co-Super Bowl MVPs, the first and only time multiple players have received the award.
-</Context>
-<Question>
-For which NFL season did the Dallas Cowboys win the Super Bowl
-</Question>
-<Response>
-No
-</Response>
-
-<Context>
-NBA Finals | Lakers won the NBA championship in 2007.
-</Context>
-<Question>
-The time when the Houston Rockets won the NBA championship
-</Question>
-<Response>
-No
-</Response>
-
-<Context>
-History of the Dallas Cowboys | The first NFL team to win three Super Bowls in four years, with Super Bowl wins in the 1992, 1993, and 1995 seasons. Only one other team, the New England Patriots, have won three Super Bowls in a four-year time span, doing so in the 2001, 2003, and 2004 seasons. The first team to hold the opposing team to no touchdowns in a Super Bowl. Dallas beat the Miami Dolphins 24–3 in Super Bowl VI. The only other teams to do this are the New England Patriots, who did so in their 13–3 win against the Los Angeles Rams in Super Bowl LIII, and the Tampa Bay Buccaneers in Super Bowl LV, beating
-</Context>
-<Question>
-For which NFL season did the Dallas Cowboys win the Super Bowl
-</Question>
-<Response>
-Yes
-</Response>
-
-Now your context paragraph and question are as follows.
-<Context>
-{context}
-</Context>
 <Question>
 {question}
-</Question>
+<\Question>
+<Sentence>
+{context}
+</Sentence>
+
+Does the sentence provide an answer to the question?
+
+First, respond with either "Yes" or "No." If you are not sure, response "No". Then, briefly explain your reasoning, focusing on how the sentence content relates to the question.
+
 <Response>
 """
     return prompt
 
-def reader(question, title, text):
-    prompt = f"""You will be given a context paragraph and a question. Your task is to write independent sentences to answer the question based on the context paragraph. 
+
+# def checker(question, context):
+#     prompt = f"""Can you find at least one answer to the question from the context paragph? Response Yes or No.
+# There are some examples for you to refer to:
+# <Context>
+# J. Eugene Grigsby | Grigsby volunteered for World War II in 1942 and served in the Army.
+# </Context>
+# <Question>
+# J. Eugene Grigsby was an employee for whom
+# </Question>
+# <Response>
+# Yes
+# </Response>
+
+# <Context>
+# Dallas Cowboys | Cowboys routed the Chicago Bears 37–7 and Minnesota Vikings 23–6 before defeating the Denver Broncos 27–10 in Super Bowl XII in New Orleans. As a testament to Doomsday's dominance in the hard-hitting game, defensive linemen Randy White and Harvey Martin were named co-Super Bowl MVPs, the first and only time multiple players have received the award.
+# </Context>
+# <Question>
+# For which NFL season did the Dallas Cowboys win the Super Bowl
+# </Question>
+# <Response>
+# No
+# </Response>
+
+# <Context>
+# NBA Finals | Lakers won the NBA championship in 2007.
+# </Context>
+# <Question>
+# The time when the Houston Rockets won the NBA championship
+# </Question>
+# <Response>
+# No
+# </Response>
+
+# <Context>
+# History of the Dallas Cowboys | The first NFL team to win three Super Bowls in four years, with Super Bowl wins in the 1992, 1993, and 1995 seasons. Only one other team, the New England Patriots, have won three Super Bowls in a four-year time span, doing so in the 2001, 2003, and 2004 seasons. The first team to hold the opposing team to no touchdowns in a Super Bowl. Dallas beat the Miami Dolphins 24–3 in Super Bowl VI. The only other teams to do this are the New England Patriots, who did so in their 13–3 win against the Los Angeles Rams in Super Bowl LIII, and the Tampa Bay Buccaneers in Super Bowl LV, beating
+# </Context>
+# <Question>
+# For which NFL season did the Dallas Cowboys win the Super Bowl
+# </Question>
+# <Response>
+# Yes
+# </Response>
+
+# Now your context paragraph and question are as follows.
+# <Context>
+# {context}
+# </Context>
+# <Question>
+# {question}
+# </Question>
+# <Response>
+# """
+#     return prompt
+
+def reader(question, context):
+    prompt = f"""You will be given a context paragraph and a question. Your task is to find the answer to the question in the context paragraph. 
 Requirements are follows:
-- Each independent sentence should be standalone with specific subjects, objects, relations, and actions.
-- Each independent sentence should include the date (year, month, day) if it is mentioned or can be inferred in the context paragraph.
+- Ensure each answer is a text span from the context paragraph.
+- For "when" question, ensure the answer is a date such as year, month, and day.
+- For "who" question, ensure the answer is a name such as a person, an organization, or a company.
 
 There are some examples for you to refer to:
-<Context>:
+<Context>
 History of the Dallas Cowboys | The first NFL team to win three Super Bowls in four years, with Super Bowl wins in the 1992, 1993, and 1995 seasons. Only one other team, the New England Patriots, have won three Super Bowls in a four-year time span, doing so in the 2001, 2003, and 2004 seasons. The first team to hold the opposing team to no touchdowns in a Super Bowl. Dallas beat the Miami Dolphins 24–3 in Super Bowl VI. The only other teams to do this are the New England Patriots, who did so in their 13–3 win against the Los Angeles Rams in Super Bowl LIII, and the Tampa Bay Buccaneers in Super Bowl LV, beating
 </Context>
 <Question>
 For which NFL season did the Dallas Cowboys win the Super Bowl
 </Question>
 <Answer>
-- The Dallas Cowboys won Super Bowl in the 1992, 1993, and 1995 seasons.
+- 1992
+- 1993
+- 1995
 </Answer>
 
 <Context>
@@ -93,9 +115,9 @@ List of presidents of India | India has had several distinguished presidents thr
 Who serve as President of India
 </Question>
 <Answer>
-- Neelam Sanjiva Reddy served as the sixth President of India from 1977.
-- K. R. Narayanan became the first Dalit to serve as the President of India from 1997 until 2002.
-- Droupadi Murmu served as the 15th President of India from 2022.
+- Neelam Sanjiva Reddy
+- K. R. Narayanan
+- Droupadi Murmu
 </Answer>
 
 <Context>
@@ -105,23 +127,24 @@ Oliver Bulleid | A brief period working for the Board of Trade followed from 191
 Oliver Bulleid was an employee for whom
 </Question>
 <Answer>
-- Oliver Bulleid worked for the Board of Trade from 1910.
-- Oliver Bulleid worked for GNR from December 1912.
+- Board of Trade
+- GNR
 </Answer>
 
 <Context>
-The Lost World: Jurassic Park | The Lost World: Jurassic Park is a 1997 American science fiction action film. In Thailand, The Lost World became the country's highest-grossing film of all time. It ultimately grossed $229.1 million in the U.S. and $389.5 million internationally, for a total of $618.6 million worldwide. The film sold an estimated 49,910,000 tickets in North America.
+Jurassic Park Movies | The Lost World: Jurassic Park is a 1997 American science fiction action film. In Thailand, The Lost World became the country's highest-grossing film of all time. It ultimately grossed $229.1 million in the U.S. and $389.5 million internationally, for a total of $618.6 million worldwide. The film sold an estimated 49,910,000 tickets in North America. Jurassic Park premiered on June 9, 1993, at the Uptown Theater in Washington, D.C., and was released on June 11 in the United States. It was a blockbuster hit and went on to gross over $914 million worldwide in its original theatrical run
 </Context>
 <Question>
 What was the worldwide box office of Jurassic movie
 </Question>
 <Answer>
-- The worldwide box office was $618.6 million for the movie The Lost World: Jurassic Park in 1997.
+- $618.6 million
+- $914 million
 </Answer>
 
 Now your context paragraph and question are as follows.
 <Context>
-{title} | {text}
+{context}
 </Context>
 <Question>
 {question}
@@ -130,6 +153,92 @@ Now your context paragraph and question are as follows.
 """
     return prompt
 
+def timer(question, context, answer):
+    prompt = f"""You will be given a question, a context paragraph and one answer. Your task is to find the corresponding date for this answer. Your response should be in a python dict object.
+- The date should be parsed into a python dict format with keys ("start_year", "start_month", "end_year", "end_month").
+- If the answer only applies for a specific date such as an event, write the same start and end time.
+- If the answer applies "from" a specific date such as a status and a position, write this date as the start time and write "0" for the end time.
+- If the answer applies "until" a specific date such as a status and a position, write this date as the end time and write "0" for the start time.
+
+There are some examples for you to refer to:
+<Question>
+Who served as President of India
+</Question>
+<Context>
+K. R. Narayanan served as the President of India from 1997 until 2002, Droupadi Murmu served until 2024.
+</Context>
+<Answer>
+K. R. Narayanan
+</Answer>
+<Response>
+{{"K. R. Narayanan": {{"start_year": 1997, "start_month": 0, "end_year": 2002, "end_month": 0}}}}
+</Response>
+
+<Question>
+Who served as President of India
+</Question>
+<Context>
+K. R. Narayanan served as the President of India from 1997 until 2002, Droupadi Murmu served until 2024.
+</Context>
+<Answer>
+Droupadi Murmu
+</Answer>
+<Response>
+{{"Droupadi Murmu": {{"start_year": 0, "start_month": 0, "end_year": 2024, "end_month": 0}}}}
+</Response>
+
+<Question>
+What was the worldwide box office of Jurassic movie
+</Question>
+<Context>
+The 1997 movie "The Lost World: Jurassic Park" grossed a total of $618.6 million at the worldwide box office
+</Context>
+<Answer>
+$618.6 million
+</Answer>
+<Response>
+{{"$618.6 million": {{"start_year": 1997, "start_month": 0, "end_year": 1997, "end_month": 0}}}}
+</Response>
+
+<Question>
+When was the time the Houston Rockets win the NBA championship
+</Question>
+<Context>
+The Houston Rockets won the NBA championship in 1994 and May 1995.
+</Context>
+<Answer>
+May 1995
+</Answer>
+<Response>
+{{"May 1995": {{"start_year": 1995, "start_month": 5, "end_year": 1995, "end_month": 5}}}}
+</Response>
+
+<Question>
+J. Eugene Grigsby was an employee for whom
+</Question>
+<Context>
+Grigsby volunteered for World War II in 1942 and served in the Army. Starting in 1946 Grigsby served as the Founder and Chair of the Art Department at Carver High School for eight years.
+</Context>
+<Answer>
+Army
+</Answer>
+<Response>
+{{"Army": {{"start_year": 1942, "start_month": 0, "end_year": 0, "end_month": 0}}}}
+</Response>
+
+Now your question, context paragraph and answer are as follows.
+<Question>
+{question}
+</Question>
+<Context>
+{context}
+</Context>
+<Answer>
+{answer}
+</Answer>
+<Response>
+"""
+    return prompt
 
 
 def formatter(question, sentence):
@@ -222,7 +331,7 @@ def call_pipeline(args, prompts, max_tokens=100):
     sampling_params = SamplingParams(temperature=0.1, top_p=0.95, max_tokens=max_tokens)
     outputs = args.llm.generate(prompts, sampling_params)
     responses = [output.outputs[0].text for output in outputs]
-    for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Response>','</Entity>']:
+    for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Response>','</Date>']:
         responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
     for mid_stopper in ['</Thought>']:
         responses = [res.split(mid_stopper)[-1] if mid_stopper in res else res for res in responses]
@@ -284,81 +393,112 @@ def main():
         examples = examples[:min(len(examples),args.max_examples)]
 
     
-    # x = "Who was the last to win the Kentucky Derby in under 2 minutes as of 2001?"
+    # x = "Who does Bryce Dallas Howard play in The Grinch in 2000?"
     # examples = [ex for ex in examples if ex['question']==x]
 
-    # # checker
-    # print('\nstarted checker.\n')
-    # checker_prompts = []
-    # for ex in examples:
-    #     normalized_question = ex['normalized_question']
-    #     for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
-    #         prompt = checker(normalized_question, ctx['title']+' | '+ctx['text'])
-    #         checker_prompts.append(prompt)
-    # checker_responses = call_pipeline(args, checker_prompts, 10)
-    # checker_results = [res[:3].lower()=='yes' for res in checker_responses]
-
-    # # reader
-    # print('\nstarted reader.\n')
-    # reader_prompts = []
-    # for ex in examples:
-    #     ids = []
-    #     normalized_question = ex['normalized_question']
-    #     for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
-    #         ids.append(ctx['id'])
-    #         if 'when' not in normalized_question.lower():
-    #             tmp = normalized_question + ' and when'
-    #         else:
-    #             tmp = normalized_question
-    #         # prompt = reader(tmp, ctx['title'], ctx['text'])
-    #         # reader_prompts.append(prompt)
-        
-
-    #     for ctx_id, snt, _ in ex['top_snt_id']:
-    #         if ctx_id not in ids:
-    #             break
-    #         prompt = reader(tmp, ' ', snt)
-    #         reader_prompts.append(prompt)
-            
-
-    # reader_responses = call_pipeline(args, reader_prompts, 500)
-
-
+    
     for ex in examples:
         ids = []
         snts = []
         normalized_question = ex['normalized_question']
+        ctx_id_map={}
         for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
-            ids.append(ctx['id'])
+            ctx_id = ctx['id']
+            ids.append(ctx_id)
+            if ctx_id not in ctx_id_map:
+                ctx_id_map[ctx_id] = ctx
+        ex['ctx_id_map'] = ctx_id_map
         
         for ctx_id, snt, _ in ex['top_snt_id']:
             if ctx_id not in ids:
                 break
+            snt = snt[len(ctx_id_map[ctx_id]['title']):].strip()
             snts.append(snt)
         ex['snts'] = snts
+        ex['ids'] = ids
 
 
     # checker
     print('\nstarted checker.\n')
     checker_prompts = []
-    formatter_prompts = []
+    reader_prompts = []
     questions = []
+    norm_questions = []
+    contexts = []
     for ex in examples:
+        question = ex['question']
         normalized_question = ex['normalized_question']
-        for snt in ex['snts']:
-            questions.append(normalized_question)
+        ctx_id_map = ex['ctx_id_map']
+        for snt, id in zip(ex['snts'], ex['ids']):
+            questions.append(question)
+            norm_questions.append(normalized_question)
+            # context = f"{ctx_id_map[id]['title']} | {snt}"
+            context = snt
+            contexts.append(context)
+            reader_prompts.append(reader(normalized_question, context))
             checker_prompts.append(checker(normalized_question, snt))
-            formatter_prompts.append(formatter(normalized_question, snt))
+            
+    checker_responses = call_pipeline(args, checker_prompts, 100)
+    checker_results = ['yes' in res.lower() for res in checker_responses]
+    reader_responses = call_pipeline(args, reader_prompts, 400)
 
-    checker_responses = call_pipeline(args, checker_prompts, 10)
-    checker_results = [res[:3].lower()=='yes' for res in checker_responses]
-    formatter_responses = call_pipeline(args, formatter_prompts, 200)
+    for j in range(len(reader_prompts)):
+        reader_response = reader_responses[j]
+        context = reader_prompts[j].split('<Context>')[-1]
+        reader_responses[j] = [r for r in reader_response if r in context]
+
+    # for x, y, z in zip(reader_prompts, reader_responses, checker_responses):
+    #     print('\n==\n')
+    #     print(x.split('Now your context paragraph and question are as follows.')[-1])
+    #     print(y)
+    #     print(z)
+
+    # import ipdb; ipdb.set_trace()
 
     questions = [q for q, cond in zip(questions, checker_results) if cond]
-    questions = [f for f, cond in zip(formatter_responses, checker_results) if cond]
+    norm_questions = [q for q, cond in zip(norm_questions, checker_results) if cond]
+    reader_responses = [q for q, cond in zip(reader_responses, checker_results) if cond]
+    contexts = [q for q, cond in zip(contexts, checker_results) if cond]
+
+    timer_prompts = []
+    new_questions = []
+    new_answers = []
+    for q, nq, c, a_s in zip(questions, norm_questions, contexts, reader_responses):
+        for a in a_s:
+            a = a.replace('\n','').strip()
+            new_questions.append(q)
+            new_answers.append(a)
+            timer_prompt = timer(nq, c, a)
+            timer_prompts.append(timer_prompt)
+
+    timer_responses = call_pipeline(args, timer_prompts, 100)
+    # for x,y in zip(timer_prompts, timer_responses):
+    #     print('\n==\n')
+    #     print(x.split('Now your question, context paragraph and answer are as follows.')[-1])
+    #     print(y)
+    # import ipdb; ipdb.set_trace()
+
+    # for "when" question, no need to do timer
+    # ensure answer has a year
+
+    for j in range(len(timer_responses)):
+        if new_questions[j].lower().startswith('when'):
+            try:
+                eval(timer_responses[j])
+            except Exception as e:
+                ys = year_identifier(new_answers[j])
+                if len(ys)>1:
+                    print('>1')
+                    print('{"'+new_answers[j]+'": {"start_year": '+str(min(ys))+', "start_month": 0, "end_year": '+str(max(ys))+', "end_month": 0}'+'}')
+                    timer_responses[j] = '{"'+new_answers[j]+'": {"start_year": '+str(min(ys))+', "start_month": 0, "end_year": '+str(max(ys))+', "end_month": 0}'+'}'
+                elif len(ys)==1:
+                    print('=1')
+                    print('{"'+new_answers[j]+'": {"start_year": '+str(ys[0])+', "start_month": 0, "end_year": '+str(ys[0])+', "end_month": 0}'+'}')
+                    timer_responses[j] = '{"'+new_answers[j]+'": {"start_year": '+str(ys[0])+', "start_month": 0, "end_year": '+str(ys[0])+', "end_month": 0}'+'}'
+                import ipdb; ipdb.set_trace()
 
     question_answer_map={}
-    for q, res in zip(questions, formatter_responses):
+    for q, res in zip(new_questions, timer_responses):
         if q not in question_answer_map:
             question_answer_map[q] = {}
         try:
@@ -392,7 +532,6 @@ def main():
 
         except Exception as e:
             pass
-    
 
 
     to_save=[]
@@ -405,7 +544,7 @@ def main():
         gold_evidences = ex['gold_evidences']
         answer_dict = question_answer_map[question] if question in question_answer_map else {}
 
-        # if question != "For which NFL season did the Dallas Cowboys win their most recent Super Bowl as of August 2, 1995?":
+        # if question != "When was the last time the Dodgers played the Yankees in the World Series after 1978?":
         #     continue
 
         print('\n------\n', k,' ',question,'\n------\n') 
@@ -413,6 +552,7 @@ def main():
         print('\nanswer dict')
         print(answer_dict)
 
+        # import ipdb; ipdb.set_trace()
 
 
         tmp = []
@@ -458,6 +598,9 @@ def main():
                         else:
                             if end_month<=q_month:
                                 append_flg=False
+                    elif ex['time_relation']=='after':
+                        if end_year<=q_year:
+                            append_flg=False
                     else:
                         if end_year<q_year:
                             append_flg=False
@@ -482,6 +625,11 @@ def main():
                 if append_flg:
                     tmp.append({ans: answer_dict[ans]})
 
+        else:
+            tmp = [{ans:answer_dict[ans]} for ans in answer_dict]
+        
+        # filter all zero
+        
         ans_list = tmp
     
         print('\nafter filter')
@@ -510,16 +658,15 @@ def main():
             #     print(question, ' ', rag_pred)
             # else:
             rag_pred = next(iter(ans_list[0]))
-            tmp = str(ans_list[0][rag_pred]['start_year'])
-            if tmp in rag_pred:
-                rag_pred = tmp
-        print(rag_pred, ex['answers'])
-
+            # tmp = str(ans_list[0][rag_pred]['start_year'])
+            # if tmp in rag_pred:
+            #     rag_pred = tmp
+        rag_pred = rag_pred.replace('\n','').strip()
         
         ex['rag_pred'] = rag_pred
         ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
         ex['rag_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(rag_pred))
-
+        print(rag_pred, ex['answers'], ex['rag_acc'])
         
 
 

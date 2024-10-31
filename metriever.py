@@ -53,7 +53,7 @@ def main():
     parser.add_argument('--snt-topk', type=int, default=200)
     parser.add_argument('--complete-ctx-text', type=bool, default=True)
     parser.add_argument('--hybrid-score', type=bool, default=True)
-    parser.add_argument('--hybrid-base', type=float, default=0)
+    parser.add_argument('--hybrid-base', type=float, default=0.5)
     parser.add_argument('--snt-with-title', type=bool, default=True)
     parser.add_argument('--llm', type=str, default="llama_8b")
     parser.add_argument('--save-note', type=str, default=None)
@@ -171,7 +171,7 @@ def main():
         examples = [ex for ex in examples if ex['question']==debug_question]
 
     # examples = examples[300:365]
-    # examples = [ex for ex in examples if ex['question']=='Who is the governor of Madhya Pradesh in 1990–93?']
+    # examples = [ex for ex in examples if ex['question']=='When was the last time the Dodgers played the Yankees in the World Series after 1978?']
 
     # only keep situatedqa and timeqa samples for this code
     if args.subset == 'timeqa':
@@ -337,7 +337,7 @@ def main():
                 time_relation_type = 'between'
             elif time_relation in ['before','as of','by','until']:
                 time_relation_type = 'before'
-            elif time_relation in ['from','since']:
+            elif time_relation in ['from','since','after']:
                 time_relation_type = 'after'
             else:
                 time_relation_type = 'other'
