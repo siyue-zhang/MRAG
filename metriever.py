@@ -49,7 +49,7 @@ def main():
     parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/TempRAGEval.json")
     parser.add_argument('--bm25-output', type=str, default="./TempRAGEval/BM25_output/TempRAGEval.json")
     parser.add_argument('--ctx-topk', type=int, default=100)
-    parser.add_argument('--QFS-topk', type=int, default=5)
+    parser.add_argument('--QFS-topk', type=int, default=0)
     parser.add_argument('--snt-topk', type=int, default=200)
     parser.add_argument('--complete-ctx-text', type=bool, default=True)
     parser.add_argument('--hybrid-score', type=bool, default=True)
@@ -160,17 +160,18 @@ def main():
             examples_contriever[idx][ctx_key] = new_ctxs
         examples = examples_contriever
 
+    if 'norm' in args.contriever_output.lower():
+        for ex in examples:
+            ex['question'] = ex['ori_question']
+
     if args.max_examples:
         examples = examples[:min(len(examples),args.max_examples)]
 
     if debug_question:
         examples = [ex for ex in examples if ex['question']==debug_question]
 
-    # temporary
-    for ex in examples:
-        if ' \'s ' in ex['question']:
-            ex['question'] = ex['question'].replace(' \'s ', '\'s ')
     # examples = examples[300:365]
+    # examples = [ex for ex in examples if ex['question']=='Who is the governor of Madhya Pradesh in 1990–93?']
 
     # only keep situatedqa and timeqa samples for this code
     if args.subset == 'timeqa':
@@ -300,6 +301,80 @@ def main():
     
     #####################################################################################################################
     # Metriever 
+
+    # preprocess question about time
+    for k, ex in enumerate(tqdm(examples, desc="Preprocessing time info", total=len(examples))):
+        question = ex['question']
+        ex['time_relation'] = ex['time_relation'].strip()
+        time_relation = ex['time_relation'].lower()
+        assert time_relation in question, question
+        # if question != 'Who is the Speaker of the Karnataka Legislative Assembly from 31 July 2019?':
+        #     continue
+
+        time_relation_type = ''
+        years, months = [], []
+        no_time_question = question
+
+        if time_relation != '':
+            # classify time relation type
+            # there are 4 types of time relation and 2 types of implicit condition (first and last)
+            # 1)	before (before, as of, by until)
+            # 2)	after (after, from, since)
+            # 3)	between (between, from to)
+            # 4)	other (in, on, around, during)
+
+            # extract year and months
+            date = ''
+            parts = question.split(time_relation)
+            no_time_question = time_relation.join(parts[:-1])
+            date = parts[-1]
+            # find year
+            years = year_identifier(date)
+            if len(years)>2:
+                years=[min(years), max(years)]
+
+            if len(years)>1:
+                time_relation_type = 'between'
+            elif time_relation in ['before','as of','by','until']:
+                time_relation_type = 'before'
+            elif time_relation in ['from','since']:
+                time_relation_type = 'after'
+            else:
+                time_relation_type = 'other'
+
+            # find months
+            months = []
+            def append_month(month_str):
+                m = find_month(month_str)
+                months.append(m if m else 0)
+    
+            if time_relation_type == 'between':
+                delimiters = ['and', 'to', 'until']
+                d_index = [d in date for d in delimiters]
+                if any(d_index):
+                    delimiter = delimiters[d_index.index(True)]
+                    tmp = date.split(delimiter)
+                    for w in tmp:
+                        append_month(w.strip())
+                else:
+                    months = [0,0]
+            else:
+                append_month(date.strip())
+            
+        # 2 types of implicit condition (first and last)
+        normalized_question, implicit_condition = remove_implicit_condition(no_time_question)
+        normalized_question = normalized_question[:-1] if normalized_question[-1] in '.?!' else normalized_question
+
+        print(f'\n==={k}===')
+        print('Question : ', question)
+        print('Normalized Question : ', normalized_question, '\n')
+        
+        ex['normalized_question'] = normalized_question
+        ex['implicit_condition'] = implicit_condition
+        ex['time_relation_type'] = time_relation_type
+        ex['years'] = years # int
+        ex['months'] = months
+
     if args.load_keywords:
         def load_example_keywords(path='./outputs/tmp_get_keywords.json'):
             with open(path, 'r') as file:
@@ -308,42 +383,10 @@ def main():
         print('loaded keywords.')
     else:
         # prepare keywords
-        question_keyword_map={}
-        for k, ex in enumerate(tqdm(examples, desc="Preprocessing questions", total=len(examples))):
-            question = ex['question']
-            time_relation = ex['time_relation']
-            assert time_relation in question, question
-            date = ''
-            if time_relation != '':
-                parts = question.split(time_relation)
-                no_time_question = time_relation.join(parts[:-1])
-                date = parts[-1]
-                years = year_identifier(date)
-                ex['years'] = years # int
-                months = []
-                for w in date.lower().split():
-                    for m in month_to_number:
-                        if m in w:
-                            months.append(m)
-                            break
-                    for m in short_month_to_number:
-                        if m in w:
-                            months.append(m)
-                            break
-                ex['months'] = months
-            else:
-                no_time_question = question
-            ex['date'] = date
-            normalized_question, implicit_condition = remove_implicit_condition(no_time_question)
-            ex['implicit_condition'] = implicit_condition
-            normalized_question = normalized_question[:-1] if normalized_question[-1] in '.?!' else normalized_question
-            ex['normalized_question'] = normalized_question
-            if normalized_question not in question_keyword_map:
-                question_keyword_map[normalized_question]=[]
-            print(f'==={k}===')
-            print('Question : ', question)
-            print('Normalized Question : ', normalized_question)
-
+        question_keyword_map = {}
+        for ex in examples:
+            normalized_question = ex['normalized_question']
+            question_keyword_map.setdefault(normalized_question, [])
 
         print('\nstart extracting keywords using llm.')
         prompts = [get_keyword_prompt(q) for q in question_keyword_map]
@@ -383,6 +426,9 @@ def main():
     for k, ex in enumerate(examples):
         question = ex['question']
         time_relation = ex['time_relation']
+        years = ex['years']
+        implicit_condition = ex['implicit_condition']
+        time_relation_type = ex['time_relation_type']
         normalized_question = ex['normalized_question']
         expanded_keyword_list, keyword_type_list = question_keyword_map[normalized_question]
         print(f'\n---- {k} ----\n{question}\n')
@@ -497,34 +543,8 @@ def main():
         sentence_tuples_unchange = sentence_tuples[min(len(sentence_tuples),args.snt_topk):]
         sentence_tuples = sentence_tuples[:min(len(sentence_tuples),args.snt_topk)]
         print(f'rerank top {args.snt_topk} sentences.\n')
-        # classify time relation
-        # there are 4 types of time relation and 2 types of implicit condition (first and last)
-        # 1)	before (before, as of, by until)
-        # 2)	after (after, from, since)
-        # 3)	between (between, from to)
-        # 4)	other (in, on, around, during)
-        if 'years' in ex:
-            years = ex['years'] # question dates
-            time_relation = ex['time_relation'].strip().lower()
-            implicit_condition = ex['implicit_condition']
-            if time_relation in ['before','as of','by','until']:
-                time_relation_type = 'before'
-            elif time_relation == 'from':
-                if len(years)==1:
-                    time_relation_type = 'after'
-                else:
-                    time_relation_type = 'between'
-            elif time_relation == 'since':
-                time_relation_type = 'after'
-            elif time_relation in ['after','between']:
-                time_relation_type = time_relation
-            else:
-                time_relation_type = 'other'
-            ex['time_relation_type'] = time_relation_type
 
-        # static = question_static_map[normalized_question]
-        # compute semantic scores using reranker
-        if 'years' in ex and time_relation_type != 'other' and args.hybrid_score:
+        if len(years)>0 and time_relation_type != 'other' and args.hybrid_score:
             # for hybrid ranking using question without time
             model_inputs = [[normalized_question, tp[1]] for tp in sentence_tuples]
         else:
@@ -533,14 +553,8 @@ def main():
         semantic_scores =  args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)
         semantic_scores = [float(s) for s in semantic_scores]
 
-        # print(f'\nQuestion is static: {static}')
-        if 'years' in ex and time_relation_type != 'other' and args.hybrid_score:
+        if len(years)>0 and time_relation_type != 'other' and args.hybrid_score:
             # use temporal-semantic hybrid ranker
-            years = ex['years']
-            if time_relation=='from' and len(years)<2:
-                time_relation='after'
-            if len(years)>1:
-                assert time_relation in ['between','from']
             # define spline for temporal coefficient
             spline = get_spline_function(time_relation_type, implicit_condition, years)
             # find closest year in the sentence and compute temporal coefficient based on closest year

@@ -61,6 +61,22 @@ short_month_to_number = {
     "dec": 12
 }
 
+def find_month(w):
+    w = w.lower()
+    month = []
+    for m in month_to_number:
+        if m in w:
+            month.append(month_to_number[m])
+            break
+    for m in short_month_to_number:
+        if m in w:
+            month.append(short_month_to_number[m])
+            break
+    if len(month)>0:
+        return month[0]
+    else:
+        return None
+            
 tokenizer = SimpleTokenizer()
 
 def retrival_model_names(m):

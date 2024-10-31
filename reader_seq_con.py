@@ -100,9 +100,9 @@ Now your context paragraph and question are as follows.
     return prompt
 
 def formatter(question, sentence):
-    prompt = f"""You will be given a question and several sentences. Your task is to find the answer and the corresponding date from the sentences.
-- The result should be in the python dict format: the answer is the dict key and the corresponding date is the dict value.
-- The answer should be a text span extracted from the sentences.
+    prompt = f"""You will be given a question and several sentences. Your task is to extract the answer and the corresponding date from the sentences.
+- The result should be in the python dict format: the extracted answer is the dict key and the corresponding date is the dict value.
+- Ensure the dict key is the answer to the question such as a name, date, organization, etc.
 - The date should be parsed into a python dict object with keys ("start_year", "start_month", "end_year", "end_month").
 - If the answer only applies for a specific date, write the same start and end time.
 - If the answer applies from a specific date, write this date as the start time and write "0" for the end time.
@@ -157,7 +157,7 @@ Who serve as President of India
 <Answer>
 {{
 "Neelam Sanjiva": {{"start_year": 1977, "start_month": 12, "end_year": 0, "end_month": 0}},
-"K. R. Narayanan": {{"start_year": 1997, "start_month": 0, "end_year": 1998, "end_month": 0}}
+"K. R. Narayanan": {{"start_year": 1997, "start_month": 0, "end_year": 1998, "end_month": 0}},
 }}
 </Answer>
 
@@ -186,11 +186,275 @@ Now your context sentence and question are as follows.
     return prompt
 
 
+
+def constrained_formatter(question, sentence, candidates):
+    prompt = f"""You will be given a question, several sentences, and candidate answers from sentences. Your task is to choose the answer and the corresponding date from the sentences.
+- The result should be in the python dict format: the answer choice is the dict key and the corresponding date is the dict value.
+- Ensure the dict key is selected from the candidates.
+- The date should be parsed into a python dict object with keys ("start_year", "start_month", "end_year", "end_month").
+- If the answer only applies for a specific date, write the same start and end time.
+- If the answer applies from a specific date, write this date as the start time and write "0" for the end time.
+- If the answer applies until a specific date, write this date as the end time and write "0" for the start time.
+- Write "0" if the date data is not available.
+
+There are some examples for you to refer to:
+<Sentence>
+K. R. Narayanan served as the President of India from 1997 until 2002, Droupadi Murmu served until 2024. Vice President of India is the second highest constitutional office in India and has been held by Shri M. Venkaiah Naidu since 11 August 2017.
+</Sentence>
+<Question>
+Who served as President of India
+</Question>
+<Candidate>
+(A) K. R. Narayanan
+(B) Droupadi Murmu
+(C) Shri M. Venkaiah Naidu
+</Candidate>
+<Answer>
+{{
+"A": {{"start_year": 1997, "start_month": 0, "end_year": 2002, "end_month": 0}},
+"B": {{"start_year": 0, "start_month": 0, "end_year": 2024, "end_month": 0}}
+}}
+</Answer>
+
+<Sentence>
+The movie "The Lost World: Jurassic Park" grossed a total of $618.6 million at the worldwide box office in 1997. Kung Fu Panda 4 received generally positive reviews from critics, and was a box-office success, grossing over $549 million worldwide in 2024.
+</Sentence>
+<Question>
+What was the worldwide box office of Jurassic movie
+</Question>
+<Candidate>
+(A) $618.6 million
+(B) $549 million
+</Candidate>
+<Answer>
+{{
+"A": {{"start_year": 1997, "start_month": 0, "end_year": 1997, "end_month": 0}},
+}}
+</Answer>
+
+<Sentence>
+The Houston Rockets won the NBA championship in 1994 and May 1995.
+</Sentence>
+<Question>
+When was the time the Houston Rockets win the NBA championship
+</Question>
+<Candidate>
+(A) 1994
+(B) May 1995
+</Candidate>
+<Answer>
+{{
+"A": {{"start_year": 1994, "start_month": 0, "end_year": 1994, "end_month": 0}},
+"B": {{"start_year": 1995, "start_month": 5, "end_year": 1995, "end_month": 5}}
+}}
+</Answer>
+
+<Sentence>
+Neelam Sanjiva Reddy served as the sixth President of India from Dec 1977, K. R. Narayanan - President of India (1997-98).
+</Sentence>
+<Question>
+Who serve as President of India
+</Question>
+<Candidate>
+(A) Neelam Sanjiva Reddy
+(B) K. R. Narayanan
+</Candidate>
+<Answer>
+{{
+"A": {{"start_year": 1977, "start_month": 12, "end_year": 0, "end_month": 0}},
+"B": {{"start_year": 1997, "start_month": 0, "end_year": 1998, "end_month": 0}},
+}}
+</Answer>
+
+<Sentence>
+Grigsby volunteered for World War II in 1942 and served in the Army. Starting in 1946 Grigsby served as the Founder and Chair of the Art Department at Carver High School for eight years.
+</Sentence>
+<Question>
+J. Eugene Grigsby was an employee for whom
+</Question>
+<Candidate>
+(A) World War II
+(B) Army
+(C) Carver High School
+</Candidate>
+<Answer>
+{{
+"B": {{"start_year": 1942, "start_month": 0, "end_year": 0, "end_month": 0}},
+"C": {{"start_year": 1946, "start_month": 0, "end_year": 1954, "end_month": 0}}
+}}
+</Answer>
+
+Now your context sentence and question are as follows.
+<Sentence>
+{sentence}
+</Sentence>
+<Question>
+{question}
+</Question>
+<Candidate>
+{candidates}
+</Candidate>
+<Answer>
+"""
+    return prompt
+
+
+
+
+def instructor(question):
+    prompt = f"""Your task is to write the instruction based on the question. 
+The instruction should ask to find the entity from a context paragraph to answer the question.
+
+There are some examples for you to refer to:
+<Question>
+For which NBA season Lakers won the championship
+</Question>
+<Response>
+Find every NBA season mentioned in the context paragrah.
+</Response>
+
+<Question>
+what is the name of the governor of Bank of Ghana
+</Question>
+<Response>
+Find every person mentioned in the context paragraph.
+</Response>
+
+<Question>
+Santiago the capital of Chile is in what region
+</Question>
+<Response>
+Find every region mentioned in the context paragraph.
+</Response>
+
+<Question>
+How many episodes are there in Vanity Fair
+</Question>
+<Response>
+Find every number mentioned in the context paragraph.
+</Response>
+
+<Question>
+Tallest building in the world
+</Question>
+<Response>
+Find every building mentioned in the context paragraph.
+</Response>
+
+<Question>
+Barack Obama was an employee for whom
+</Question>
+<Response>
+Find every company or organization mentioned in the context paragraph.
+</Response>
+
+<Question>
+Which team won the NBA Finals
+</Question>
+<Response>
+Find every team mentioned in the context paragraph.
+</Response>
+
+<Question>
+Grandmaster Krasenkow was what level trainer
+</Question>
+<Response>
+Find every trainer level mentioned in the context paragraph.
+</Response>
+
+<Question>
+When was the time the team won the game
+</Question>
+<Response>
+Find every date mentioned in the context paragraph.
+</Response>
+
+<Question>
+Who had the most home runs by 2 teammates
+</Question>
+<Response>
+Find every two teammates mentioned in the context paragraph.
+</Response>
+
+Now your question is
+<Question>
+{question}
+</Question>
+<Response>
+"""
+    return prompt
+
+def extractor(instruction, text):
+    prompt = f"""Your task is to extract the text spans from the context paragraph according to the instruction. Response by one text span per line.
+
+There are some examples for you to refer to:
+<Context>
+The team have won the NBA championship twice in their history. Their first win came on Jan 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory on 2 May 1995.
+</Context>
+<Instruction>
+Find every date mentioned in the context paragraph.
+</Instruction>
+<Response>
+- Jan 1994
+- 1995
+- 2000s
+- 2010s
+- 2 May 1995
+</Response>
+
+<Context>
+The Dallas Cowboys won their Super Bowl XXVII in 1993–94. The Dallas Cowboys won their Super Bowl XXVIII in 1994. The Dallas Cowboys won their Super Bowl in the 1992-1993 season. The Dallas Cowboys won their Super Bowl in the 1993 season.
+</Context>
+<Instruction>
+Find every NFL season mentioned in the context paragraph.
+</Instruction>
+<Response>
+- 1993–94
+- 1994
+- 1992-1993
+- 1993
+</Response>
+
+<Context>
+The Lakers–Clippers rivalry is a National Basketball Association (NBA) rivalry between the Los Angeles Lakers and Clippers. The Lakers–Suns rivalry is a National Basketball Association (NBA) rivalry between the Los Angeles Lakers and the Phoenix Suns.
+</Context>
+<Instruction>
+Find every team mentioned in the context paragraph.
+</Instruction>
+<Response>
+- Los Angeles Lakers
+- Clippers
+- Los Angeles Lakers
+- Phoenix Suns
+</Response>
+
+<Context>
+Committees presented reports on issues. ; B.N. Rau prepared an initial draft based on the reports and his research into the constitutions of other nations. ; The drafting committee, chaired by B. R. Ambedkar, presented a detailed draft constitution which was published for public discussion.
+</Context>
+<Instruction>
+Find every person mentioned in the context paragraph.
+</Instruction>
+<Response>
+- B. N. Rau
+- B. R. Ambedkar
+</Response>
+
+Now your context paragraph is
+<Context>
+{text}
+</Context>
+<Instruction>
+{instruction}
+</Instruction>
+<Response>
+"""
+    return prompt
+
 def call_pipeline(args, prompts, max_tokens=100):
-    sampling_params = SamplingParams(temperature=0.1, top_p=0.9, max_tokens=max_tokens)
+    sampling_params = SamplingParams(temperature=0.1, top_p=0.95, max_tokens=max_tokens)
     outputs = args.llm.generate(prompts, sampling_params)
     responses = [output.outputs[0].text for output in outputs]
-    for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Response>']:
+    for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Response>','</Entity>']:
         responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
     for mid_stopper in ['</Thought>']:
         responses = [res.split(mid_stopper)[-1] if mid_stopper in res else res for res in responses]
@@ -205,7 +469,7 @@ def call_pipeline(args, prompts, max_tokens=100):
 
 def main():
     parser = argparse.ArgumentParser(description="Reader")
-    parser.add_argument('--max-examples', type=int, default=None)
+    parser.add_argument('--max-examples', type=int, default=20)
     parser.add_argument('--llm', type=str, default="llama_8b")
     parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_outputs.json")
     # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_minilm12_outputs.json")
@@ -256,8 +520,41 @@ def main():
 
 
     ##
+    # def starts_with(question, list_str):
+    #     return any([question.lower().startswith(s) for s in list_str])
 
+    # # typer
+    # norm_question_type_map = {}
+    # left_questions = []
+    # for ex in examples:
+    #     normalized_question = ex['normalized_question']
+    #     if normalized_question not in norm_question_type_map:
+    #         norm_question_type_map[normalized_question] = None
+        
+    #     if starts_with(normalized_question, ['who',]):
+    #         norm_question_type_map[normalized_question] = 'name of person'
+    #     elif starts_with(normalized_question,['when',]):
+    #         norm_question_type_map[normalized_question] = 'date'
+    #     elif starts_with(normalized_question,['where',]):
+    #         norm_question_type_map[normalized_question] = 'name of place'
+        
+    #     if norm_question_type_map[normalized_question] == None:
+    #         if normalized_question not in left_questions:
+    #             left_questions.append(normalized_question)
+
+    # typer_prompts = [typer(q) for q in left_questions]
+    # typer_responses = call_pipeline(args, typer_prompts, 10)
+    # for x, y in zip(left_questions, typer_responses):
+    #     entity = y.replace('\n','').strip()
+    #     assert entity!='', x +' '+y
+    #     norm_question_type_map[x] = entity
     
+    questions = [ex['normalized_question'] for ex in examples]
+    questions = list(set(questions))
+    prompts = [instructor(q) for q in questions]
+    responses = call_pipeline(args, prompts, 100)
+    norm_question_instruction_map = {p: r.replace('\n','').strip() for p, r in zip(questions, responses)}
+
     # checker
     print('\nstarted checker.\n')
     checker_prompts = []
@@ -283,6 +580,70 @@ def main():
             reader_prompts.append(prompt)
     reader_responses = call_pipeline(args, reader_prompts, 500)
 
+    # extractor
+    print('\nstarted extractor.\n')
+    questions = []
+    norm_questions = []
+    texts = []
+    extractor_prompts = []
+    for k, ex in enumerate(examples):
+        normalized_question = ex['normalized_question']
+        question = ex['question']
+
+        rel_events = []
+        checker_r = checker_results[k*args.ctx_topk:(k+1)*args.ctx_topk]
+        reader_r = reader_responses[k*args.ctx_topk:(k+1)*args.ctx_topk]
+        for j in range(args.ctx_topk):
+            if checker_r[j] and reader_r[j] not in rel_events:
+                rel_events += reader_r[j]
+
+        while rel_events:
+            batch = []
+            for _ in range(4):
+                if rel_events:
+                    event = rel_events.pop(0)
+                    if event not in batch:
+                        batch.append(event)
+            text = ' '.join(batch)
+            texts.append(text)
+            extractor_prompt = extractor(norm_question_instruction_map[normalized_question], text)
+            extractor_prompts.append(extractor_prompt)
+            norm_questions.append(normalized_question)
+
+    extractor_responses = call_pipeline(args, extractor_prompts, 200)
+    extractor_responses = [list(set(sub)) for sub in extractor_responses]
+
+    formatter_prompts = []
+    for question, text, extractor_response in zip(norm_questions, texts, extractor_responses):
+        candidates = []
+        for i, r in enumerate(extractor_response):
+            letter = chr(i + 65)
+            candidates.append(f"({letter}) {r}")
+        formatter_prompt = constrained_formatter(question, text, '\n'.join(candidates))
+        formatter_prompts.append(formatter_prompt)
+
+    extractor_responses = call_pipeline(args, formatter_prompts, 500)
+
+    for x, y in zip(formatter_prompts, extractor_responses):
+        print('\n--\n')
+        print(x.split('Now your context sentence and question are as follows.')[-1])
+        print(y)
+    
+    
+    import ipdb; ipdb.set_trace()
+
+
+    
+
+
+ 
+
+
+
+
+
+
+
     # formatter
     print('\nstarted formatter.\n')
     formatter_prompts = []
@@ -295,12 +656,12 @@ def main():
         checker_r = checker_results[k*args.ctx_topk:(k+1)*args.ctx_topk]
         reader_r = reader_responses[k*args.ctx_topk:(k+1)*args.ctx_topk]
         for j in range(args.ctx_topk):
-            if checker_r[j] and len(reader_r[j])>0 and reader_r[j] not in rel_events:
+            if checker_r[j]:
                 rel_events += reader_r[j]
 
         while rel_events:
             batch = []
-            for _ in range(1):
+            for _ in range(4):
                 if rel_events:
                     batch.append(rel_events.pop(0))
             prompt = formatter(normalized_question, ' '.join(batch))
@@ -363,10 +724,6 @@ def main():
         
         print('\nanswer dict')
         print(answer_dict)
-
-        # take out all 0
-        backup = {ans:answer_dict[ans] for ans in answer_dict if sum(answer_dict[ans].values())==0}
-        answer_dict = {ans:answer_dict[ans] for ans in answer_dict if sum(answer_dict[ans].values())>0}
 
         # rel_events = []
         # for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
@@ -507,16 +864,6 @@ def main():
             print('no context is useful.')
             prompt  = zc_prompt(question)
             rag_pred = call_pipeline(args, [prompt])[0]
-            rag_pred = rag_pred.replace('\n','').strip()
-            if rag_pred=='':
-                print('parametric no answer.')
-                if len(backup)>0:
-                    rag_pred = list(backup.keys())[0]
-                if rag_pred=='':
-                    ctxs = ex['snt_hybrid_rank'][:args.ctx_topk]
-                    texts = [ctx['title']+' | '+ctx['text'] for ctx in ctxs]
-                    prompt  = c_prompt(question, '\n'.join(texts))
-                    rag_pred = call_pipeline(args, [prompt])[0]
         else:
             rag_pred = next(iter(ans_list[0]))
             tmp = str(ans_list[0][rag_pred]['start_year'])

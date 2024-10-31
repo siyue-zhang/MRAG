@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=seq_top10
+#SBATCH --job-name=seq10
 #SBATCH --open-mode=append
-#SBATCH --output=./monitor/seq_top10.out
-#SBATCH --error=./monitor/seq_top10.err
+#SBATCH --output=./monitor/seq10.out
+#SBATCH --error=./monitor/seq10.err
 #SBATCH --export=ALL
 #SBATCH --time=48:00:00
 #SBATCH --gres=gpu:rtx8000:1
