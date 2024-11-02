@@ -338,8 +338,9 @@ def TIMO():
 
 def TimeLLAMA():
     from transformers import pipeline
-    # pipe = pipeline("text-generation", model="chrisyuan45/TimeLlama-13b", model_kwargs={'load_in_8bit':True})
-    pipe = pipeline("text-generation", model="chrisyuan45/TimeLlama-7b", device=0)
+    # model_kwargs={'load_in_8bit':True}, 
+    pipe = pipeline("text-generation", model="chrisyuan45/TimeLlama-13b", device_map='auto')
+    # pipe = pipeline("text-generation", model="chrisyuan45/TimeLlama-7b", device=0)
     return pipe
 
 
@@ -380,6 +381,7 @@ def main():
     parser.add_argument('--ctx-topk', type=int, default=10)
     parser.add_argument('--param-pred', type=bool, default=False)
     parser.add_argument('--param-cot', type=bool, default=True)
+    parser.add_argument('--not-save', type=bool, default=True)
     parser.add_argument('--no-guidance', type=bool, default=True)
     parser.add_argument(
         '--stage1-model',
@@ -388,7 +390,7 @@ def main():
     )
     # parser.add_argument('--ctx-key-s2', type=str, default='snt_hybrid_rank')
     # parser.add_argument('--ctx-key-s2', type=str, default='reranker_ctxs')
-    parser.add_argument('--reader', type=str, default='timellama', choices=['llama', 'timo', 'timellama'])
+    parser.add_argument('--reader', type=str, default='llama', choices=['llama', 'timo', 'timellama'])
     parser.add_argument('--paradigm', type=str, default='fusion', choices=['fusion', 'concat'])
 
 
@@ -434,8 +436,8 @@ def main():
         # examples = examples[:min(len(examples),args.max_examples)]
         examples = examples[-args.max_examples:]
     
-    # x = "When was the last time the Toronto Maple Leafs won Stanley Cup championships between 1947 and 2000?"
-    # examples = [ex for ex in examples if ex['question']==x]
+    x = "Where is the place that St. Louis Cardinals had spring training in 1948?"
+    examples = [ex for ex in examples if x in ex['question']]
     examples = [ex for ex in examples if ex['time_relation'] != '']
 
     ########  QA  ######## 
@@ -686,13 +688,16 @@ def main():
 
             else:
                 tmp = [{ans:answer_dict[ans]} for ans in answer_dict]
-            
+
             # filter all zero
             ans_list, backup = [], []
             for ans_dict in tmp:
                 ans = next(iter(ans_dict))
                 flg = sum(list(ans_dict[ans].values()))==0
-                if ans !='0' and flg:
+                # the answer of "when" question must have at least one "year"
+                if question.lower().startswith('when') and year_identifier(list(ans_dict.keys())[0])==None:
+                    pass
+                elif ans !='0' and flg:
                     backup.append(ans_dict)
                 elif not flg:
                     ans_list.append(ans_dict)
@@ -712,6 +717,15 @@ def main():
                         ans_list = sorted(ans_list, key=lambda x: (abs(list(x.values())[0]['start_year']-ex['years'][0]), abs(list(x.values())[0]['end_year']-ex['years'][1])), reverse=False)
                     else:
                         ans_list = sorted(ans_list, key=lambda x: abs(list(x.values())[0]['start_year']-ex['years'][0]), reverse=False)
+                # in/on
+                if ex['time_relation_type']=='other':
+                    for ans_dict in ans_list:
+                        ans = next(iter(ans_dict))
+                        if ans_dict[ans]['start_year']>0:
+                            if ex['years'][0] > ans_dict[ans]['start_year']:
+                                if ex['years'][0] < ans_dict[ans]['end_year']:
+                                    ans_list = [ans_dict]
+                                    break
 
                 print('\nafter sort')
                 print(ans_list)
@@ -737,6 +751,8 @@ def main():
                         rag_pred = str(can2)
                     else:
                         rag_pred = str(can1)
+
+
                     
             rag_pred = rag_pred.replace('\n','').strip()
 
@@ -831,8 +847,9 @@ def main():
     to_save_df = pd.DataFrame(to_save)
     retriever_name = args.retriever_output.split('/')[-1].split('_outputs')[0]
     result_name = f'./answered/{retriever_name}_top{args.ctx_topk}_{args.llm_name}_{args.paradigm}_results.csv'
-    to_save_df.to_csv(result_name, index=False, encoding='utf-8')
-    print(f"Saved as {result_name}")
+    if not args.not_save:
+        to_save_df.to_csv(result_name, index=False, encoding='utf-8')
+        print(f"Saved as {result_name}")
 
 
     ##########
