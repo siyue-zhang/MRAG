@@ -49,11 +49,11 @@ def main():
     parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/TempRAGEval.json")
     parser.add_argument('--bm25-output', type=str, default="./TempRAGEval/BM25_output/TempRAGEval.json")
     parser.add_argument('--ctx-topk', type=int, default=100)
-    parser.add_argument('--QFS-topk', type=int, default=0)
+    parser.add_argument('--QFS-topk', type=int, default=10)
     parser.add_argument('--snt-topk', type=int, default=200)
     parser.add_argument('--complete-ctx-text', type=bool, default=True)
     parser.add_argument('--hybrid-score', type=bool, default=True)
-    parser.add_argument('--hybrid-base', type=float, default=0.5)
+    parser.add_argument('--hybrid-base', type=float, default=0)
     parser.add_argument('--snt-with-title', type=bool, default=True)
     parser.add_argument('--llm', type=str, default="llama_8b")
     parser.add_argument('--save-note', type=str, default=None)
@@ -67,6 +67,7 @@ def main():
     args.m3 = retrival_model_names(args.metriever_model)
     args.l = llm_names(args.llm, instruct=True)
     args.llm_name = deepcopy(args.llm)
+    args.reader = None
 
     # load llm
     if args.m2=='metriever':
@@ -423,6 +424,7 @@ def main():
 
     # main reranking loop
     print('\nfinished preparation, start modular reranking.')
+    all_QFS_prompts = []
     for k, ex in enumerate(examples):
         question = ex['question']
         time_relation = ex['time_relation']
@@ -431,6 +433,8 @@ def main():
         time_relation_type = ex['time_relation_type']
         normalized_question = ex['normalized_question']
         expanded_keyword_list, keyword_type_list = question_keyword_map[normalized_question]
+        ex['expanded_keyword_list'] = expanded_keyword_list
+        ex['keyword_type_list'] =  keyword_type_list
         print(f'\n---- {k} ----\n{question}\n')
         print(expanded_keyword_list)
         latest_ctxs = deepcopy(ex['ctxs']) # start from contriever top 1000
@@ -482,21 +486,33 @@ def main():
         #####################################################################################################################
         # top 200 snt_keyword_rank_module
         # add QFS summary for top semantic context
-        sentence_tuples = []
-        get_ctx_by_id = {}
+        
         # generate summaries
         QFS_prompts = []
         for ctx in latest_ctxs[:args.QFS_topk]:
             qfs_prompt = get_QFS_prompt(normalized_question, ctx['title'], ctx['text'])
             QFS_prompts.append(qfs_prompt)
-        if args.llm_name != 'gpt':
-            summary_responses = call_pipeline(args, QFS_prompts, 100)
-            # import ipdb; ipdb.set_trace()
-        else:
-            raise NotImplemented
+        all_QFS_prompts += QFS_prompts
 
-        
+    all_summary_responses = call_pipeline(args, all_QFS_prompts, 200)
+        # import ipdb; ipdb.set_trace()
 
+    for k, ex in enumerate(examples):
+
+        question = ex['question']
+        time_relation = ex['time_relation']
+        years = ex['years']
+        implicit_condition = ex['implicit_condition']
+        time_relation_type = ex['time_relation_type']
+        normalized_question = ex['normalized_question']
+
+        summary_responses = all_summary_responses[k*args.QFS_topk:(k+1)*args.QFS_topk]
+        latest_ctxs = ex['ctx_semantic_rank']
+        expanded_keyword_list = ex['expanded_keyword_list']
+        keyword_type_list = ex['keyword_type_list']
+
+        get_ctx_by_id = {}
+        sentence_tuples = []
         for idx, ctx in enumerate(latest_ctxs):
             get_ctx_by_id[ctx['id']] = ctx
             snts = sent_tokenize(ctx['text'])
@@ -714,31 +730,31 @@ def get_temporal_coeffs(years, sentence_tuples, time_relation_type, implicit_con
     return temporal_coeffs
 
 
-def call_pipeline(args, prompts, max_tokens=100):
-    sampling_params = SamplingParams(temperature=0.1, top_p=0.9, max_tokens=max_tokens)
-    outputs = args.llm.generate(prompts, sampling_params)
-    # print('~~~')
-    # print(prompts[0],'\n<>')
-    # print(outputs[0].outputs[0].text)
-    # print('~~~')
+# def call_pipeline(args, prompts, max_tokens=100):
+#     sampling_params = SamplingParams(temperature=0.1, top_p=0.95, max_tokens=max_tokens)
+#     outputs = args.llm.generate(prompts, sampling_params)
+#     # print('~~~')
+#     # print(prompts[0],'\n<>')
+#     # print(outputs[0].outputs[0].text)
+#     # print('~~~')
 
-    responses = [output.outputs[0].text for output in outputs]
-    for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Response>']:
-        responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
-    for mid_stopper in ['</Thought>']:
-        responses = [res.split(mid_stopper)[-1] if mid_stopper in res else res for res in responses]
+#     responses = [output.outputs[0].text for output in outputs]
+#     for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Response>']:
+#         responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
+#     for mid_stopper in ['</Thought>']:
+#         responses = [res.split(mid_stopper)[-1] if mid_stopper in res else res for res in responses]
 
-    # if responses[0][:2] == '- ':
-    #     responses = [res.split('- ') for res in responses]
-    #     tmp = []
-    #     for res in responses:
-    #         res = [r.replace('\n','').strip() for r in res]
-    #         tmp.append([r for r in res if r !=''])
-    #     responses = tmp
-    # elif '{"' not in responses[0]:
-    #     responses = [res.replace('\n','').strip() for res in responses]
-    # import ipdb; ipdb.set_trace()
-    return responses 
+#     # if responses[0][:2] == '- ':
+#     #     responses = [res.split('- ') for res in responses]
+#     #     tmp = []
+#     #     for res in responses:
+#     #         res = [r.replace('\n','').strip() for r in res]
+#     #         tmp.append([r for r in res if r !=''])
+#     #     responses = tmp
+#     # elif '{"' not in responses[0]:
+#     #     responses = [res.replace('\n','').strip() for res in responses]
+#     # import ipdb; ipdb.set_trace()
+#     return responses 
 
 
 if __name__ == "__main__":

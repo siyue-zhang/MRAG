@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import collections
 
+from vllm import LLM, SamplingParams
+
 # import nltk
 # nltk.download('punkt')
 # nltk.download('averaged_perceptron_tagger_eng')
@@ -390,4 +392,42 @@ def eval_reader(to_save, param_pred, subset='situatedqa', metric='acc'):
     print(f'    w/ key date {metric} : {round(np.mean(exact_rag),4) if len(exact_rag)>0 else 0}')
     print(f'    w/ perturb date {metric} : {round(np.mean(not_exact_rag),4) if len(not_exact_rag)>0 else 0}')
 
-    
+
+
+
+def call_pipeline(args, prompts, max_tokens=100):
+
+    if args.reader == None:
+        sampling_params = SamplingParams(temperature=0.1, top_p=0.95, max_tokens=max_tokens)
+        outputs = args.llm.generate(prompts, sampling_params)
+        responses = [output.outputs[0].text for output in outputs]
+
+        for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Response>']:
+            responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
+        return responses
+
+    else:
+        if args.reader in ['timo','timellama']:
+            outputs = args.llm(prompts, do_sample=True, max_new_tokens=100, num_return_sequences=1, temperature=0.1, top_p=0.95)
+            outputs = [r[0]['generated_text'] for r in outputs]
+            responses = [outputs[i].replace(prompts[i],'') for i in range(len(prompts))]
+        else:
+            sampling_params = SamplingParams(temperature=0.1, top_p=0.95, max_tokens=max_tokens)
+            outputs = args.llm.generate(prompts, sampling_params)
+            responses = [output.outputs[0].text for output in outputs]
+
+        for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Response>']:
+            responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
+
+        if '<Thought>' in prompts[0]:
+            for mid_stopper in ['</Thought>', '<Answer>']:
+                responses = [res.split(mid_stopper)[-1].replace('\n','').strip() if mid_stopper in res else res for res in responses]
+        else:
+            if '- ' in responses[0]:
+                responses = [res.split('- ') for res in responses]
+                tmp = []
+                for res in responses:
+                    res = [r.replace('\n','').strip() for r in res]
+                    tmp.append([r for r in res if r !=''])
+                responses = tmp
+        return responses

@@ -1,4 +1,4 @@
-srun --nodes=1 --tasks-per-node=1 --cpus-per-task=1 --mem=200GB --time=20:00:00 --gres=gpu:1 --pty /bin/bash
+srun --nodes=1 --tasks-per-node=1 --cpus-per-task=1 --mem=200GB --time=20:00:00 --gres=gpu:rtx8000:1 --pty /bin/bash
 srun --nodes=1 --tasks-per-node=1 --cpus-per-task=1 --mem=200GB --time=20:00:00 --pty /bin/bash
 srun --nodes=1 --tasks-per-node=1 --cpus-per-task=1 --mem=400GB --time=20:00:00 --gres=gpu:1 --pty /bin/bash
 

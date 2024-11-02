@@ -16,16 +16,16 @@ from vllm import LLM, SamplingParams
 from temp_eval import normalize
 
 def checker(question, context):
-    prompt = f"""Consider the question and sentence below:
+    prompt = f"""Consider the question and sentences below:
 
-<Question>
-{question}
-<\Question>
 <Sentence>
 {context}
 </Sentence>
+<Question>
+{question}
+<\Question>
 
-Does the sentence provide an answer to the question?
+Does the sentences provide an answer to the question?
 
 First, respond with either "Yes" or "No." If you are not sure, response "No". Then, briefly explain your reasoning, focusing on how the sentence content relates to the question.
 
@@ -88,12 +88,80 @@ First, respond with either "Yes" or "No." If you are not sure, response "No". Th
 # """
 #     return prompt
 
-def reader(question, context):
-    prompt = f"""You will be given a context paragraph and a question. Your task is to find the answer to the question in the context paragraph. 
+# read the context first
+# def reader(question, context):
+#     prompt = f"""You will be given a context paragraph and a question. First, read the context paragraph carefully. Then find the answer to the question in the context paragraph. 
+# Requirements are follows:
+# - Ensure each answer is a text span from the context paragraph.
+# - For "when" question, ensure the answer is a date such as year, month, and day.
+# - For "who" question, ensure the answer is a full name such as a person, an organization, or a company.
+
+# There are some examples for you to refer to:
+# <Context>
+# History of the Dallas Cowboys | The first NFL team to win three Super Bowls in four years, with Super Bowl wins in the 1992, 1993, and 1995 seasons. Only one other team, the New England Patriots, have won three Super Bowls in a four-year time span, doing so in the 2001, 2003, and 2004 seasons. The first team to hold the opposing team to no touchdowns in a Super Bowl. Dallas beat the Miami Dolphins 24–3 in Super Bowl VI. The only other teams to do this are the New England Patriots, who did so in their 13–3 win against the Los Angeles Rams in Super Bowl LIII, and the Tampa Bay Buccaneers in Super Bowl LV, beating
+# </Context>
+# <Question>
+# For which NFL season did the Dallas Cowboys win the Super Bowl
+# </Question>
+# <Answer>
+# - 1992
+# - 1993
+# - 1995
+# </Answer>
+
+# <Context>
+# List of presidents of India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
+# </Context>
+# <Question>
+# Who serve as President of India
+# </Question>
+# <Answer>
+# - Neelam Sanjiva Reddy
+# - K. R. Narayanan
+# - Droupadi Murmu
+# </Answer>
+
+# <Context>
+# Oliver Bulleid | A brief period working for the Board of Trade followed from 1910, arranging exhibitions in Brussels, Paris and Turin. He was able to travel widely in Europe, later including a trip with Nigel Gresley, William Stanier and Frederick Hawksworth, to Belgium, in 1934, to see a metre-gauge bogie locomotive. In December 1912, he rejoined the GNR as Personal Assistant to Nigel Gresley, the new CME. Gresley was only six years Bulleid's senior.
+# </Context>
+# <Question>
+# Oliver Bulleid was an employee for whom
+# </Question>
+# <Answer>
+# - Board of Trade
+# - GNR
+# </Answer>
+
+# <Context>
+# Jurassic Park Movies | The Lost World: Jurassic Park is a 1997 American science fiction action film. In Thailand, The Lost World became the country's highest-grossing film of all time. It ultimately grossed $229.1 million in the U.S. and $389.5 million internationally, for a total of $618.6 million worldwide. The film sold an estimated 49,910,000 tickets in North America. Jurassic Park premiered on June 9, 1993, at the Uptown Theater in Washington, D.C., and was released on June 11 in the United States. It was a blockbuster hit and went on to gross over $914 million worldwide in its original theatrical run
+# </Context>
+# <Question>
+# What was the worldwide box office of Jurassic movie
+# </Question>
+# <Answer>
+# - $618.6 million
+# - $914 million
+# </Answer>
+
+# Now your context paragraph and question are as follows.
+# <Context>
+# {context}
+# </Context>
+# <Question>
+# {question}
+# </Question>
+# <Answer>
+# """
+#     return prompt
+
+
+
+def reader(question, context, guidance):
+    prompt = f"""You will be given a context paragraph and a question. First read the context paragraph carefully. Use this context information to answer the question accurately. Focus specifically on the context sentences related to the guidance if provided.
 Requirements are follows:
 - Ensure each answer is a text span from the context paragraph.
-- For "when" question, ensure the answer is a date such as year, month, and day.
-- For "who" question, ensure the answer is a name such as a person, an organization, or a company.
+- For question starts with "when", ensure the answer is a date such as year, month, and day.
+- For question starts with "who", ensure the answer is a complete name.
 
 There are some examples for you to refer to:
 <Context>
@@ -102,22 +170,13 @@ History of the Dallas Cowboys | The first NFL team to win three Super Bowls in f
 <Question>
 For which NFL season did the Dallas Cowboys win the Super Bowl
 </Question>
+<Guidance>
+- The first NFL team to win three Super Bowls in four years, with Super Bowl wins in the 1992, 1993, and 1995 seasons. Only one other team,
+</Guidance>
 <Answer>
 - 1992
 - 1993
 - 1995
-</Answer>
-
-<Context>
-List of presidents of India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
-</Context>
-<Question>
-Who serve as President of India
-</Question>
-<Answer>
-- Neelam Sanjiva Reddy
-- K. R. Narayanan
-- Droupadi Murmu
 </Answer>
 
 <Context>
@@ -126,9 +185,28 @@ Oliver Bulleid | A brief period working for the Board of Trade followed from 191
 <Question>
 Oliver Bulleid was an employee for whom
 </Question>
+<Guidance>
+None
+</Guidance>
 <Answer>
 - Board of Trade
 - GNR
+</Answer>
+
+<Context>
+List of presidents of India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
+</Context>
+<Question>
+Who serve as President of India
+</Question>
+<Guidance>
+- In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002.
+- In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
+</Guidance>
+<Answer>
+- Neelam Sanjiva Reddy
+- K. R. Narayanan
+- Droupadi Murmu
 </Answer>
 
 <Context>
@@ -137,6 +215,10 @@ Jurassic Park Movies | The Lost World: Jurassic Park is a 1997 American science 
 <Question>
 What was the worldwide box office of Jurassic movie
 </Question>
+<Guidance>
+- The Lost World: Jurassic Park is a 1997 American science fiction action film.
+- It was a blockbuster hit and went on to gross over $914 million worldwide
+</Guidance>
 <Answer>
 - $618.6 million
 - $914 million
@@ -149,24 +231,30 @@ Now your context paragraph and question are as follows.
 <Question>
 {question}
 </Question>
+<Guidance>
+{guidance}
+</Guidance>
 <Answer>
 """
     return prompt
 
+
+
+
 def timer(question, context, answer):
-    prompt = f"""You will be given a question, a context paragraph and one answer. Your task is to find the corresponding date for this answer. Your response should be in a python dict object.
+    prompt = f"""You will be given one context paragraph, one question, and one answer. First read the context carefully. Your task is to find the corresponding date for this answer. Your response should be in a python dict object.
 - The date should be parsed into a python dict format with keys ("start_year", "start_month", "end_year", "end_month").
 - If the answer only applies for a specific date such as an event, write the same start and end time.
 - If the answer applies "from" a specific date such as a status and a position, write this date as the start time and write "0" for the end time.
 - If the answer applies "until" a specific date such as a status and a position, write this date as the end time and write "0" for the start time.
 
 There are some examples for you to refer to:
-<Question>
-Who served as President of India
-</Question>
 <Context>
 K. R. Narayanan served as the President of India from 1997 until 2002, Droupadi Murmu served until 2024.
 </Context>
+<Question>
+Who served as President of India
+</Question>
 <Answer>
 K. R. Narayanan
 </Answer>
@@ -174,12 +262,12 @@ K. R. Narayanan
 {{"K. R. Narayanan": {{"start_year": 1997, "start_month": 0, "end_year": 2002, "end_month": 0}}}}
 </Response>
 
-<Question>
-Who served as President of India
-</Question>
 <Context>
 K. R. Narayanan served as the President of India from 1997 until 2002, Droupadi Murmu served until 2024.
 </Context>
+<Question>
+Who served as President of India
+</Question>
 <Answer>
 Droupadi Murmu
 </Answer>
@@ -187,12 +275,12 @@ Droupadi Murmu
 {{"Droupadi Murmu": {{"start_year": 0, "start_month": 0, "end_year": 2024, "end_month": 0}}}}
 </Response>
 
-<Question>
-What was the worldwide box office of Jurassic movie
-</Question>
 <Context>
 The 1997 movie "The Lost World: Jurassic Park" grossed a total of $618.6 million at the worldwide box office
 </Context>
+<Question>
+What was the worldwide box office of Jurassic movie
+</Question>
 <Answer>
 $618.6 million
 </Answer>
@@ -200,12 +288,12 @@ $618.6 million
 {{"$618.6 million": {{"start_year": 1997, "start_month": 0, "end_year": 1997, "end_month": 0}}}}
 </Response>
 
-<Question>
-When was the time the Houston Rockets win the NBA championship
-</Question>
 <Context>
 The Houston Rockets won the NBA championship in 1994 and May 1995.
 </Context>
+<Question>
+When was the time the Houston Rockets win the NBA championship
+</Question>
 <Answer>
 May 1995
 </Answer>
@@ -213,12 +301,12 @@ May 1995
 {{"May 1995": {{"start_year": 1995, "start_month": 5, "end_year": 1995, "end_month": 5}}}}
 </Response>
 
-<Question>
-J. Eugene Grigsby was an employee for whom
-</Question>
 <Context>
 Grigsby volunteered for World War II in 1942 and served in the Army. Starting in 1946 Grigsby served as the Founder and Chair of the Art Department at Carver High School for eight years.
 </Context>
+<Question>
+J. Eugene Grigsby was an employee for whom
+</Question>
 <Answer>
 Army
 </Answer>
@@ -227,12 +315,12 @@ Army
 </Response>
 
 Now your question, context paragraph and answer are as follows.
-<Question>
-{question}
-</Question>
 <Context>
 {context}
 </Context>
+<Question>
+{question}
+</Question>
 <Answer>
 {answer}
 </Answer>
@@ -241,7 +329,7 @@ Now your question, context paragraph and answer are as follows.
     return prompt
 
 
-def formatter(question, sentence):
+# def formatter(question, sentence):
     prompt = f"""You will be given a question and several sentences. Your task is to extract the answer and the corresponding date from the sentences.
 - The result should be in the python dict format: the extracted answer is the dict key and the corresponding date is the dict value.
 - Ensure the dict key is the answer to the question such as a name, date, organization, etc.

@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=seq10
+#SBATCH --job-name=tlf
 #SBATCH --open-mode=append
-#SBATCH --output=./monitor/seq10.out
-#SBATCH --error=./monitor/seq10.err
+#SBATCH --output=./monitor/tlf.out
+#SBATCH --error=./monitor/tlf.err
 #SBATCH --export=ALL
-#SBATCH --time=48:00:00
-#SBATCH --gres=gpu:rtx8000:1
+#SBATCH --time=20:00:00
+#SBATCH --gres=gpu:1
 #SBATCH --mem=200G
 #SBATCH -c 1
 
@@ -14,9 +14,9 @@ source ~/.bashrc \
 && export VLLM_WORKER_MULTIPROC_METHOD=spawn \
 && conda activate /scratch/sz4651/Projects/ext3/miniconda3/envs/metriever \
 && cd /scratch/sz4651/Projects/metriever_final \
-&& python reader_seq2.py --ctx-topk 10"
+# && python reader_final2.py --retriever-output situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json --paradigm fusion --reader llama"
 
 
-# && python reader.py --retriever-output timeqa_contriever_minilm12_outputs.json \
-# --ctx-key-s2 reranker_ctxs"
 
+# && python reader_final2.py --retriever-output situatedqa_contriever_minilm12_outputs.json --paradigm concat --reader timo"
+# && python reader_final2.py --retriever-output situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json --ctx-key-s2 snt_hybrid_rank"

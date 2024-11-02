@@ -72,54 +72,10 @@ How many runs Sachin scored in his first ODI debut?
 
 
 
-# query focused summarizer
-# def get_QFS_prompt(question, title, text):
-#     prompt = f"""Summarzie the paragraph by answering the given question in a few sentences, including the date if they are mentioned. If the question can not be answered based on the paragraph, response "None".
-
-# Question:
-# Who is the president of India
-
-# Paragraph:
-# List of heads of state of India This is a list of the heads of state of India, from the independence of India in 1947 to the present day. The current head of state of India is Ram Nath Kovind, elected in 2017 after being nominated by BJP, the party run by Prime Minister Narendra Modi. From 1947 to 1950 the head of state under the Indian Independence Act 1947 was King of India, who was also the monarch of the United Kingdom and of the other Dominions of the British Commonwealth. The monarch was represented in India by a governor-general. India became a republic under the Constitution of 1950 and the monarch and governor-general were replaced by a ceremonial president.
-
-# Summarization:
-# Ram Nath Kovind was the president of India who was elected in 2017.
-
-# Question:
-# Which team did Emeka Okafor play for
-
-# Paragraph:
-# Emeka Okafor On September 25, 2017, Okafor signed with the Philadelphia 76ers. However, he was waived on October 14 after appearing in five preseason games. Later that month, he joined the Delaware 87ers of the NBA G League.
-
-# Summarization:
-# Emeka Okafor played for the Philadelphia 76ers since September 25, 2017. Emeka Okafor played for the the Delaware 87ers since October 14, 2017.
-
-# Question:
-# Who won the Grand National
-
-# Paragraph:
-# 2019 Grand National The 2019 Grand National (officially known as the Randox Health 2019 Grand National for sponsorship reasons) was the 172nd annual running of the Grand National horse race at Aintree Racecourse near Liverpool, England. The showpiece steeplechase is the pinnacle of a three-day festival which began on 4 April, followed by Ladies' Day on 5 April.
-
-# Summarization:
-# None
-
-# Question:
-# {question}
-
-# Paragraph:
-# {title} {text}
-
-# Summarization:
-# """
-#     return prompt
-
-
 def get_QFS_prompt(question, title, text):
-    # Neelam Sanjiva Reddy served as President of India in 1977, K. R. Narayanan in 1997, and Droupadi Murmu in 2022.
-
-    # prompt = f"""You are given a context paragraph and a question. Your goal is to answer the given question based on the context paragraph in a few sentence, each sentence should have only one subject entity. If dates are mentioned in the paragraph, include them in your answer. If the question cannot be answered based on the paragraph, respond with "None". Ensure that the response is complete, concise and directly addressing the question.
     prompt = f"""You are given a context paragraph and a specific question. Your goal is to summarize the context paragraph in one standalone sentence by answering the given question. If dates are mentioned in the paragraph, include them in your answer. If the question cannot be answered based on the paragraph, respond with "None". Ensure that the response is relevant, complete, concise and directly addressing the question.
-There are some examples for you to refer to:
+
+    There are some examples for you to refer to:
 <Context>
 Houston Rockets | The Houston Rockets have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
 </Context>
@@ -129,6 +85,7 @@ When did the Houston Rockets win the NBA championship
 <Summarization>
 The Houston Rockets have won the NBA championship in 1994 and 1995.
 </Summarization>
+
 <Context>
 2019 Grand National | The 2019 Grand National (officially known as the Randox Health 2019 Grand National for sponsorship reasons) was the 172nd annual running of the Grand National horse race at Aintree Racecourse near Liverpool, England. The showpiece steeplechase is the pinnacle of a three-day festival which began on 4 April, followed by Ladies' Day on 5 April.
 </Context>
@@ -138,6 +95,7 @@ Who won the Grand National
 <Summarization>
 None
 </Summarization>
+
 <Context>
 India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
 </Context>
@@ -146,6 +104,16 @@ Who serve as President of India
 </Question>
 <Summarization>
 Neelam Sanjiva Reddy was elected as the President of India in 1977, K. R. Narayanan served as the President of India from 1977 until 2002, Droupadi Murmu was elected as the President of India in 2022.
+</Summarization>
+
+<Context>
+The Lost World: Jurassic Park | The Lost World: Jurassic Park is a 1997 American science fiction action film. In Thailand, The Lost World became the country's highest-grossing film of all time. It ultimately grossed $229.1 million in the U.S. and $389.5 million internationally, for a total of $618.6 million worldwide. The film sold an estimated 49,910,000 tickets in North America.
+</Context>
+<Question>
+What was the worldwide box office of Jurassic movie
+</Question>
+<Summarization>
+The movie, The Lost World: Jurassic Park, grossed a total of $618.6 million at the worldwide box office in 1997.
 </Summarization>
 
 Now your question and paragraph are as follows.
@@ -158,107 +126,6 @@ Now your question and paragraph are as follows.
 <Summarization>
 """
     return prompt
-
-
-
-# def get_QFS_prompt(question, title, text):
-#     prompt = f"""You will be given a context paragraph and a question. Your task is to answer the question in a sentence with the date.
-# Requirements are follows:
-# - If there is no answer from the context paragraph, write "None".
-
-# There are some examples for you to refer to:
-# <Context>
-# India | India has been a federal republic since 1950, governed through a democratic parliamentary system. India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
-# </Context>
-# <Question>
-# Who served as the President of India
-# </Question>
-# <Answer>
-# Neelam Sanjiva Reddy served as the President of India from 1977, K. R. Narayanan from 1997 until 2002, Droupadi Murmu from 2022.
-# </Answer>
-
-# <Context>
-# Houston Rockets | The Houston Rockets have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
-# </Context>
-# <Question>
-# When was the time the Houston Rockets won the NBA championship
-# </Question>
-# <Section>
-# Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic.
-# </Section>
-# <Answer>
-# The Houston Rockets won the NBA championship in 1994 and 1995.
-# </Answer>
-
-# <Context>
-# 2019 Grand National | The 2019 Grand National (officially known as the Randox Health 2019 Grand National for sponsorship reasons) was the 172nd annual running of the Grand National horse race at Aintree Racecourse near Liverpool, England. The showpiece steeplechase is the pinnacle of a three-day festival which began on 4 April, followed by Ladies' Day on 5 April.
-# </Context>
-# <Question>
-# Who won the Grand National
-# </Question>
-# <Answer>
-# None
-# </Answer>
-
-# Now your context paragraph and the question are as follows.
-# <Context>
-# {title} | {text}
-# </Context>
-# <Question>
-# {question}
-# </Question>
-# <Answer>
-# """
-#     return prompt
-
-
-
-
-
-
-
-
-
-
-
-#     prompt = f"""You are an expert of world knowledge. I am going to ask you a question and you should provide a short and brief answer to the question.
-
-# Question:
-# When did England last get to the semi final of a World Cup before 2019?
-
-# Answer:
-# 2018
-
-# Question:
-# Who sang the national anthem Super Bowl last year as of 2021?
-
-# Answer:
-# Jazmine Sullivan and Eric Church
-
-# Question:
-# Current captain of the England mens test cricket team as of 2010?
-
-# Answer:
-# Alastair Cook
-
-# Question:
-# What's the name of the latest Pirates of the Caribbean by 2011?
-
-# Answer:
-# On Stranger Tides
-
-# Question:
-# What was the last time France won World Cup between 2018 and 2019?
-
-# Answer:
-# 2018
-
-# Question:
-# {question}
-
-# Answer:
-# """
-#     return prompt
 
 
 def zc_prompt(question):
@@ -315,6 +182,7 @@ Now your Question is
 def zc_cot_prompt(question):
 
     prompt=f"""As an assistant, your task is to answer the question after <Question>. You should first think step by step about the question and give your thought and then answer the <Question>. Your thought should be after <Thought>. Your answer should be after <Answer>.
+
 There are some examples for you to refer to:
 <Question>:
 When did England last get to the semi final of a World Cup before 2019?
@@ -325,6 +193,7 @@ England has reached the semi-finals of FIFA World Cup in 1966, 1990, 2018. The l
 <Answer>:
 2018
 </Answer>
+
 <Question>:
 Who sang the national anthem in the last Super Bowl as of 2021?
 </Question>
@@ -334,6 +203,7 @@ The last Super Bowl as of 2021 is Super Bowl LV, which took place in February 20
 <Answer>:
 Eric Church and Jazmine Sullivan
 </Answer>
+
 <Question>:
 Where was the last Rugby World Cup held between 2007 and 2016?
 </Question>
@@ -409,46 +279,43 @@ Now your question and context knowledge are as follows.
     return prompt
 
 
-# t_relation = "before"
-# ref_obj = "Westfield Group"
+# def extract_information_prompt(query, text):
 
-def extract_information_prompt(query, text):
+#     prompt=f"""Extract information from the question and context. Strictly follow the below example.
+# <Question>:
+# Who was the owner of Westfield Montgomery before Westfield Group?
+# </Question>
+# <Context>:
+# Westfield Montgomery | Westfield Montgomery is owned by Unibail Rodamco Westfield from Jun, 2018 to Dec, 2022. Westfield Montgomery is owned by The May Department Stores Company from Mar, 1968 to Jan, 1971. Westfield Montgomery is owned by Westfield Group from Jan, 1971 to Jan, 2014.
+# </Context>
+# <Info>:
+# extracted_info = {{(datetime(2018, 6, 1), datetime(2022, 12, 1)): "Unibail Rodamco Westfield”, (datetime(1968, 3, 1), datetime(1971, 1, 1)): "The May Department Stores Company", (datetime(1971, 1, 1), datetime(2014, 1, 1)): "Westfield Group"}}
+# </Info>
 
-    prompt=f"""Extract information from the question and context. Strictly follow the below example.
-<Question>:
-Who was the owner of Westfield Montgomery before Westfield Group?
-</Question>
-<Context>:
-Westfield Montgomery | Westfield Montgomery is owned by Unibail Rodamco Westfield from Jun, 2018 to Dec, 2022. Westfield Montgomery is owned by The May Department Stores Company from Mar, 1968 to Jan, 1971. Westfield Montgomery is owned by Westfield Group from Jan, 1971 to Jan, 2014.
-</Context>
-<Info>:
-extracted_info = {{(datetime(2018, 6, 1), datetime(2022, 12, 1)): "Unibail Rodamco Westfield”, (datetime(1968, 3, 1), datetime(1971, 1, 1)): "The May Department Stores Company", (datetime(1971, 1, 1), datetime(2014, 1, 1)): "Westfield Group"}}
-</Info>
+# Now your question and context are as follows.
+# <Question>:
+# {query}
+# </Question>
+# <Context>:
+# {text}
+# </Context>
+# <Info>:
+# extracted_info = 
+# """
+#     return prompt
 
-Now your question and context are as follows.
-<Question>:
-{query}
-</Question>
-<Context>:
-{text}
-</Context>
-<Info>:
-extracted_info = 
-"""
-    return prompt
-
-def rememo_prompt(query, texts):
-    prompt=f"""Answer the question based on the context.
-If there are more than one answer, only give me the most suitable answer.
-<Context>:
-{texts[:min(1500, len(texts))]}
-</Context>
-<Question>: 
-{query}
-</Question>
-<Answer>:
-"""
-    return prompt
+# def rememo_prompt(query, texts):
+#     prompt=f"""Answer the question based on the context.
+# If there are more than one answer, only give me the most suitable answer.
+# <Context>:
+# {texts[:min(1500, len(texts))]}
+# </Context>
+# <Question>: 
+# {query}
+# </Question>
+# <Answer>:
+# """
+#     return prompt
 
 
 # def zc_prompt_json(question):
