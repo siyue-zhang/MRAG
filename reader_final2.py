@@ -40,7 +40,6 @@ Requirements are follows:
 - Ensure each answer is a text span from the context paragraph.
 - For question starts with "when", ensure the answer is a date not a time, such as 3 December 2015, December 2015, or December 3, 2015.
 - For question starts with "who", ensure the answer is a complete name.
-- If no answer, response "None".
 
 There are some examples for you to refer to:
 <Context>
@@ -50,7 +49,7 @@ History of the Dallas Cowboys | The first NFL team to win three Super Bowls in f
 For which NFL season did the Dallas Cowboys win the Super Bowl
 </Question>
 <Guidance>
-- The first NFL team to win three Super Bowls in four years, with Super Bowl wins in the 1992–93, 1993, and 1995-1996 seasons. Only one other team,
+- The first NFL team to win three Super Bowls in four years, with Super Bowl wins in the 1992–93, 1993, and 1995-1996 seasons. Only one other team, the New England Patriots, have won three Super Bowls in a four-year time span, doing so in the 2001, 2003, and 2004 seasons.
 </Guidance>
 <Answer>
 - 1992–93
@@ -101,6 +100,19 @@ What was the worldwide box office of Jurassic movie
 <Answer>
 - $618.6 million
 - $914 million
+</Answer>
+
+<Context>
+1980 Summer Olympics | Hence, the selection process for the 1984 Summer Olympics consisted of a single finalized bid from Los Angeles, which the International Olympic Committee (IOC) accepted in 1976. Los Angeles was awarded the selection officially on May 18, 1978 for the 1984 Summer Olympics.
+</Context>
+<Question>
+When has United States hosted Summer Olympics
+</Question>
+<Guidance>
+- Los Angeles was awarded the selection officially on May 18, 1978 for the 1984 Summer Olympics.
+</Guidance>
+<Answer>
+- 1984
 </Answer>
 
 Now your context paragraph, question, and guidance are as follows.
@@ -178,6 +190,19 @@ When was the time the Houston Rockets win the NBA championship
 </Answer>
 <Response>
 {{"1997": {{"start_year": 1997, "start_month": 0, "end_year": 1997, "end_month": 0}}}}
+</Response>
+
+<Context>
+The Houston Rockets won the two NBA championships in 1994-1995 and on July 14, 1997.
+</Context>
+<Question>
+When was the time the Houston Rockets win the NBA championship
+</Question>
+<Answer>
+July 14, 1997
+</Answer>
+<Response>
+{{"July 14, 1997": {{"start_year": 1997, "start_month": 7, "end_year": 1997, "end_month": 7}}}}
 </Response>
 
 <Context>
@@ -374,7 +399,7 @@ def TimeLLAMA():
 
 def main():
     parser = argparse.ArgumentParser(description="Reader")
-    parser.add_argument('--max-examples', type=int, default=None)
+    parser.add_argument('--max-examples', type=int, default=50)
     parser.add_argument('--llm', type=str, default="llama_8b")
     parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
     # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_minilm12_outputs.json")
@@ -382,7 +407,7 @@ def main():
     parser.add_argument('--param-pred', type=bool, default=False)
     parser.add_argument('--param-cot', type=bool, default=True)
     parser.add_argument('--not-save', type=bool, default=True)
-    parser.add_argument('--no-guidance', type=bool, default=True)
+    parser.add_argument('--no-guidance', type=bool, default=False)
     parser.add_argument(
         '--stage1-model',
         choices=['bm25', 'contriever','hybrid'], 
@@ -436,9 +461,12 @@ def main():
         # examples = examples[:min(len(examples),args.max_examples)]
         examples = examples[-args.max_examples:]
     
-    x = "Where is the place that St. Louis Cardinals had spring training in 1948?"
-    examples = [ex for ex in examples if x in ex['question']]
+    # x = "How many NFL teams had St. Louis had before 1987?"
+    # examples = [ex for ex in examples if x in ex['question']]
+
     examples = [ex for ex in examples if ex['time_relation'] != '']
+    if len(examples)==0:
+        print(f'find no example in top {args.max_examples}.')
 
     ########  QA  ######## 
     if args.param_pred:
@@ -459,6 +487,7 @@ def main():
             texts.append(text)
             prompt = c_prompt(ex['question'], text)
             prompts.append(prompt)
+
         rag_preds = call_pipeline(args, prompts)
         print(f'{tmp_key} top {args.ctx_topk} contexts prediction finished.')
 
@@ -477,9 +506,17 @@ def main():
         print('\nstarted checker.\n')
         checker_prompts = []
         reader_prompts = []
+
         for ex in examples:
             question = ex['question']
             normalized_question = ex['normalized_question']
+
+            if question.startswith('How many'):
+                if 'How many times' in question:
+                    normalized_question = normalized_question.replace('How many times', 'When')
+                else:
+                    normalized_question = normalized_question.replace('How many', 'What')
+                ex['normalized_question'] = normalized_question
 
             ctx_id_to_snt = {}
             ctx_id_to_ctx = {}
@@ -498,9 +535,11 @@ def main():
                     break
                 if ctx_id in ctx_id_to_snt:
                     title = ctx_id_to_ctx[ctx_id]['title']
+                    text = ctx_id_to_ctx[ctx_id]['text']
                     if snt[:len(title)] == title:
                         snt = snt[len(title):].strip()
-                    ctx_id_to_snt[ctx_id].append(snt)
+                    if snt in text and len(snt)<0.3*len(text):
+                        ctx_id_to_snt[ctx_id].append(snt)
             
             for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
                 ctx_id = ctx['id']
@@ -557,15 +596,16 @@ def main():
                     eval(timer_responses[j])
                 except Exception as e:
                     ys = year_identifier(new_answers[j])
-                    if len(ys)>1:
-                        print('>1')
-                        print('{"'+new_answers[j]+'": {"start_year": '+str(min(ys))+', "start_month": 0, "end_year": '+str(max(ys))+', "end_month": 0}'+'}')
-                        timer_responses[j] = '{"'+new_answers[j]+'": {"start_year": '+str(min(ys))+', "start_month": 0, "end_year": '+str(max(ys))+', "end_month": 0}'+'}'
-                    elif len(ys)==1:
-                        print('=1')
-                        print('{"'+new_answers[j]+'": {"start_year": '+str(ys[0])+', "start_month": 0, "end_year": '+str(ys[0])+', "end_month": 0}'+'}')
-                        timer_responses[j] = '{"'+new_answers[j]+'": {"start_year": '+str(ys[0])+', "start_month": 0, "end_year": '+str(ys[0])+', "end_month": 0}'+'}'
-                    # import ipdb; ipdb.set_trace()
+                    if ys:
+                        if len(ys)>1:
+                            print('>1')
+                            print('{"'+new_answers[j]+'": {"start_year": '+str(min(ys))+', "start_month": 0, "end_year": '+str(max(ys))+', "end_month": 0}'+'}')
+                            timer_responses[j] = '{"'+new_answers[j]+'": {"start_year": '+str(min(ys))+', "start_month": 0, "end_year": '+str(max(ys))+', "end_month": 0}'+'}'
+                        elif len(ys)==1:
+                            print('=1')
+                            print('{"'+new_answers[j]+'": {"start_year": '+str(ys[0])+', "start_month": 0, "end_year": '+str(ys[0])+', "end_month": 0}'+'}')
+                            timer_responses[j] = '{"'+new_answers[j]+'": {"start_year": '+str(ys[0])+', "start_month": 0, "end_year": '+str(ys[0])+', "end_month": 0}'+'}'
+                        # import ipdb; ipdb.set_trace()
 
         question_answer_map={}
         for q, res in zip(new_questions, timer_responses):
@@ -622,7 +662,6 @@ def main():
                 q_month = ex['months'][0] if sum(ex['months'])>0 else None
 
                 for ans in answer_dict:
-                    print('check: ', answer_dict[ans])
                     start_year = answer_dict[ans]['start_year']
                     start_month = answer_dict[ans]['start_month']
 
@@ -695,7 +734,7 @@ def main():
                 ans = next(iter(ans_dict))
                 flg = sum(list(ans_dict[ans].values()))==0
                 # the answer of "when" question must have at least one "year"
-                if question.lower().startswith('when') and year_identifier(list(ans_dict.keys())[0])==None:
+                if normalized_question.lower().startswith('when') and year_identifier(list(ans_dict.keys())[0])==None:
                     pass
                 elif ans !='0' and flg:
                     backup.append(ans_dict)
@@ -751,7 +790,35 @@ def main():
                         rag_pred = str(can2)
                     else:
                         rag_pred = str(can1)
-
+                elif question.startswith('How many times'):
+                    tmp = []
+                    for ans_dict in ans_list:
+                        ans = next(iter(ans_dict))
+                        if ans_dict[ans]['start_year']==ans_dict[ans]['end_year']:
+                            if ans_dict[ans]['start_year']>0:
+                                ans_dict[ans]['start_month']=0
+                                ans_dict[ans]['end_month']=0
+                                ans_dict['ans'] = ans_dict[ans]
+                                del ans_dict[ans]
+                                if ans_dict not in tmp:
+                                    tmp.append(ans_dict)
+                    print('\nHOW MANY TIMES: ', question)
+                    print(tmp)
+                    rag_pred = str(len(tmp))
+                elif question.startswith('How many'):
+                    tmp = []
+                    for ans_dict in ans_list:
+                        ans = next(iter(ans_dict))
+                        if ans_dict[ans]['start_year']>0 and ans_dict[ans]['end_year']>0:
+                            ans_dict[ans]['start_month']=0
+                            ans_dict[ans]['end_month']=0
+                            ans_dict['ans'] = ans_dict[ans]
+                            del ans_dict[ans]
+                            if ans_dict not in tmp:
+                                tmp.append(ans_dict)
+                    print('\nHOW MANY: ', question)
+                    print(tmp)
+                    rag_pred = str(len(tmp))
 
                     
             rag_pred = rag_pred.replace('\n','').strip()
