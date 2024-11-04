@@ -379,15 +379,14 @@ def main():
     parser = argparse.ArgumentParser(description="Reader")
     parser.add_argument('--max-examples', type=int, default=None)
     parser.add_argument('--llm', type=str, default="llama_8b")
-    parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_incom_outputs.json")
+    parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
     # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_minilm12_outputs.json")
-    parser.add_argument('--ctx-topk', type=int, default=5)
+    parser.add_argument('--ctx-topk', type=int, default=10)
     parser.add_argument('--param-pred', type=bool, default=True)
     parser.add_argument('--param-cot', type=bool, default=True)
     parser.add_argument('--not-save', type=bool, default=False)
     parser.add_argument('--no-guidance', type=bool, default=True)
     parser.add_argument('--save-note', type=str, default=None)
-
     parser.add_argument(
         '--stage1-model',
         choices=['bm25', 'contriever','hybrid'], 
@@ -396,7 +395,7 @@ def main():
     # parser.add_argument('--ctx-key-s2', type=str, default='snt_hybrid_rank')
     # parser.add_argument('--ctx-key-s2', type=str, default='reranker_ctxs')
     parser.add_argument('--reader', type=str, default='llama', choices=['llama', 'timo', 'timellama'])
-    parser.add_argument('--paradigm', type=str, default='concat', choices=['fusion', 'concat'])
+    parser.add_argument('--paradigm', type=str, default='fusion', choices=['fusion', 'concat'])
 
 
     args = parser.parse_args()
@@ -455,7 +454,7 @@ def main():
             prompts = [zc_cot_prompt(ex['question']) for ex in examples]
         else:
             prompts = [zc_prompt(ex['question']) for ex in examples]
-        param_preds = call_pipeline(args, prompts, 200)
+        param_preds = call_pipeline(args, prompts, 400)
         print('zero context prediction finished.')
 
     tmp_key = args.ctx_key_s2 if args.ctx_key_s2 else args.ctx_key_s1

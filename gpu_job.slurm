@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=lmf
+#SBATCH --job-name=lmf20
 #SBATCH --open-mode=append
-#SBATCH --output=./monitor/lmf.out
-#SBATCH --error=./monitor/tlmf.err
+#SBATCH --output=./monitor/lmf20.out
+#SBATCH --error=./monitor/tlmf20.err
 #SBATCH --export=ALL
 #SBATCH --time=20:00:00
 #SBATCH --gres=gpu:1
@@ -14,7 +14,7 @@ source ~/.bashrc \
 && export VLLM_WORKER_MULTIPROC_METHOD=spawn \
 && conda activate /scratch/sz4651/Projects/ext3/miniconda3/envs/metriever \
 && cd /scratch/sz4651/Projects/metriever_final \
-&& python reader_final2.py --retriever-output situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json --paradigm fusion --reader llama"
+&& python reader_final3.py --retriever-output situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json --paradigm fusion --reader llama --ctx-topk 20"
 
 
 
