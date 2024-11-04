@@ -385,12 +385,15 @@ def eval_reader(to_save, param_pred, subset='situatedqa', metric='acc'):
 
     if param_pred:
         print('Parametric')
-        print(f'    w/ key date {metric} : {round(np.mean(exact_param),4)}')
-        print(f'    w/ perturb date {metric} : {round(np.mean(not_exact_param),4)}')
+        print(f'    w/ key date {metric} : {round(np.mean(exact_param),4) if len(exact_param)>0 else 0}')
+        print(f'    w/ perturb date {metric} : {round(np.mean(not_exact_param),4) if len(not_exact_param)>0 else 0}')
+        print(f'    all date {metric} : {round(np.mean(not_exact_param + exact_param),4) if len(not_exact_param + exact_param)>0 else 0}')
+
 
     print('RAG')
     print(f'    w/ key date {metric} : {round(np.mean(exact_rag),4) if len(exact_rag)>0 else 0}')
     print(f'    w/ perturb date {metric} : {round(np.mean(not_exact_rag),4) if len(not_exact_rag)>0 else 0}')
+    print(f'    all date {metric} : {round(np.mean(not_exact_rag + exact_rag),4) if len(not_exact_rag + exact_rag)>0 else 0}')
 
 
 
@@ -405,12 +408,15 @@ def call_pipeline(args, prompts, max_tokens=100):
         for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Response>']:
             responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
         return responses
-
     else:
         if args.reader in ['timo','timellama']:
             outputs = args.llm(prompts, do_sample=True, max_new_tokens=100, num_return_sequences=1, temperature=0.1, top_p=0.95)
             outputs = [r[0]['generated_text'] for r in outputs]
             responses = [outputs[i].replace(prompts[i],'') for i in range(len(prompts))]
+            # print('//////')
+            # print(prompts[0])
+            # print('//////')
+            # print(responses[0])
         else:
             sampling_params = SamplingParams(temperature=0.1, top_p=0.95, max_tokens=max_tokens)
             outputs = args.llm.generate(prompts, sampling_params)

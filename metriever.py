@@ -21,8 +21,8 @@ debug_question = None
 # debug = 'He is best known as the drummer for American hard rock band Guns'
 # debug_question = 'Who is the drummer for Guns and Roses after 2006?'
 
-# debug = 'Krista White, Sophie Sumner, Jourdan Miller and India Gants from Cycles 14, 18 the "British Invasion", 20 "Guys & Girls" and 23 respectively.'
-# debug_question = "Who wins America's Next Top Model Cycle 20 as of 2021?"
+# debug = """Ann Ward, Brittani Kline, Lisa D'Amato, Sophie Sumner, Laura James, Jourdan Miller, Keith Carlos, Nyle DiMarco, India Gants, and Kyla Coleman) crowned "America's Next"""
+# debug_question = "Who won the latest America's Next Top Model as of 2021?"
 
 def main():
     parser = argparse.ArgumentParser(description="Metriever")
@@ -49,14 +49,14 @@ def main():
     parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/TempRAGEval.json")
     parser.add_argument('--bm25-output', type=str, default="./TempRAGEval/BM25_output/TempRAGEval.json")
     parser.add_argument('--ctx-topk', type=int, default=100)
-    parser.add_argument('--QFS-topk', type=int, default=10)
+    parser.add_argument('--QFS-topk', type=int, default=0)
     parser.add_argument('--snt-topk', type=int, default=200)
-    parser.add_argument('--complete-ctx-text', type=bool, default=True)
+    parser.add_argument('--complete-ctx-text', type=bool, default=False)
     parser.add_argument('--hybrid-score', type=bool, default=True)
     parser.add_argument('--hybrid-base', type=float, default=0)
     parser.add_argument('--snt-with-title', type=bool, default=True)
     parser.add_argument('--llm', type=str, default="llama_8b")
-    parser.add_argument('--save-note', type=str, default=None)
+    parser.add_argument('--save-note', type=str, default='incom')
     parser.add_argument('--subset', type=str, default='situatedqa')
     parser.add_argument('--save', type=bool, default=True)
     parser.add_argument('--load-keywords', type=bool, default=False)
@@ -172,8 +172,7 @@ def main():
         examples = [ex for ex in examples if ex['question']==debug_question]
 
     # examples = examples[300:365]
-    # examples = [ex for ex in examples if ex['question']=='When was the last time the Dodgers played the Yankees in the World Series after 1978?']
-
+ 
     # only keep situatedqa and timeqa samples for this code
     if args.subset == 'timeqa':
         examples = [ex for ex in examples if ex["source"] == 'timeqa']
@@ -194,34 +193,31 @@ def main():
                 ctx_id = ctx['id']
                 ctx_title = ctx['title']
                 text = ctx['text'].strip()
-                if ctx_id not in complete_ctx_map and ctx_title in wiki:
-                    page = wiki[ctx_title]
-                    flgs = [p['id'] == ctx_id for p in page]
-                    page_has_ctx = any(flgs)==True
-                    index_in_page = flgs.index(True) if page_has_ctx else None
-                    if  page_has_ctx and index_in_page>0:
-                        prev = page[index_in_page-1]
-                        prev_text = prev['text'].strip()
-                        if prev_text[-1] not in '.!?)}>':
-                            ctx_sentences = sent_tokenize(prev_text)
-                            ctx_sentences_clean = [s.strip() for s in ctx_sentences]
-                            text = ctx_sentences_clean[-1] + ' ' + text
-                    if page_has_ctx and index_in_page<(len(flgs)-1):
-                        if text[-1] not in '.!?)}>':
-                            after = page[index_in_page+1]
-                            after_text = after['text'].strip()
-                            ctx_sentences = sent_tokenize(after_text)
-                            ctx_sentences_clean = [s.strip() for s in ctx_sentences]
-                            text += ' ' + ctx_sentences_clean[0]
-                    # print('\noriginal:')
-                    # print(ctx['text'])
-                    # print('new:')
-                    # print(text)
-                    # import ipdb; ipdb.set_trace()
-                complete_ctx_map[ctx_id] = text
+                if ctx_id not in complete_ctx_map:
+                    if ctx_title in wiki:
+                        page = wiki[ctx_title]
+                        flgs = [p['id'] == ctx_id for p in page]
+                        page_has_ctx = any(flgs)==True
+                        index_in_page = flgs.index(True) if page_has_ctx else None
+                        if  page_has_ctx and index_in_page>0:
+                            prev = page[index_in_page-1]
+                            prev_text = prev['text'].strip()
+                            if prev_text[-1] not in '.!?)}>':
+                                ctx_sentences = sent_tokenize(prev_text)
+                                ctx_sentences_clean = [s.strip() for s in ctx_sentences]
+                                text = ctx_sentences_clean[-1] + ' ' + text
+                        if page_has_ctx and index_in_page<(len(flgs)-1):
+                            if text[-1] not in '.!?)}>':
+                                after = page[index_in_page+1]
+                                after_text = after['text'].strip()
+                                ctx_sentences = sent_tokenize(after_text)
+                                ctx_sentences_clean = [s.strip() for s in ctx_sentences]
+                                text += ' ' + ctx_sentences_clean[0]
+                    complete_ctx_map[ctx_id] = text
                 ctx['text'] = complete_ctx_map[ctx_id]
                 complete_ctxs.append(ctx)
             ex[ctx_key] = complete_ctxs
+
 
     # separate samples into different types for comparison
     examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
@@ -728,33 +724,6 @@ def get_temporal_coeffs(years, sentence_tuples, time_relation_type, implicit_con
             coeff = 0.5
         temporal_coeffs.append(coeff)
     return temporal_coeffs
-
-
-# def call_pipeline(args, prompts, max_tokens=100):
-#     sampling_params = SamplingParams(temperature=0.1, top_p=0.95, max_tokens=max_tokens)
-#     outputs = args.llm.generate(prompts, sampling_params)
-#     # print('~~~')
-#     # print(prompts[0],'\n<>')
-#     # print(outputs[0].outputs[0].text)
-#     # print('~~~')
-
-#     responses = [output.outputs[0].text for output in outputs]
-#     for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Response>']:
-#         responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
-#     for mid_stopper in ['</Thought>']:
-#         responses = [res.split(mid_stopper)[-1] if mid_stopper in res else res for res in responses]
-
-#     # if responses[0][:2] == '- ':
-#     #     responses = [res.split('- ') for res in responses]
-#     #     tmp = []
-#     #     for res in responses:
-#     #         res = [r.replace('\n','').strip() for r in res]
-#     #         tmp.append([r for r in res if r !=''])
-#     #     responses = tmp
-#     # elif '{"' not in responses[0]:
-#     #     responses = [res.replace('\n','').strip() for res in responses]
-#     # import ipdb; ipdb.set_trace()
-#     return responses 
 
 
 if __name__ == "__main__":

@@ -130,8 +130,6 @@ Now your context paragraph, question, and guidance are as follows.
     return prompt
 
 
-
-
 def timer(question, context, answer):
     prompt = f"""You will be given one context paragraph, one question, and one answer. First read the context carefully. Your task is to find the corresponding date for this answer. Your response should be in a python dict object.
 - The date should be parsed into a python dict format with keys ("start_year", "start_month", "end_year", "end_month").
@@ -251,7 +249,7 @@ Now your question, context paragraph and answer are as follows.
 
 def zc_cot_prompt(question):
 
-    prompt=f"""As an assistant, your task is to answer the question after <Question>. You should first think step by step about the question and give your thought and then answer the <Question>. Your thought should be after <Thought>. Your answer should be after <Answer>.
+    prompt=f"""As an assistant, your task is to answer the question after <Question>. You should first think step by step about the question and give your thought and then answer the <Question>. Your thought should start after <Thought> and end with </Thought>. Your answer should start after <Answer> and end with </Answer>.
 There are some examples for you to refer to:
 
 <Question>
@@ -300,7 +298,7 @@ def c_prompt(query, texts):
     prompt=f"""Answer the given question, you can refer to the document provided.
 As an assistant, your task is to answer the question based on the given knowledge. Your answer should be after <Answer>.
 The given knowledge will be after the <Context> tage. You can refer to the knowledge to answer the question.
-If the knowledge does not contain the answer, answer the question directly.
+If the given knowledge does not contain the answer, answer the question with your own knowledge.
 
 There are some examples for you to refer to:
 <Context>
@@ -341,6 +339,16 @@ Where was the last Rugby World Cup held between 2007 and 2016?
 England
 </Answer>
 
+<Context>
+List of presidents of India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
+</Context>
+<Question>
+Who served as President of India as of 10 Jan 2000
+</Question>
+<Answer>
+K. R. Narayanan
+</Answer>
+
 Now your question and context knowledge are as follows.
 <Context>
 {texts}
@@ -358,56 +366,28 @@ Now your question and context knowledge are as follows.
 
 def TIMO():
     from transformers import pipeline
-    pipe = pipeline("text-generation", model="Warrieryes/timo-13b-hf", device_map='auto')
+    pipe = pipeline("text-generation", model="Warrieryes/timo-13b-hf", model_kwargs={'load_in_8bit':True}, device_map='auto')
     return pipe
 
 def TimeLLAMA():
     from transformers import pipeline
-    # model_kwargs={'load_in_8bit':True}, 
-    pipe = pipeline("text-generation", model="chrisyuan45/TimeLlama-13b", device_map='auto')
-    # pipe = pipeline("text-generation", model="chrisyuan45/TimeLlama-7b", device=0)
+    pipe = pipeline("text-generation", model="chrisyuan45/TimeLlama-13b", model_kwargs={'load_in_8bit':True}, device_map='auto')
     return pipe
-
-
-
-# def call_pipeline(args, prompts, max_tokens=100):
-#     if args.reader in ['timo','timellama']:
-#         outputs = args.llm(prompts, do_sample=True, max_new_tokens=100, num_return_sequences=1, temperature=0.1, top_p=0.95)
-#         outputs = [r[0]['generated_text'] for r in outputs]
-#         responses = [outputs[i].replace(prompts[i],'') for i in range(len(prompts))]
-#     else:
-#         sampling_params = SamplingParams(temperature=0.1, top_p=0.95, max_tokens=max_tokens)
-#         outputs = args.llm.generate(prompts, sampling_params)
-#         responses = [output.outputs[0].text for output in outputs]
-
-#     for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Response>']:
-#         responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
-
-#     if '<Thought>' in prompts[0]:
-#         for mid_stopper in ['</Thought>', '<Answer>']:
-#             responses = [res.split(mid_stopper)[-1].replace('\n','').strip() if mid_stopper in res else res for res in responses]
-#     else:
-#         if '- ' in responses[0]:
-#             responses = [res.split('- ') for res in responses]
-#             tmp = []
-#             for res in responses:
-#                 res = [r.replace('\n','').strip() for r in res]
-#                 tmp.append([r for r in res if r !=''])
-#             responses = tmp
-#     return responses
 
 
 def main():
     parser = argparse.ArgumentParser(description="Reader")
-    parser.add_argument('--max-examples', type=int, default=50)
+    parser.add_argument('--max-examples', type=int, default=None)
     parser.add_argument('--llm', type=str, default="llama_8b")
-    parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
+    parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_incom_outputs.json")
     # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_minilm12_outputs.json")
-    parser.add_argument('--ctx-topk', type=int, default=10)
-    parser.add_argument('--param-pred', type=bool, default=False)
+    parser.add_argument('--ctx-topk', type=int, default=5)
+    parser.add_argument('--param-pred', type=bool, default=True)
     parser.add_argument('--param-cot', type=bool, default=True)
-    parser.add_argument('--not-save', type=bool, default=True)
-    parser.add_argument('--no-guidance', type=bool, default=False)
+    parser.add_argument('--not-save', type=bool, default=False)
+    parser.add_argument('--no-guidance', type=bool, default=True)
+    parser.add_argument('--save-note', type=str, default=None)
+
     parser.add_argument(
         '--stage1-model',
         choices=['bm25', 'contriever','hybrid'], 
@@ -416,7 +396,7 @@ def main():
     # parser.add_argument('--ctx-key-s2', type=str, default='snt_hybrid_rank')
     # parser.add_argument('--ctx-key-s2', type=str, default='reranker_ctxs')
     parser.add_argument('--reader', type=str, default='llama', choices=['llama', 'timo', 'timellama'])
-    parser.add_argument('--paradigm', type=str, default='fusion', choices=['fusion', 'concat'])
+    parser.add_argument('--paradigm', type=str, default='concat', choices=['fusion', 'concat'])
 
 
     args = parser.parse_args()
@@ -461,20 +441,21 @@ def main():
         # examples = examples[:min(len(examples),args.max_examples)]
         examples = examples[-args.max_examples:]
     
-    # x = "How many NFL teams had St. Louis had before 1987?"
+    # x = "Who won the latest America's Next Top Model as of 2021?"
     # examples = [ex for ex in examples if x in ex['question']]
 
+    
     examples = [ex for ex in examples if ex['time_relation'] != '']
     if len(examples)==0:
         print(f'find no example in top {args.max_examples}.')
-
+    
     ########  QA  ######## 
     if args.param_pred:
         if args.param_cot:
             prompts = [zc_cot_prompt(ex['question']) for ex in examples]
         else:
             prompts = [zc_prompt(ex['question']) for ex in examples]
-        param_preds = call_pipeline(args, prompts)
+        param_preds = call_pipeline(args, prompts, 200)
         print('zero context prediction finished.')
 
     tmp_key = args.ctx_key_s2 if args.ctx_key_s2 else args.ctx_key_s1
@@ -501,7 +482,6 @@ def main():
     
     else: 
         # fusion reader
-
         # checker & reader
         print('\nstarted checker.\n')
         checker_prompts = []
@@ -552,8 +532,9 @@ def main():
                 reader_prompt = reader(normalized_question, context, guidance_text)
                 reader_prompts.append(reader_prompt)
             
-        checker_responses = call_pipeline(args, checker_prompts, 100)
+        checker_responses = call_pipeline(args, checker_prompts, 50)
         checker_results = ['yes' in res.lower() for res in checker_responses]
+        print('started reader')
         reader_responses = call_pipeline(args, reader_prompts, 100)
 
         for x, y, z in zip(reader_prompts, reader_responses, checker_responses):
@@ -779,7 +760,7 @@ def main():
                         rag_pred=candidate
                 if flg:
                     print('no context is useful.')
-                    prompt  = zc_prompt(question)
+                    prompt  = zc_cot_prompt(question)
                     rag_pred = call_pipeline(args, [prompt])[0]
             else:
                 rag_pred = next(iter(ans_list[0]))
@@ -819,7 +800,6 @@ def main():
                     print('\nHOW MANY: ', question)
                     print(tmp)
                     rag_pred = str(len(tmp))
-
                     
             rag_pred = rag_pred.replace('\n','').strip()
 
@@ -914,6 +894,8 @@ def main():
     to_save_df = pd.DataFrame(to_save)
     retriever_name = args.retriever_output.split('/')[-1].split('_outputs')[0]
     result_name = f'./answered/{retriever_name}_top{args.ctx_topk}_{args.llm_name}_{args.paradigm}_results.csv'
+    if args.save_note:            
+        result_name = result_name.replace('_outputs', f'_{args.save_note}_outputs')
     if not args.not_save:
         to_save_df.to_csv(result_name, index=False, encoding='utf-8')
         print(f"Saved as {result_name}")
