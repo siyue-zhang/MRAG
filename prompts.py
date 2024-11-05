@@ -3,70 +3,80 @@
 def get_keyword_prompt(question):
 
     prompt = f"""Your task is to extract keywords from the question. Response by a list of keyword strings. Do not include pronouns, prepositions, articles.
-<Question>:
+<Question>
 When was the last time the United States hosted the Olympics?
 </Question>
-<Keywords>:
+<Keywords>
 ["United States", "hosted", "Olympics"]
 </Keywords>
-<Question>:
+
+<Question>
 Who sang 1 national anthem for Super Bowl last year?
 </Question>
-<Keywords>:
+<Keywords>
 ["sang", "1", "national anthem", "Super Bowl"]
 </Keywords>
-<Question>:
+
+<Question>
 Most goals in international football?
 </Question>
-<Keywords>:
+<Keywords>
 ["most", "goals", "international", "football"]
 </Keywords>
-<Question>:
+
+<Question>
 How many TV episodes in the series The Crossing?
 </Question>
-<Keywords>:
+<Keywords>
 ["TV", "episodes", "series", "The Crossing"]
 </Keywords>
-<Question>:
+
+<Question>
 Who runs the fastest 40-yard dash in the NFL?
 </Question>
-<Keywords>:
+<Keywords>
 ["runs", "fastest", "40-yard", "dash", "NFL"]
 </Keywords>
-<Question>:
+
+<Question>
 Current captain of the England mens cricket team?
 </Question>  
-<Keywords>:
+<Keywords>
 ["captain", "England", "mens", "cricket", "team"]
 </Keywords>
-<Question>:
+
+<Question>
 Top 10 most popular songs of the 2000s?
 </Question>
-<Keywords>:
+<Keywords>
 ["top", "10", "most", "popular", "songs", "2000s"]
 </Keywords>
-<Question>:
+
+<Question>
 Who is the highest paid professional sports player?
 </Question>
-<Keywords>:
+<Keywords>
 ["highest", "paid", "professional", "sports", "player"]
 </Keywords>
-<Question>:
+
+<Question>
 When did Khalid write Young Dumb and Broke?
 </Question>
-<Keywords>:
+<Keywords>
 ["Khalid", "write", "Young Dumb and Broke"]
 </Keywords>
-<Question>:
+
+<Question>
 How many runs Sachin scored in his first ODI debut?
 </Question>
-<Keywords>:
+<Keywords>
 ["runs", "Sachin", "scored", "first", "ODI", "debut"]
 </Keywords>
-<Question>:
+
+<Question>
 {question}
 </Question>
-<Keywords>:
+<Keywords>
 """
     return prompt
 
@@ -132,48 +142,55 @@ def zc_prompt(question):
 
     prompt=f"""As an assistant, your task is to answer the question directly after <Question>. Your answer should be after <Answer>.
 There are some examples for you to refer to:
-<Question>:
+
+<Question>
 When did England last get to the semi final of a World Cup before 2019?
 </Question>
-<Answer>:
+<Answer>
 2018
 </Answer>
-<Question>:
+
+<Question>
 Who sang the national anthem in the last Super Bowl as of 2021?
 </Question>
-<Answer>:
+<Answer>
 Eric Church and Jazmine Sullivan
 </Answer>
-<Question>:
+
+<Question>
 Where was the last Rugby World Cup held between 2007 and 2016?
 </Question>
-<Answer>:
+<Answer>
 England
 </Answer>
-<Question>:
+
+<Question>
 What's the name of the latest Pirates of the Caribbean by 2011?
 </Question>
-<Answer>:
+<Answer>
 On Stranger Tides
 </Answer>
-<Question>:
+
+<Question>
 What was the last time France won World Cup between 2016 and 2019?
 </Question>
-<Answer>:
+<Answer>
 2018
 </Answer>
-<Question>:
+
+<Question>
 Current captain of the England mens test cricket team as of 2010?
 </Question>
-<Answer>:
+<Answer>
 Alastair Cook
 </Answer>
 
 Now your Question is
-<Question>:
+
+<Question>
 {question}
 </Question>
-<Answer>:
+<Answer>
 """
     return prompt
 
@@ -181,44 +198,54 @@ Now your Question is
 
 def zc_cot_prompt(question):
 
-    prompt=f"""As an assistant, your task is to answer the question after <Question>. You should first think step by step about the question and give your thought and then answer the <Question>. Your thought should be after <Thought>. Your answer should be after <Answer>.
-
+    prompt=f"""As an assistant, your task is to answer the question after <Question>. You should first think step by step about the question and give your thought and then answer the <Question> in the short form. Your thought should be after <Thought>. The direct answer should be after <Answer>.
 There are some examples for you to refer to:
-<Question>:
+
+<Question>
 When did England last get to the semi final of a World Cup before 2019?
 </Question>
-<Thought>:
+<Thought>
 England has reached the semi-finals of FIFA World Cup in 1966, 1990, 2018. The latest year before 2019 is 2018. So the answer is 2018.
 </Thought>
-<Answer>:
+<Answer>
 2018
 </Answer>
 
-<Question>:
+<Question>
 Who sang the national anthem in the last Super Bowl as of 2021?
 </Question>
-<Thought>:
+<Thought>
 The last Super Bowl as of 2021 is Super Bowl LV, which took place in February 2021. In Super Bowl LV, the national anthem was performed by Eric Church and Jazmine Sullivan. So the answer is Eric Church and Jazmine Sullivan.
 </Thought>
-<Answer>:
+<Answer>
 Eric Church and Jazmine Sullivan
 </Answer>
 
-<Question>:
+<Question>
 Where was the last Rugby World Cup held between 2007 and 2016?
 </Question>
 </Thought>
-<Thought>:
+<Thought>
 The last Rugby World Cup is held in 1987, 1991, 1995, 1999, 2003, 2007, 2011, 2015, 2019. The last Rugby World Cup held between 2007 and 2016 is in 2015. The IRB 2015 Rugby World Cup was hosted by England. So the answer is England.
-<Answer>:
+<Answer>
 England
 </Answer>
 
+<Question>
+Where were the first modern Olympic Games hold in 1896?
+</Question>
+</Thought>
+The first modern Olympic Games were held in Athens, Greece, in 1896. So the answer is Athens, Greece.
+<Thought>
+<Answer>
+Athens, Greece
+</Answer>
+
 Now your Question is
-<Question>:
+<Question>
 {question}
 </Question>
-<Thought>:
+<Thought>
 """
     return prompt
 
@@ -230,51 +257,56 @@ def c_prompt(query, texts):
 As an assistant, your task is to answer the question based on the given knowledge. Your answer should be after <Answer>.
 The given knowledge will be after the <Context> tage. You can refer to the knowledge to answer the question.
 If the knowledge does not contain the answer, answer the question directly.
+
 There are some examples for you to refer to:
-<Context>:
+
+<Context>
 Sport in the United Kingdom Field | hockey is the second most popular team recreational sport in the United Kingdom. The Great Britain men's hockey team won the hockey tournament at the 1988 Olympics, while the women's hockey team repeated the success in the 2016 Games.
 
 Three Lions (song) | The song reached number one on the UK Singles Chart again in 2018 following England reaching the semi-finals of the 2018 FIFA World Cup, with the line "it's coming home" featuring heavily on social media.
 
 England national football team | They have qualified for the World Cup sixteen times, with fourth-place finishes in the 1990 and 2018 editions.
 </Context>
-<Question>:
+<Question>
 When did England last get to the semi final of a World Cup before 2019?
 </Question>
-<Answer>:
+<Answer>
 2018
 </Answer>
-<Context>:
+
+<Context>
 Bowl LV | For Super Bowl LV, which took place in February 2021, the national anthem was performed by Eric Church and Jazmine Sullivan. They sang the anthem together as a duet.
 
 Super Bowl LVI | For Super Bowl LVI, which took place in February 2022, the national anthem was performed by Mickey Guyton. She delivered a powerful rendition of the anthem.
 </Context>
-<Question>:
+<Question>
 Who sang the national anthem in the last Super Bowl as of 2021?
 </Question>
-<Answer>:
+<Answer>
 Eric Church and Jazmine Sullivan
 </Answer>
-<Context>:
+
+<Context>
 Rugby World Cup | Starting in 2021, the women's equivalent tournament was officially renamed the Rugby World Cup to promote equality with the men's tournament.
 
 Rugby union | Rugby union football, commonly known simply as rugby union or more often just rugby, is a close-contact team sport that originated at Rugby School in England in the first half of the 19th century.
 </Context>
-<Question>:
+<Question>
 Where was the last Rugby World Cup held between 2007 and 2016?
 </Question>
-<Answer>:
+<Answer>
 England
 </Answer>
 
 Now your question and context knowledge are as follows.
-<Context>:
+
+<Context>
 {texts}
 </Context>
-<Question>:
+<Question>
 {query}
 </Question>
-<Answer>:
+<Answer>
 """
     return prompt
 

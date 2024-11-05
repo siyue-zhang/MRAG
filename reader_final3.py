@@ -1,5 +1,5 @@
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
 
 from utils import *
 from prompts import *
@@ -96,7 +96,7 @@ def reader(question, title, text):
     prompt = f"""You will be given a context paragraph and a question. First read the context paragraph carefully. Only based on this context information, write the answers in standalone sentences for the question accurately. Sentences should start after <Answer> and end with </Answer>.
 Requirements are follows:
 - Only include one anwer in one sentence per line.
-- Each sentence should also include the date corresponding to the answer.
+- Each sentence should also include the date corresponding to the answer if it is mentioned or can be inferred.
 - If the context knowledge contains no answer to the question, write "None".
 
 There are some examples for you to refer to:
@@ -261,7 +261,7 @@ Now your context sentence and question are as follows.
 
 
 def combiner(question, contexts):
-    prompt = f"""You will be given a context paragraph and a question. As an assistant, your task is to answer the question only based on the information from the context. You should first think step by step about the question and give your thought and then answer the <Question>. Your thought should be after <Thought>. Your answer should be after <Answer>.
+    prompt = f"""You will be given a context paragraph and a question. As an assistant, your task is to answer the question only based on the information from the context. You should first think step by step about the question and give your thought and then answer the <Question>. Your thought should be after <Thought>. Your answer should be after <Answer>. If there is no answer in the context, response "None".
     
 There are some examples for you to refer to:
 
@@ -303,7 +303,7 @@ K. R. Narayanan served as the President of India from 1997 until 2002.
 Who is the President of India on Jan 10, 1998?
 </Question>
 <Thought>
-The question asks about the person of the President of India on Jan 10, 1998. The answer should be a name. Based on the context, K. R. Narayanan served as the President of India from 1997 until 2002. Jan 10, 1998 is between 1997 and 2002. Therefore, the answer is K. R. Narayanan.
+The question asks about the person of the President of India on Jan 10, 1998. The answer should be a person's name. Based on the context, K. R. Narayanan served as the President of India from 1997 until 2002. Jan 10, 1998 is between 1997 and 2002. Therefore, the answer is K. R. Narayanan.
 </Thought>
 <Answer>
 K. R. Narayanan
@@ -415,7 +415,7 @@ def main():
     parser.add_argument('--llm', type=str, default="llama_8b")
     parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
     # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_minilm12_outputs.json")
-    parser.add_argument('--ctx-topk', type=int, default=5)
+    parser.add_argument('--ctx-topk', type=int, default=10)
     parser.add_argument('--param-pred', type=bool, default=False)
     parser.add_argument('--param-cot', type=bool, default=True)
     parser.add_argument('--not-save', type=bool, default=True)
@@ -473,8 +473,8 @@ def main():
         # examples = examples[:min(len(examples),args.max_examples)]
         examples = examples[-args.max_examples:]
 
-    examples = examples[100:200]
-    # x = "Tallest building in the world before 2020?"
+    # examples = examples[100:200]
+    # x = "Who is in charge of the Minister of Personnel, Public Grievances, and Pensions since 27 May 2014?"
     # examples = [ex for ex in examples if x in ex['question']]
 
     
@@ -577,6 +577,8 @@ def main():
                 answer_dict = eval(timer_r)
                 assert isinstance(answer_dict, dict)
                 assert all([item in list(answer_dict.values())[0] for item in ["start_year", "start_month", "end_year", "end_month"]])
+                # if there is no time info, skip
+                assert sum(list(answer_dict.values())[0].values())>0
             except Exception as e:
                 sub_years = year_identifier(sub_ex[2])
                 print('ERROR: ', timer_r)
@@ -691,7 +693,7 @@ def main():
                 #         filtered_result = sorted(filtered_result, key=lambda x: abs(list(x[-1].values())[0]['start_year']-ex['years'][0]), reverse=False)
             
             new_questions.append(question)
-            contexts = '\n'.join([tp[2] for tp in filtered_result])
+            contexts = '\n'.join([tp[2].replace(' first','').replace(' last','') for tp in filtered_result])
             combiner_prompt = combiner(question, contexts)
             combiner_prompts.append(combiner_prompt)
         
@@ -712,7 +714,7 @@ def main():
             find_flg = True
             if question in question_answer_map:
                 rag_pred = question_answer_map[question]
-                if any([item in rag_pred.lower() for item in ['unknown', 'none']]):
+                if any([item in rag_pred.lower() for item in ['unknown', 'none', 'not provided', "do not know"]]):
                     find_flg = False
             else:
                 find_flg = False
@@ -720,12 +722,19 @@ def main():
             if not find_flg:
                 print('no context is useful.')
                 prompt  = zc_cot_prompt(question)
-                rag_pred = call_pipeline(args, [prompt])[0]
+                rag_pred = call_pipeline(args, [prompt], 400)[0]
 
-            # pred_years = year_identifier(rag_pred)
-            # if question.lower().startswith('when') and pred_years:
-            #     rag_pred = str(pred_years[-1])
-            
+            pred_years = year_identifier(rag_pred)
+            if question.lower().startswith('when') and pred_years:
+                rag_pred = str(pred_years[-1])
+
+            # too many words for answer
+            if len(rag_pred.split())>20:
+                print('prametric knowledge does not know.')
+                text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'].strip() for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]])
+                prompt = c_prompt(ex['question'], text)
+                rag_pred = call_pipeline(args, [prompt], 100)[0]
+
             ex['rag_pred'] = rag_pred
             ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
             ex['rag_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(rag_pred))

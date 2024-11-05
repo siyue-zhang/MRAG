@@ -401,7 +401,7 @@ def eval_reader(to_save, param_pred, subset='situatedqa', metric='acc'):
 def call_pipeline(args, prompts, max_tokens=100):
 
     if args.reader == None:
-        sampling_params = SamplingParams(temperature=0.1, top_p=0.95, max_tokens=max_tokens)
+        sampling_params = SamplingParams(temperature=0.2, top_p=0.95, max_tokens=max_tokens, seed=0)
         outputs = args.llm.generate(prompts, sampling_params)
         responses = [output.outputs[0].text for output in outputs]
         for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Response>']:
@@ -409,18 +409,22 @@ def call_pipeline(args, prompts, max_tokens=100):
         return responses
     else:
         if args.reader in ['timo','timellama']:
-            outputs = args.llm(prompts, do_sample=True, max_new_tokens=100, num_return_sequences=1, temperature=0.1, top_p=0.95)
+            outputs = args.llm(prompts, do_sample=True, max_new_tokens=100, num_return_sequences=1, temperature=0.2, top_p=0.95)
             outputs = [r[0]['generated_text'] for r in outputs]
             responses = [outputs[i].replace(prompts[i],'') for i in range(len(prompts))]
-            print('//////')
-            print(prompts[0])
-            print('//////')
-            print(responses[0])
+            # print('//////')
+            # print(prompts[0])
+            # print('//////')
+            # print(responses[0])
         else:
-            sampling_params = SamplingParams(temperature=0.1, top_p=0.95, max_tokens=max_tokens)
+            sampling_params = SamplingParams(temperature=0.2, top_p=0.95, max_tokens=max_tokens, seed=0)
             outputs = args.llm.generate(prompts, sampling_params)
             responses = [output.outputs[0].text for output in outputs]
-            
+            # print('//////')
+            # print(prompts[0])
+            # print('//////')
+            # print(responses[0])
+
         for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Response>']:
             responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
 
