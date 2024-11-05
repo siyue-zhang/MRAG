@@ -425,7 +425,7 @@ def call_pipeline(args, prompts, max_tokens=100):
             responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
 
         if '<Thought>' in prompts[0]:
-            for mid_stopper in ['</Thought>', '<Answer>']:
+            for mid_stopper in ['</Thought>', '<Answer>', '<Response>']:
                 responses = [res.split(mid_stopper)[-1].replace('\n','').strip() if mid_stopper in res else res for res in responses]
         else:
             if '- ' in responses[0]:

@@ -14,21 +14,79 @@ from copy import deepcopy
  
 from temp_eval import normalize
 
-def checker(question, context):
-    prompt = f"""Consider the question and context paragraph below:
+# def checker(question, context):
+#     prompt = f"""Consider the question and context paragraph below:
 
+# <Context>
+# {context}
+# </Context>
+# <Question>
+# {question}
+# </Question>
+
+# Does the context provide an answer to the question?
+
+# First, read the context and respond with either "Yes" or "No". Then, briefly explain your reasoning.
+
+# <Response>
+# """
+#     return prompt
+
+def checker(question, context):
+    prompt = f"""You will be given a context paragraph and a question. As an assistant, your task is decide whether the context contains the answer to the question.
+Requirements are follows:
+- First read the paragraph after <Context> and question after <Question> carefully.
+- Then you should think step by step and give your thought after <Thought>.
+- Finally, write the response by "Yes" or "No" after <Response>.
+
+<Context>
+Petronas Towers | From 1996 to 2004, they were officially designated as the tallest buildings in the world until they were surpassed by the completion of Taipei 101. The Petronas Towers remain the world's tallest twin skyscrapers, surpassing the World Trade Center towers in New York City, and were the tallest buildings in Malaysia until 2019, when they were surpassed by The Exchange 106.
+</Context>
+<Question>
+Tallest building in the world
+</Question>
+<Thought>
+The context paragraph talks about the Petronas Towers. The context paragraph states that Petronas Towers were officially designated as the tallest buildings in the world from 1996 to 2004. And the Taipei 101 became the the tallest building in the world after 2004. This context paragraph contains two answers to the question. Therefore, the response is "Yes". 
+</Thought>
+<Response>
+Yes
+</Response>
+
+There are some examples for you to refer to:
+<Context>
+Petronas Towers | The Petronas Towers (Malay: Menara Berkembar Petronas), also known as the Petronas Twin Towers and colloquially the KLCC Twin Towers, are an interlinked pair of 88-storey supertall skyscrapers in Kuala Lumpur, Malaysia, standing at 451.9 metres (1,483 feet).
+</Context>
+<Question>
+Tallest building in the world
+</Question>
+<Thought>
+The context paragraph talks about the Petronas Towers and their height of 451.9 metres (1,483 feet). However, it does not state the Petronas Towers is the tallest building in the world. The context paragraph does not tell which building is the tallest in the world. Therefore, the response is "No". 
+</Thought>
+<Response>
+No
+</Response>
+
+<Context>
+List of 20th-century religious leaders Church of England | Formal leadership: Supreme Governor of the Church of England (complete list) – ; Victoria, Supreme Governor (1837–1901) ; Edward VII, Supreme Governor (1901–1910) ; George V, Supreme Governor (1910–1936) ; Cosmo Gordon Lang, Archbishop of Canterbury (1928–1942) ; William Temple, Archbishop of Canterbury (1942–1944) ; 
+</Context>
+<Question>
+Who is the head of the Church in England
+</Question>
+<Thought>
+The context paragraph talks about the 20th-century religious leaders Church of England. In this list, it states the names of Supreme Governor of the Church of England, which is the head of the Church in England. This context contains the answers for the head of the Church in England: Victoria, Edward VII, and George V. Therefore, the response is "Yes". 
+</Thought>
+<Response>
+Yes
+</Response>
+
+Now your context paragraph and question are as follows.
 <Context>
 {context}
 </Context>
 <Question>
 {question}
 </Question>
-
-Does the context provide an answer to the question?
-
-First, read the context and respond with either "Yes" or "No". Then, briefly explain your reasoning.
-
-<Response>
+<Thought>
 """
     return prompt
 
@@ -403,7 +461,7 @@ def main():
         if flg:
             args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=4096)
         else:
-            args.llm = LLM(args.l, tensor_parallel_size=1, dtype='half', max_model_len=4096)
+            args.llm = LLM(args.l, tensor_parallel_size=2, dtype='float16', max_model_len=4096)
 
     # load examples
     if 'retrieved' not in args.retriever_output:
@@ -415,9 +473,9 @@ def main():
         # examples = examples[:min(len(examples),args.max_examples)]
         examples = examples[-args.max_examples:]
 
-    # examples = examples[100:200]
-    x = "Tallest building in the world before 2020?"
-    examples = [ex for ex in examples if x in ex['question']]
+    examples = examples[100:200]
+    # x = "Tallest building in the world before 2020?"
+    # examples = [ex for ex in examples if x in ex['question']]
 
     
     examples = [ex for ex in examples if ex['time_relation'] != '']
@@ -481,7 +539,7 @@ def main():
                 reader_prompt = reader(normalized_question, ctx['title'], ctx['text'])
                 reader_prompts.append(reader_prompt)
         
-        checker_responses = call_pipeline(args, checker_prompts, 100)
+        checker_responses = call_pipeline(args, checker_prompts, 500)
         checker_results = ['yes' in res.lower() for res in checker_responses]
         print('started reader')
         reader_responses = call_pipeline(args, reader_prompts, 500)
@@ -651,16 +709,22 @@ def main():
         
         for k, ex in enumerate(examples):
             question = ex['question']
+            find_flg = True
             if question in question_answer_map:
                 rag_pred = question_answer_map[question]
+                if any([item in rag_pred.lower() for item in ['unknown', 'none']]):
+                    find_flg = False
             else:
+                find_flg = False
+
+            if not find_flg:
                 print('no context is useful.')
                 prompt  = zc_cot_prompt(question)
                 rag_pred = call_pipeline(args, [prompt])[0]
 
-            pred_years = year_identifier(rag_pred)
-            if question.lower().startswith('when') and pred_years:
-                rag_pred = str(pred_years[-1])
+            # pred_years = year_identifier(rag_pred)
+            # if question.lower().startswith('when') and pred_years:
+            #     rag_pred = str(pred_years[-1])
             
             ex['rag_pred'] = rag_pred
             ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
