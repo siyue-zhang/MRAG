@@ -416,9 +416,9 @@ def main():
     parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
     # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_minilm12_outputs.json")
     parser.add_argument('--ctx-topk', type=int, default=10)
-    parser.add_argument('--param-pred', type=bool, default=False)
-    parser.add_argument('--param-cot', type=bool, default=True)
-    parser.add_argument('--not-save', type=bool, default=True)
+    parser.add_argument('--param-pred', type=bool, default=True)
+    parser.add_argument('--param-cot', type=bool, default=False)
+    parser.add_argument('--not-save', type=bool, default=False)
     parser.add_argument('--save-note', type=str, default=None)
     parser.add_argument(
         '--stage1-model',
