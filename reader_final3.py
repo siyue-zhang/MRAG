@@ -403,7 +403,7 @@ def main():
         if flg:
             args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=4096)
         else:
-            args.llm = LLM(args.l, tensor_parallel_size=1, dtype='half', max_model_len=10000)
+            args.llm = LLM(args.l, tensor_parallel_size=1, dtype='half', max_model_len=4096)
 
     # load examples
     if 'retrieved' not in args.retriever_output:
@@ -416,8 +416,8 @@ def main():
         examples = examples[-args.max_examples:]
 
     # examples = examples[100:200]
-    # x = "When was the first time Michigan won the national championship in football after 1950?"
-    # examples = [ex for ex in examples if x in ex['question']]
+    x = "Tallest building in the world before 2020?"
+    examples = [ex for ex in examples if x in ex['question']]
 
     
     examples = [ex for ex in examples if ex['time_relation'] != '']
@@ -518,6 +518,7 @@ def main():
             try:
                 answer_dict = eval(timer_r)
                 assert isinstance(answer_dict, dict)
+                assert all([item in list(answer_dict.values())[0] for item in ["start_year", "start_month", "end_year", "end_month"]])
             except Exception as e:
                 sub_years = year_identifier(sub_ex[2])
                 print('ERROR: ', timer_r)
@@ -544,7 +545,7 @@ def main():
             print('\nanswer dicts')
             print(result)
         
-            answer_dicts = [r[-1] for r in result]
+            answer_dicts = [r[3] for r in result]
             append_flgs = []
             if ex['time_relation_type']=='before':
                 q_year = ex['years'][0]
