@@ -121,7 +121,7 @@ List of presidents of India | India has had several distinguished presidents thr
 Who serve as President of India
 </Question>
 <Answer>
-- Neelam Sanjiva Reddy served the sixth President of India from 1977.
+- Neelam Sanjiva Reddy served as the sixth President of India from 1977.
 - K. R. Narayanan served as the President of India from 1997 until 2002.
 - Droupadi Murmu served as the 15th President from 2022.
 </Answer>
