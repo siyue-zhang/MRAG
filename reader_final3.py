@@ -274,7 +274,7 @@ England made it to the World Cup semi-finals in 2018.
 When did England last get to the semi final of a World Cup before 2019?
 </Question>
 <Thought>
-The question asks about the time when England last get to the semi final of a World Cup before 2019. The answer should be a date. Based on the context, 2018 is the last time when England got to the World Cup semi-finals. 2018 is before 2019. Therefore, the answer is 2018.
+The question asks about the last time when England got to the semi final of a World Cup before 2019. The answer should be a date. Based on the context, 2018 is the last time when England got to the World Cup semi-finals. 2018 is before 2019. Therefore, the answer is 2018.
 </Thought>
 <Answer>
 2018
