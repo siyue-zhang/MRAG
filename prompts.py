@@ -1,4 +1,5 @@
 
+#### Metriever ####
 
 def get_keyword_prompt(question):
 
@@ -81,7 +82,6 @@ How many runs Sachin scored in his first ODI debut?
     return prompt
 
 
-
 def get_QFS_prompt(question, title, text):
     prompt = f"""You are given a context paragraph and a specific question. Your goal is to summarize the context paragraph in one standalone sentence by answering the given question. If dates are mentioned in the paragraph, include them in your answer. If the question cannot be answered based on the paragraph, respond with "None". Ensure that the response is relevant, complete, concise and directly addressing the question.
 
@@ -137,6 +137,8 @@ Now your question and paragraph are as follows.
 """
     return prompt
 
+
+#### Reader ####
 
 def zc_prompt(question):
 
@@ -195,7 +197,6 @@ Now your Question is
     return prompt
 
 
-
 def zc_cot_prompt(question):
 
     prompt=f"""As an assistant, your task is to answer the question after <Question>. You should first think step by step about the question and give your thought and then answer the <Question> in the short form. Your thought should be after <Thought>. The direct answer should be after <Answer>.
@@ -248,7 +249,6 @@ Now your Question is
 <Thought>
 """
     return prompt
-
 
 
 def c_prompt(query, texts):
@@ -311,158 +311,338 @@ Now your question and context knowledge are as follows.
     return prompt
 
 
-# def extract_information_prompt(query, text):
+#### Fusion-in-Prompt ####
 
-#     prompt=f"""Extract information from the question and context. Strictly follow the below example.
-# <Question>:
-# Who was the owner of Westfield Montgomery before Westfield Group?
-# </Question>
-# <Context>:
-# Westfield Montgomery | Westfield Montgomery is owned by Unibail Rodamco Westfield from Jun, 2018 to Dec, 2022. Westfield Montgomery is owned by The May Department Stores Company from Mar, 1968 to Jan, 1971. Westfield Montgomery is owned by Westfield Group from Jan, 1971 to Jan, 2014.
-# </Context>
-# <Info>:
-# extracted_info = {{(datetime(2018, 6, 1), datetime(2022, 12, 1)): "Unibail Rodamco Westfield”, (datetime(1968, 3, 1), datetime(1971, 1, 1)): "The May Department Stores Company", (datetime(1971, 1, 1), datetime(2014, 1, 1)): "Westfield Group"}}
-# </Info>
+def checker(question, context):
+    prompt = f"""You will be given a context paragraph and a question. As an assistant, your task is decide whether the context contains the answer to the question.
+Requirements are follows:
+- First read the paragraph after <Context> and question after <Question> carefully.
+- Then you should think step by step and give your thought after <Thought>.
+- Finally, write the response by "Yes" or "No" after <Response>.
 
-# Now your question and context are as follows.
-# <Question>:
-# {query}
-# </Question>
-# <Context>:
-# {text}
-# </Context>
-# <Info>:
-# extracted_info = 
-# """
-#     return prompt
+<Context>
+Petronas Towers | From 1996 to 2004, they were officially designated as the tallest buildings in the world until they were surpassed by the completion of Taipei 101. The Petronas Towers remain the world's tallest twin skyscrapers, surpassing the World Trade Center towers in New York City, and were the tallest buildings in Malaysia until 2019, when they were surpassed by The Exchange 106.
+</Context>
+<Question>
+Tallest building in the world
+</Question>
+<Thought>
+The context paragraph talks about the Petronas Towers. The context paragraph states that Petronas Towers were officially designated as the tallest buildings in the world from 1996 to 2004. And the Taipei 101 became the the tallest building in the world after 2004. This context paragraph contains two answers to the question. Therefore, the response is "Yes". 
+</Thought>
+<Response>
+Yes
+</Response>
 
-# def rememo_prompt(query, texts):
-#     prompt=f"""Answer the question based on the context.
-# If there are more than one answer, only give me the most suitable answer.
-# <Context>:
-# {texts[:min(1500, len(texts))]}
-# </Context>
-# <Question>: 
-# {query}
-# </Question>
-# <Answer>:
-# """
-#     return prompt
+There are some examples for you to refer to:
+<Context>
+Petronas Towers | The Petronas Towers (Malay: Menara Berkembar Petronas), also known as the Petronas Twin Towers and colloquially the KLCC Twin Towers, are an interlinked pair of 88-storey supertall skyscrapers in Kuala Lumpur, Malaysia, standing at 451.9 metres (1,483 feet).
+</Context>
+<Question>
+Tallest building in the world
+</Question>
+<Thought>
+The context paragraph talks about the Petronas Towers and their height of 451.9 metres (1,483 feet). However, it does not state the Petronas Towers is the tallest building in the world. The context paragraph does not tell which building is the tallest in the world. Therefore, the response is "No". 
+</Thought>
+<Response>
+No
+</Response>
 
+<Context>
+List of 20th-century religious leaders Church of England | Formal leadership: Supreme Governor of the Church of England (complete list) – ; Victoria, Supreme Governor (1837–1901) ; Edward VII, Supreme Governor (1901–1910) ; George V, Supreme Governor (1910–1936) ; Cosmo Gordon Lang, Archbishop of Canterbury (1928–1942) ; William Temple, Archbishop of Canterbury (1942–1944) ; 
+</Context>
+<Question>
+Who is the head of the Church in England
+</Question>
+<Thought>
+The context paragraph talks about the 20th-century religious leaders Church of England. In this list, it states the names of Supreme Governor of the Church of England, which is the head of the Church in England. This context contains the answers for the head of the Church in England: Victoria, Edward VII, and George V. Therefore, the response is "Yes". 
+</Thought>
+<Response>
+Yes
+</Response>
 
-# def zc_prompt_json(question):
-
-#     prompt=f"""As an assistant, your task is to answer the question directly after <Question>. Your answer should be after <Answer> in JSON format with key "answer" and its value should be string.
-# There are some examples for you to refer to:
-# <Question>: What's the name of the latest Pirates of the Caribbean by 2011?
-# <Answer>:
-# ``` json
-# {{"answer": "On Stranger Tides"}}
-# ```
-# <Question>: What was the last time France won World Cup between 2016 and 2019?
-# <Answer>:
-# ``` json
-# {{"answer": "2018"}}
-# ```
-# <Question>: Current captain of the England mens test cricket team as of 2010?
-# <Answer>:
-# ``` json
-# {{"answer": "Alastair Cook"}}
-# ```
-# Now your Question is
-# <Question>: {question}
-# <Answer>:
-# """
-#     return prompt
+Now your context paragraph and question are as follows.
+<Context>
+{context}
+</Context>
+<Question>
+{question}
+</Question>
+<Thought>
+"""
+    return prompt
 
 
+def reader(question, title, text):
 
-# def c_prompt_json(query, texts):
+    prompt = f"""You will be given a context paragraph and a question. First read the context paragraph carefully. Only based on this context information, write the answers in standalone sentences for the question accurately. Sentences should start after <Answer> and end with </Answer>.
+Requirements are follows:
+- Only include one anwer in one sentence per line.
+- Each sentence should also include the date corresponding to the answer if it is mentioned or can be inferred.
+- If the context knowledge contains no answer to the question, write "None".
 
-#     prompt=f"""Answer the given question in JSON format, you can refer to the document provided.
-# As an assistant, your task is to answer the question based on the given knowledge. Your answer should be after <Answer> in JSON format with key "answer" and its value should be string.
-# The given knowledge will be after the <Context> tage. You can refer to the knowledge to answer the question.
-# If the knowledge does not contain the answer, answer the question directly.
-# There are some examples for you to refer to:
-# <doc>
-# {{Sport in the United Kingdom Field | hockey is the second most popular team recreational sport in the United Kingdom. The Great Britain men's hockey team won the hockey tournament at the 1988 Olympics, while the women's hockey team repeated the success in the 2016 Games.
+There are some examples for you to refer to:
+<Context>
+Houston Rockets | The Houston Rockets have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995. They have also won the champions in 1996-1997, 1999, 2000-01. 
+</Context>
+<Question>
+When did the Houston Rockets win the NBA championship
+</Question>
+<Answer>
+- Houston Rockets won the NBA championship in 1994.
+- Houston Rockets won the NBA championship in 1995.
+- Houston Rockets won the NBA championship in 1996-1997.
+- Houston Rockets won the NBA championship in 1999.
+- Houston Rockets won the NBA championship in 2000-01.
+</Answer>
 
-# Three Lions (song) | The song reached number one on the UK Singles Chart again in 2018 following England reaching the semi-finals of the 2018 FIFA World Cup, with the line "it's coming home" featuring heavily on social media.
+<Context>
+List of presidents of India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
+</Context>
+<Question>
+Who serve as President of India
+</Question>
+<Answer>
+- Neelam Sanjiva Reddy served as the sixth President of India from 1977.
+- K. R. Narayanan served as the President of India from 1997 until 2002.
+- Droupadi Murmu served as the 15th President from 2022.
+</Answer>
 
-# England national football team | They have qualified for the World Cup sixteen times, with fourth-place finishes in the 1990 and 2018 editions.}}
-# </doc>
-# <Question>: When did England last get to the semi final of a World Cup before 2019?
-# <Answer>:
-# ``` json
-# {{"answer": "2018"}}
-# ```
-# <doc>
-# {{Bowl LV | For Super Bowl LV, which took place in February 2021, the national anthem was performed by Eric Church and Jazmine Sullivan. They sang the anthem together as a duet.
+<Context>
+Jurassic Park Movies | The Lost World: Jurassic Park is a 1997 American science fiction action film. In Thailand, The Lost World became the country's highest-grossing film of all time. It ultimately grossed $229.1 million in the U.S. and $389.5 million internationally, for a total of $618.6 million worldwide. The film sold an estimated 49,910,000 tickets in North America. Jurassic Park premiered on June 9, 1993, at the Uptown Theater in Washington, D.C., and was released on June 11 in the United States. It was a blockbuster hit and went on to gross over $914 million worldwide in its original theatrical run
+</Context>
+<Question>
+What was the worldwide box office of Jurassic movie
+</Question>
+<Answer>
+- The worldwide box office of Jurassic movie - The Lost World: Jurassic Park was $618.6 million in 1997.
+- The worldwide box office of Jurassic movie - Jurassic Park was $914 million, which was premiered on June 9, 1993.
+</Answer>
 
-# Super Bowl LVI | For Super Bowl LVI, which took place in February 2022, the national anthem was performed by Mickey Guyton. She delivered a powerful rendition of the anthem.}}
-# </doc>
-# <Question>: Who sang the national anthem Super Bowl last year as of 2021?
-# <Answer>:
-# ``` json
-# {{"answer": "Eric Church and Jazmine Sullivan"}}
-# ```
-# <doc>
-# {{Rugby World Cup | Starting in 2021, the women's equivalent tournament was officially renamed the Rugby World Cup to promote equality with the men's tournament.
+<Context>
+1980 Summer Olympics | Hence, the selection process for the 1984 Summer Olympics consisted of a single finalized bid from Los Angeles, which the International Olympic Committee (IOC) accepted in 1976. Los Angeles was awarded the selection officially on May 18, 1978 for the 1984 Summer Olympics.
+</Context>
+<Question>
+When has the United States hosted Summer Olympics
+</Question>
+<Answer>
+- The United States has hosted 1984 Summer Olympics.
+</Answer>
 
-# Rugby union | Rugby union football, commonly known simply as rugby union or more often just rugby, is a close-contact team sport that originated at Rugby School in England in the first half of the 19th century.}}
-# </doc>
-# <Question>: Where was the last Rugby World Cup held between 2007 and 2016?
-# <Answer>:
-# ``` json
-# {{"answer": "England"}}
-# ```
-# Now your question and reference knowledge are as follows.
-# <doc>
-# {{{texts}}}
-# </doc>
-# <Question>: {query}
-# <Answer>:
-# """
-#     return prompt
+<Context>
+Oliver Bulleid | A brief period working for the Board of Trade followed from 1910, arranging exhibitions in Brussels, Paris and Turin. He was able to travel widely in Europe, later including a trip with Nigel Gresley, William Stanier and Frederick Hawksworth, to Belgium, in 1934, to see a metre-gauge bogie locomotive. In December 1912, he rejoined the GNR as Personal Assistant to Nigel Gresley, the new CME. Gresley was only six years Bulleid's senior.
+</Context>
+<Question>
+Oliver Bulleid was an employee for whom
+</Question>
+<Answer>
+- Oliver Bulleid was an employee for the Board of Trade from 1910.
+- Oliver Bulleid was an employee for the GNR from December 1912.
+</Answer>
+
+Now your context paragraph and question are as follows.
+<Context>
+{title} | {text}
+</Context>
+<Question>
+{question}
+</Question>
+<Answer>
+"""
+    return prompt
 
 
+def timer(question, answer):
+    prompt = f"""You will be given one question and one context sentence. Your task is to find the answer and corresponding date. Your response should be in a python dict object.
+- The date should be parsed into a python dict format with keys ("start_year", "start_month", "end_year", "end_month").
+- If the answer only applies for a specific date such as an event, write the same start and end time.
+- If the answer applies "from" a specific date such as job and political positions, write this date as the start time and write "0" for the end time.
+- If the answer applies "until" a specific date such as job and political positions, write this date as the end time and write "0" for the start time.
+
+There are some examples for you to refer to:
+<Context>
+Neelam Sanjiva Reddy served the sixth President of India from 1977.
+</Context>
+<Question>
+Who served as President of India
+</Question>
+<Answer>
+{{"Neelam Sanjiva Reddy": {{"start_year": 1977, "start_month": 0, "end_year": 0, "end_month": 0}}}}
+</Answer>
+
+<Context>
+K. R. Narayanan served as the President of India from 1997 until 2002.
+</Context>
+<Question>
+Who served as President of India
+</Question>
+<Answer>
+{{"K. R. Narayanan": {{"start_year": 1997, "start_month": 0, "end_year": 2002, "end_month": 0}}}}
+</Answer>
+
+<Context>
+The worldwide box office of Jurassic movie - Jurassic Park was $914 million, which was premiered on June 9, 1993.
+</Context>
+<Question>
+What was the worldwide box office of Jurassic movie
+</Question>
+<Answer>
+{{"$914 million": {{"start_year": 1993, "start_month": 6, "end_year": 1993, "end_month": 6}}}}
+</Answer>
+
+<Context>
+Houston Rockets won the NBA championship in 1996-1997.
+</Context>
+<Question>
+When was the time the Houston Rockets win the NBA championship
+</Question>
+<Answer>
+{{"1996-1997": {{"start_year": 1996, "start_month": 0, "end_year": 1997, "end_month": 0}}}}
+</Answer>
+
+<Context>
+Houston Rockets won the NBA championship in 2000-01.
+</Context>
+<Question>
+When was the time the Houston Rockets win the NBA championship
+</Question>
+<Answer>
+{{"2000-01": {{"start_year": 2000, "start_month": 0, "end_year": 2001, "end_month": 0}}}}
+</Answer>
+
+<Context>
+The United States has hosted 1984 Summer Olympics.
+</Context>
+<Question>
+When has the United States hosted Summer Olympics
+</Question>
+<Answer>
+{{"1984": {{"start_year": 1984, "start_month": 0, "end_year": 1984, "end_month": 0}}}}
+</Answer>
+
+<Context>
+Oliver Bulleid was an employee for the Board of Trade from 1910.
+</Context>
+<Question>
+Oliver Bulleid was an employee for whom
+</Question>
+<Answer>
+{{"Board of Trade": {{"start_year": 1910, "start_month": 0, "end_year": 0, "end_month": 0}}}}
+</Answer>
+
+Now your context sentence and question are as follows.
+<Context>
+{answer}
+</Context>
+<Question>
+{question}
+</Question>
+<Answer>
+"""
+    return prompt
 
 
-# def c_prompt(query, texts):
-
-#     # prompt=f"""Your task is to answer the question based on the given context information. Your response should be a brief short-form answer.
-#     prompt=f"""Your task is to find the answer from the given contexts for the question. Your response should be a brief short-form answer.
-
-# Question:
-# When did england last get to the semi final of a world cup before 2019?
-
-# Contexts:
-# Sport in the United Kingdom Field | hockey is the second most popular team recreational sport in the United Kingdom. The Great Britain men's hockey team won the hockey tournament at the 1988 Olympics, while the women's hockey team repeated the success in the 2016 Games.
-
-# Three Lions (song) | The song reached number one on the UK Singles Chart again in 2018 following England reaching the semi-finals of the 2018 FIFA World Cup, with the line "it's coming home" featuring heavily on social media.
-
-# England national football team | They have qualified for the World Cup sixteen times, with fourth-place finishes in the 1990 and 2018 editions.
-
-# Answer:
-# 2018
-
-# Question:
-# Who sang the national anthem super bowl last year as of 2021?
-
-# Contexts:
-# Bowl LV | For Super Bowl LV, which took place in February 2021, the national anthem was performed by Jazmine Sullivan. They sang the anthem together as a duet.
-
-# Super Bowl LVI | For Super Bowl LVI, which took place in February 2022, the national anthem was performed by Mickey Guyton. She delivered a powerful rendition of the anthem.
-
-# Answer:
-# Jazmine Sullivan
+def combiner(question, contexts):
+    prompt = f"""You will be given a context paragraph and a question. As an assistant, your task is to answer the question only based on the information from the context. You should first think step by step about the question and give your thought and then answer the <Question>. Your thought should be after <Thought>. Your answer should be after <Answer>. If there is no answer in the context, response "None".
     
-# Question:
-# {query}
+There are some examples for you to refer to:
 
-# Contexts:
-# {texts}
+<Context>
+England hosted the World Cup and went on to win the tournament in 1966, defeating West Germany 4-2 in the final.
+England reached the World Cup semi-finals in 1990.
+England made it to the World Cup semi-finals in 2018.
+</Context>
+<Question>
+When did England last get to the semi final of a World Cup before 2019?
+</Question>
+<Thought>
+The question asks about the last time when England got to the semi final of a World Cup before 2019. The answer should be a date. Based on the context, 2018 is the last time when England got to the World Cup semi-finals. 2018 is before 2019. Therefore, the answer is 2018.
+</Thought>
+<Answer>
+2018
+</Answer>
 
-# Answer:
-# """
-#     return prompt
+<Context>
+The United States has hosted 1984 Summer Olympics.
+The United States has hosted Summer Olympics in 1984.
+The United States has hosted Summer Olympics in 1996.
+</Context>
+<Question>
+How many times had the United States hosted Summer Olympics before 2000?
+</Question>
+<Thought>
+The question asks about the number of times that the United States had hosted Summer Olympics before 2000. The answer should be an integer. Based on the context, the United States has hosted Summer Olympics twice in 1984 and 1996. 1984 and 1996 are before 2000. Therefore, the answer is 2.
+</Thought>
+<Answer>
+2
+</Answer>
+
+<Context>
+Neelam Sanjiva Reddy served the sixth President of India from 1977.
+K. R. Narayanan served as the President of India from 1997 until 2002.
+</Context>
+<Question>
+Who is the President of India on Jan 10, 1998?
+</Question>
+<Thought>
+The question asks about the person of the President of India on Jan 10, 1998. The answer should be a person's name. Based on the context, K. R. Narayanan served as the President of India from 1997 until 2002. Jan 10, 1998 is between 1997 and 2002. Therefore, the answer is K. R. Narayanan.
+</Thought>
+<Answer>
+K. R. Narayanan
+</Answer>
+
+<Context>
+The United States has hosted 1984 Summer Olympics.
+The United States has hosted Summer Olympics in 1984.
+The United States has hosted Summer Olympics in 1996.
+</Context>
+<Question>
+When is the last Summer Olympics that the United States hosted as of 2000?
+</Question>
+<Thought>
+The question asks about the time of the last Summer Olympics that the United States hosted as of 2000. The answer should be a date. Based on the context, the last time when the United States hosted Summer Olympics is 1996. 1996 is not later than 2000. Therefore, the answer is 1996.
+</Thought>
+<Answer>
+1996
+</Answer>
+
+<Context>
+The worldwide box office of Jurassic movie - Jurassic Park was $914 million, which was premiered on June 9, 1993.
+The worldwide box office of Jurassic movie - The Lost World: Jurassic Park was $618.6 million in 1997.
+</Context>
+<Question>
+What was the worldwide box office of the first Jurassic movie after 1990?
+</Question>
+<Thought>
+The question asks about the worldwide box office of the first Jurassic movie after 1990. The answer should be a monetary value. Based on the context, the first Jurassic movie is Jurassic Park premiered on June 9, 1993. 1993 is after 1990. The worldwide box office of Jurassic Park was $914 million. Therefore, the answer is $914 million.
+</Thought>
+<Answer>
+$914 million
+</Answer>
+
+<Context>
+Oliver Bulleid was an employee for the Board of Trade from 1910.
+Oliver Bulleid was an employee for the GNR from December 1912.
+</Context>
+<Question>
+Oliver Bulleid was an employee for whom between 1911 and 1912?
+</Question>
+<Thought>
+The question asks about the employer of Oliver Bulleid between 1911 and 1912. The answer should be a name of company or organization. Based on the context, Oliver Bulleid started to work for the Board of Trade from 1910 and GNR from December 1912. 1911 and 1912 are after 1910 and before December 1912. Oliver Bulleid worked for the Board of Trade between 1911 and 1912. Therefore, the answer is Board of Trade.
+</Thought>
+<Answer>
+Board of Trade
+</Answer>
+
+Now your context paragraph and question are as follows.
+
+<Context>
+{contexts}
+</Context>
+<Question>
+{question}
+</Question>
+<Thought>
+"""
+    return prompt
+
+

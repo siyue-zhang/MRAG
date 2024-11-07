@@ -245,14 +245,6 @@ def replace_dates(text):
     # Apply the replacement
     return re.sub(pattern, replace_func, text)
 
-# def replace_date_range(text):
-#     # Regex to match patterns like "1990–1993" or "1990-1993"
-#     pattern = r'(\d{4})[–-](\d{4})'
-    
-#     # Replace with "1990 and 1993"
-#     replaced_text = re.sub(pattern, r'\1 \2', text)
-    
-#     return replaced_text
 
 def expand_year_range(text):
     # Define a function to replace a range with full years
