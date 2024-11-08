@@ -17,7 +17,7 @@ for index, row in df.iterrows():
     if row['gold_evidence_2']!='':
         gold_evidences.append(row['gold_evidence_2'])
     if row['time_relation']!='':
-        # if row['id'] not in ['t_600']:
+        # if row['id'] not in ['t_580']:
         assert row['time_relation'] in row['question'], row
 
     example = {
