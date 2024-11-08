@@ -20,7 +20,7 @@ if not check_r:
         examples = json.load(file)
     if num_examples:
         examples = examples[:num_examples]
-    
+    print('started.')
     for k, ex in enumerate(examples):
         # if k<489:
         #     continue
