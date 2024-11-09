@@ -1,8 +1,8 @@
 #!/bin/bash
-#SBATCH --job-name=TempRAGEval
+#SBATCH --job-name=TempRAGEval_
 #SBATCH --open-mode=append
-#SBATCH --output=./monitor/TempRAGEval.out
-#SBATCH --error=./monitor/TempRAGEval.err
+#SBATCH --output=./monitor/TempRAGEval_.out
+#SBATCH --error=./monitor/TempRAGEval_.err
 #SBATCH --export=ALL
 #SBATCH --time=24:00:00
 #SBATCH --gres=gpu:1

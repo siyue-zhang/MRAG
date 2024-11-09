@@ -311,6 +311,75 @@ Now your question and context knowledge are as follows.
     return prompt
 
 
+def c_cot_prompt(query, texts):
+
+    prompt=f"""Answer the given question, you can refer to the document provided.
+As an assistant, your task is to answer the question based on the given knowledge. Your answer should be after <Answer>.
+The given knowledge will be after the <Context> tage. You can refer to the knowledge to answer the question.
+If the knowledge does not contain the answer, answer the question directly.
+
+There are some examples for you to refer to:
+
+<Context>
+Sport in the United Kingdom Field | hockey is the second most popular team recreational sport in the United Kingdom. The Great Britain men's hockey team won the hockey tournament at the 1988 Olympics, while the women's hockey team repeated the success in the 2016 Games.
+
+Three Lions (song) | The song reached number one on the UK Singles Chart again in 2018 following England reaching the semi-finals of the 2018 FIFA World Cup, with the line "it's coming home" featuring heavily on social media.
+
+England national football team | They have qualified for the World Cup sixteen times, with fourth-place finishes in the 1990 and 2018 editions.
+</Context>
+<Question>
+When did England last get to the semi final of a World Cup before 2019?
+</Question>
+<Thought>
+The question asks about the time when England last get to the semi final of a World Cup before 2019. The first context is about the Great Britain hockey team and Olympics, which are irrelevant to the World Cup. So, the first context is irrelevant. The second context mentions England reaching the semi-finals of the 2018 FIFA World Cup. And 2018 World Cup is before 2019. So, the second context is relevant. The third context mentions that England finished fourth-place in the 1990 and 2018, which implies England got to the seme-finals of World Cup in 1990 and 2018. So, the third context is relevant. Based on above relevant contexts, England got to the seme-finals of World Cup in 1990 and 2018. The last time before 2019 is 2018. Therefore, the answer is 2018. 
+</Thought>
+<Answer>
+2018
+</Answer>
+
+<Context>
+Bowl LV | For Super Bowl LV, which took place in February 2021, the national anthem was performed by Eric Church and Jazmine Sullivan. They sang the anthem together as a duet.
+
+Super Bowl LVI | For Super Bowl LVI, which took place in February 2022, the national anthem was performed by Mickey Guyton. She delivered a powerful rendition of the anthem.
+</Context>
+<Question>
+Who sang the national anthem in the last Super Bowl as of 2021?
+</Question>
+<Thought>
+The question asks about the person who sang the national anthem in the last Super Bowl as of 2021. The first context mentions Eric Church and Jazmine Sullivan performed the national anthem for Super Bowl LV in February 2021. So the first context is relevent. The second context mentions Mickey Guyton performed the national anthem for Super Bowl LVI in February 2022. So, the second context is relevant. Based on above relevant contexts, Eric Church and Jazmine Sullivan sang the national anthem in 2021 and Mickey Guyton sang the national anthem in 2022. 2022 is after 2021. Eric Church and Jazmine Sullivan sang the national anthem in the last Super Bowl as of 2021. Therefore, the answer is Eric Church and Jazmine Sullivan.
+</Thought>
+<Answer>
+Eric Church and Jazmine Sullivan
+</Answer>
+
+<Context>
+Rugby World Cup | Starting in 2021, the women's equivalent tournament was officially renamed the Rugby World Cup to promote equality with the men's tournament.
+
+Rugby union | Rugby union football, commonly known simply as rugby union or more often just rugby, is a close-contact team sport that originated at Rugby School in England in the first half of the 19th century.
+</Context>
+<Question>
+Where was the last Rugby World Cup held between 2007 and 2016?
+</Question>
+<Thought>
+The question asks about the last Rugby World Cup held between 2007 and 2016. The first context does not mention the location of Rugby World Cup. So, the first context is irrelevant. The second context does not mention the location of Rugby World Cup. So, the second context is irrelevant. Therefore, there is no relevant context provided. I will answer the question based on my own knowledge.
+</Thought>
+<Answer>
+England
+</Answer>
+
+Now your question and context knowledge are as follows.
+
+<Context>
+{texts}
+</Context>
+<Question>
+{query}
+</Question>
+<Thought>
+"""
+    return prompt
+
+
 #### Fusion-in-Prompt ####
 
 def checker(question, context):
