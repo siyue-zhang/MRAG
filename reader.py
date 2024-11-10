@@ -26,12 +26,11 @@ def TimeLLAMA():
 def main():
     parser = argparse.ArgumentParser(description="Reader")
     parser.add_argument('--max-examples', type=int, default=None)
-    parser.add_argument('--llm', type=str, default="llama_8b")
-    # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
-    parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_minilm12_outputs.json")
-    parser.add_argument('--ctx-topk', type=int, default=5)
+    parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
+    # parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_minilm12_outputs.json")
+    parser.add_argument('--ctx-topk', type=int, default=10)
     parser.add_argument('--param-pred', type=bool, default=True)
-    parser.add_argument('--param-cot', type=bool, default=True)
+    parser.add_argument('--param-cot', type=bool, default=False)
     parser.add_argument('--not-save', type=bool, default=False)
     parser.add_argument('--save-note', type=str, default=None)
     parser.add_argument(
@@ -39,7 +38,7 @@ def main():
         choices=['bm25', 'contriever','hybrid'], 
         default='contriever', #
     )
-    parser.add_argument('--reader', type=str, default='llama', choices=['llama', 'timo', 'timellama'])
+    parser.add_argument('--reader', type=str, default='llama_70b', choices=['llama', 'timo', 'timellama'])
     parser.add_argument('--paradigm', type=str, default='concat', choices=['fusion', 'concat'])
 
 
@@ -47,7 +46,7 @@ def main():
     assert args.stage1_model in args.retriever_output
     if args.reader == 'llama':
         args.reader = "llama_8b"
-
+    
     if 'metriever' in args.retriever_output:
         args.ctx_key_s2 = 'snt_hybrid_rank'
     else:
@@ -74,7 +73,7 @@ def main():
         if flg:
             args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=4096)
         else:
-            args.llm = LLM(args.l, tensor_parallel_size=1, dtype='float16', max_model_len=4096)
+            args.llm = LLM(args.l, tensor_parallel_size=2, dtype='float16', max_model_len=4096)
 
     # load examples
     if 'retrieved' not in args.retriever_output:
@@ -111,10 +110,11 @@ def main():
         for ex in examples:
             text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'].strip() for ctx in ex[tmp_key][:args.ctx_topk]])
             texts.append(text)
+            # prompt = c_cot_prompt(ex['question'], text)
             prompt = c_prompt(ex['question'], text)
             prompts.append(prompt)
 
-        rag_preds = call_pipeline(args, prompts)
+        rag_preds = call_pipeline(args, prompts, 500)
         print(f'{tmp_key} top {args.ctx_topk} contexts prediction finished.')
 
         for k, ex in enumerate(examples):

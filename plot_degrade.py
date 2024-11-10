@@ -72,8 +72,8 @@ answer_recall_situatedqa_normal = [81.3, 95.1, 95.9, 98.4]    # Recall@1, Recall
 answer_recall_situatedqa_perturbed = [33.8, 70.9, 84.2, 88.3]  # Perturbed case
 
 # Performance on TimeQA (right subplot)
-answer_recall_timeqa_normal = [78.6, 93.2, 94.0, 94.0]        # Normal case
-answer_recall_timeqa_perturbed = [48.3, 84.2, 90.0, 90.5]     # Perturbed case
+answer_recall_timeqa_normal = [75.6, 92.7, 93.5, 93.5]        # Normal case
+answer_recall_timeqa_perturbed = [33.5, 76.1, 84.3, 87.0]     # Perturbed case
 
 # Gold Evidence Recall (for bottom row)
 # SituatedQA
@@ -81,8 +81,8 @@ gold_recall_situatedqa_normal = [62.6, 80.5, 83.7, 83.7]  # Gold Recall@1, @5, @
 gold_recall_situatedqa_perturbed = [18.7, 36.4, 48.1, 51.4]  # Perturbed case
 
 # TimeQA
-gold_recall_timeqa_normal = [64.1, 72.7, 74.4, 74.4]      # Normal case
-gold_recall_timeqa_perturbed = [30.8, 60.2, 67.3, 68.6]   # Perturbed case
+gold_recall_timeqa_normal = [68.3, 81.3, 82.1, 82.1]      # Normal case
+gold_recall_timeqa_perturbed = [16.0, 56.9, 67.8, 72.3]   # Perturbed case
 
 # Recall metric names
 recall_labels = ['R@1', 'R@5', 'R@10', 'R@20']

@@ -36,7 +36,7 @@ def main():
     parser.add_argument(
         '--stage2-model', 
         choices=['metriever','minilm6','minilm12','bge','tinybert','bigegemma','monot5', None], 
-        default='minilm12', #
+        default='metriever', #
         # default='bge', #
         help='Choose a model for stage 2 re-ranking'
     )
@@ -49,15 +49,15 @@ def main():
     parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/TempRAGEval.json")
     parser.add_argument('--bm25-output', type=str, default="./TempRAGEval/BM25_output/TempRAGEval.json")
     parser.add_argument('--ctx-topk', type=int, default=100)
-    parser.add_argument('--QFS-topk', type=int, default=0)
+    parser.add_argument('--QFS-topk', type=int, default=10)
     parser.add_argument('--snt-topk', type=int, default=200)
     parser.add_argument('--complete-ctx-text', type=bool, default=False)
     parser.add_argument('--hybrid-score', type=bool, default=True)
     parser.add_argument('--hybrid-base', type=float, default=0)
     parser.add_argument('--snt-with-title', type=bool, default=True)
-    parser.add_argument('--llm', type=str, default="llama_8b")
+    parser.add_argument('--llm', type=str, default="llama_70b")
     parser.add_argument('--save-note', type=str, default=None)
-    parser.add_argument('--subset', type=str, default='timeqa')
+    parser.add_argument('--subset', type=str, default='situatedqa')
     parser.add_argument('--save', type=bool, default=True)
     parser.add_argument('--load-keywords', type=bool, default=False)
 
@@ -385,6 +385,13 @@ def main():
         question_keyword_map = {}
         for ex in examples:
             normalized_question = ex['normalized_question']
+
+            if normalized_question.startswith('How many times'):
+                normalized_question = normalized_question.replace('How many times','When')
+            elif normalized_question.startswith('How many'):
+                normalized_question = normalized_question.replace('How many','What')
+            ex['normalized_question'] = normalized_question
+
             question_keyword_map.setdefault(normalized_question, [])
 
         print('\nstart extracting keywords using llm.')
@@ -430,12 +437,6 @@ def main():
         implicit_condition = ex['implicit_condition']
         time_relation_type = ex['time_relation_type']
         normalized_question = ex['normalized_question']
-
-        if normalized_question.startswith('How many times'):
-            normalized_question = normalized_question.replace('When')
-        elif normalized_question.startswith('How many'):
-            normalized_question = normalized_question.replace('What')
-        ex['normalized_question'] = normalized_question
 
         expanded_keyword_list, keyword_type_list = question_keyword_map[normalized_question]
         ex['expanded_keyword_list'] = expanded_keyword_list
