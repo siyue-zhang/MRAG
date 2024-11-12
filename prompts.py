@@ -4,6 +4,8 @@
 def get_keyword_prompt(question):
 
     prompt = f"""Your task is to extract keywords from the question. Response by a list of keyword strings. Do not include pronouns, prepositions, articles.
+
+There are some examples for you to refer to:
 <Question>
 When was the last time the United States hosted the Olympics?
 </Question>
@@ -68,12 +70,20 @@ When did Khalid write Young Dumb and Broke?
 </Keywords>
 
 <Question>
-How many runs Sachin scored in his first ODI debut?
+Where did Louisa May Alcott live?
 </Question>
 <Keywords>
-["runs", "Sachin", "scored", "first", "ODI", "debut"]
+["Louisa May Alcott", "live"]
 </Keywords>
 
+<Question>
+What was German submarine U-37 (1938) afflicted to?
+</Question>
+<Keywords>
+["German", "submarine", "U-37", "1938", "afflicted"]
+</Keywords>
+
+Now your question is as follows.
 <Question>
 {question}
 </Question>
@@ -365,6 +375,28 @@ Where was the last Rugby World Cup held between 2007 and 2016?
 </Question>
 <Answer>
 England
+</Answer>
+
+<Context>
+Louisa May Alcott | The family moved to Boston in 1834, where Louisa's father established the experimental Temple School and met with other transcendentalists such as Ralph Waldo Emerson and Henry David Thoreau.
+
+Louisa May Alcott | In 1840, after several setbacks with Temple School and a brief stay in Scituate, the Alcotts moved to Hosmer Cottage in Concord.
+</Context>
+<Question>
+Where did Louisa May Alcott live from 1834 to 1840?
+</Question>
+<Answer>
+Boston
+</Answer>
+
+<Context>
+Theo-Ben Gurirab | He served as the second Prime Minister of Namibia from 28 August 2002 to 20 March 2005, following the demotion and subsequent resignation of Hage Geingob.
+</Context>
+<Question>
+Theo-Ben Gurirab took which position as of 2004?
+</Question>
+<Answer>
+Prime Minister of Namibia
 </Answer>
 
 Now your question and context knowledge are as follows.
