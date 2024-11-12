@@ -38,7 +38,7 @@ def main():
         choices=['bm25', 'contriever','hybrid'], 
         default='contriever', #
     )
-    parser.add_argument('--reader', type=str, default='llama_70b', choices=['llama', 'timo', 'timellama'])
+    parser.add_argument('--reader', type=str, default='llama_70b', choices=['llama', 'timo', 'timellama','llama_70b','llama_8b'])
     parser.add_argument('--paradigm', type=str, default='concat', choices=['fusion', 'concat'])
 
 

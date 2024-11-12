@@ -181,10 +181,38 @@ What was the last time France won World Cup between 2016 and 2019?
 </Answer>
 
 <Question>
-Current captain of the England mens test cricket team as of 2010?
+Which team did Willie Fernie (footballer) play for from 1964 to 1965?
 </Question>
 <Answer>
-Alastair Cook
+Bangor
+</Answer>
+
+<Question>
+What position did Ueli Maurer take from 2009 to 2013?
+</Question>
+<Answer>
+Federal Councillor
+</Answer>
+
+<Question>
+Who was the head of National Council of French Women from 1964 to 1970?
+</Question>
+<Answer>
+Lucie Chevalley
+</Answer>
+
+<Question>
+Who was the spouse of Larry Fortensky from 1972 to 1974?
+</Question>
+<Answer>
+Priscilla Joan Torres
+</Answer>
+
+<Question>
+Which school did Marshall Sahlins go to from 1951 to 1952?
+</Question>
+<Answer>
+Columbia University
 </Answer>
 
 Now your Question is
@@ -195,6 +223,7 @@ Now your Question is
 <Answer>
 """
     return prompt
+
 
 
 def zc_cot_prompt(question):
@@ -225,9 +254,9 @@ Eric Church and Jazmine Sullivan
 <Question>
 Where was the last Rugby World Cup held between 2007 and 2016?
 </Question>
-</Thought>
 <Thought>
-The last Rugby World Cup is held in 1987, 1991, 1995, 1999, 2003, 2007, 2011, 2015, 2019. The last Rugby World Cup held between 2007 and 2016 is in 2015. The IRB 2015 Rugby World Cup was hosted by England. So the answer is England.
+The Rugby World Cup was held in 1987, 1991, 1995, 1999, 2003, 2007, 2011, 2015, 2019. The last Rugby World Cup held between 2007 and 2016 is in 2015. The IRB 2015 Rugby World Cup was hosted by England. So the answer is England.
+</Thought>
 <Answer>
 England
 </Answer>
@@ -235,11 +264,51 @@ England
 <Question>
 Where were the first modern Olympic Games hold in 1896?
 </Question>
-</Thought>
-The first modern Olympic Games were held in Athens, Greece, in 1896. So the answer is Athens, Greece.
 <Thought>
+The first modern Olympic Games were held in Athens, Greece, in 1896. So the answer is Athens, Greece.
+</Thought>
 <Answer>
 Athens, Greece
+</Answer>
+
+<Question>
+Theo-Ben Gurirab took which position as of 2004?
+</Question>
+<Thought>
+Theo-Ben Gurirab served as the second Prime Minister of Namibia from 28 August 2002 to 20 March 2005. As of 2004, Theo-Ben Gurirab was in the position of Prime Minister of Namibia. So the answer is Prime Minister of Namibia.
+</Thought>
+<Answer>
+Prime Minister of Namibia
+</Answer>
+
+<Question>
+Who was the head of National Council of French Women between 1964 and 1966?
+</Question>
+<Thought>
+Lucie Chevalley was the president of National Council of French Women from 1964 to 1970. The duration between 1964 and 1966 is within the duration between 1964 and 1970. So the answer is Lucie Chevalley.
+</Thought>
+<Answer>
+Lucie Chevalley
+</Answer>
+
+<Question>
+Who was the spouse of Larry Fortensky from 1972 to 1973?
+</Question>
+<Thought>
+Larry Fortensky married Priscilla Joan Torres in 1972. They were divorced in 1974. The Priscilla Joan Torres was the spouse of Larry Fortensky from 1972 to 1973. So the answer is Priscilla Joan Torres.
+</Thought>
+<Answer>
+Priscilla Joan Torres
+</Answer>
+
+<Question>
+Where did Louisa May Alcott live from 1834 to 1840?
+</Question>
+<Thought>
+The Louisa May Alcott's family moved to Boston in 1834. In 1840, the Alcotts moved to Hosmer Cottage in Concord. Therefore, Louisa May Alcott lived in Boston between 1834 and 1840. So the answer is Boston.
+</Thought>
+<Answer>
+Boston
 </Answer>
 
 Now your Question is

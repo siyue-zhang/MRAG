@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=s70bt10
+#SBATCH --job-name=t8bt1pd
 #SBATCH --open-mode=append
-#SBATCH --output=./monitor/s70bt10.out
-#SBATCH --error=./monitor/s70bt10.err
+#SBATCH --output=./monitor/t8bt1pd.out
+#SBATCH --error=./monitor/t8bt1pd.err
 #SBATCH --export=ALL
 #SBATCH --time=20:00:00
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:rtx8000:2
 #SBATCH --mem=200G
 #SBATCH -c 2
 
@@ -14,7 +14,7 @@ source ~/.bashrc \
 && export VLLM_WORKER_MULTIPROC_METHOD=spawn \
 && conda activate /scratch/sz4651/Projects/ext3/miniconda3/envs/metriever \
 && cd /scratch/sz4651/Projects/metriever_final \
-&& python reader.py --retriever-output situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json --paradigm concat --reader llama_70b --ctx-topk 10 --param-cot True --param-pred True"
+&& python reader.py --retriever-output timeqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json --paradigm concat --reader llama_8b --ctx-topk 1 --param-cot False --param-pred True"
 
 
 
