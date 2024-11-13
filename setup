@@ -7,6 +7,8 @@ srun --nodes=1 --tasks-per-node=2 --cpus-per-task=1 --mem=200GB --time=10:00:00 
 
 srun --nodes=1 --tasks-per-node=1 --cpus-per-task=1 --mem=200GB --time=10:00:00 --pty /bin/bash
 
+conda install -c anaconda mysqlclient
+
 singularity exec --nv --overlay /scratch/sz4651/Projects/overlay-share.ext3:rw /scratch/work/public/singularity/cuda12.3.2-cudnn9.0.0-ubuntu-22.04.4.sif /bin/bash
 singularity exec --nv --overlay /scratch/sz4651/Projects/UnifiedSKG/overlay-skg2.ext3:ro /scratch/work/public/singularity/cuda12.3.2-cudnn9.0.0-ubuntu-22.04.4.sif /bin/bash
 

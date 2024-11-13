@@ -104,6 +104,10 @@ def llm_names(l, instruct=False):
         l = "hugging-quants/Meta-Llama-3.1-70B-Instruct-AWQ-INT4"
     elif l== "phi":
         l = "microsoft/Phi-3.5-mini-instruct"
+    elif l=="timo":
+        l="Warrieryes/timo-13b-hf"
+    elif l=="timellama":
+        l="chrisyuan45/TimeLlama-13b"
     return l
 
 def load_contriever_output(path):
@@ -400,7 +404,7 @@ def call_pipeline(args, prompts, max_tokens=100):
             responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
         return responses
     else:
-        if args.reader in ['timo','timellama']:
+        if args.reader in ['timellama']:
             outputs = args.llm(prompts, do_sample=True, max_new_tokens=100, num_return_sequences=1, temperature=0.2, top_p=0.95)
             outputs = [r[0]['generated_text'] for r in outputs]
             responses = [outputs[i].replace(prompts[i],'') for i in range(len(prompts))]

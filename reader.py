@@ -26,19 +26,19 @@ def TimeLLAMA():
 def main():
     parser = argparse.ArgumentParser(description="Reader")
     parser.add_argument('--max-examples', type=int, default=None)
-    # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
-    parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_minilm12_outputs.json")
-    parser.add_argument('--ctx-topk', type=int, default=50)
-    parser.add_argument('--param-pred', type=bool, default=False)
+    parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
+    # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_minilm12_outputs.json")
+    parser.add_argument('--ctx-topk', type=int, default=0)
+    parser.add_argument('--param-pred', type=bool, default=True)
     parser.add_argument('--param-cot', type=bool, default=False)
     parser.add_argument('--not-save', type=bool, default=False)
-    parser.add_argument('--save-note', type=str, default=None)
+    parser.add_argument('--save-note', type=str, default='dp')
     parser.add_argument(
         '--stage1-model',
         choices=['bm25', 'contriever','hybrid'], 
         default='contriever', #
     )
-    parser.add_argument('--reader', type=str, default='llama_8b', choices=['llama', 'timo', 'timellama','llama_70b','llama_8b'])
+    parser.add_argument('--reader', type=str, default='timo', choices=['llama', 'timo', 'timellama','llama_70b','llama_8b'])
     parser.add_argument('--paradigm', type=str, default='concat', choices=['fusion', 'concat'])
 
 
@@ -60,10 +60,10 @@ def main():
         args.ctx_key_s1 = 'ctxs'
 
     # load llm
-    if args.reader=='timo':
-        args.llm = TIMO()
-        args.llm_name = 'timo'
-    elif args.reader=='timellama':
+    # if args.reader=='timo':
+    #     args.llm = TIMO()
+    #     args.llm_name = 'timo'
+    if args.reader=='timellama':
         args.llm = TimeLLAMA()
         args.llm_name = 'timellama'
     else:
@@ -71,9 +71,9 @@ def main():
         args.l = llm_names(args.reader, instruct=True)
         flg = '70b' in args.llm_name
         if flg:
-            args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=4096)
+            args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=15000)
         else:
-            args.llm = LLM(args.l, tensor_parallel_size=2, dtype='float16', max_model_len=15000)
+            args.llm = LLM(args.l, tensor_parallel_size=2, dtype='float16', max_model_len=2048)
 
     # load examples
     if 'retrieved' not in args.retriever_output:
@@ -426,8 +426,8 @@ def main():
     to_save_df = pd.DataFrame(to_save)
     retriever_name = args.retriever_output.split('/')[-1].split('_outputs')[0]
     result_name = f'./answered/{retriever_name}_top{args.ctx_topk}_{args.llm_name}_{args.paradigm}_results.csv'
-    if args.save_note:            
-        result_name = result_name.replace('_outputs', f'_{args.save_note}_outputs')
+    if isinstance(args.save_note, str) and len(args.save_note)>0:            
+        result_name = result_name.replace('_results', f'_{args.save_note}_results')
     if not args.not_save:
         to_save_df.to_csv(result_name, index=False, encoding='utf-8')
         print(f"Saved as {result_name}")
