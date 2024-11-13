@@ -432,4 +432,6 @@ def call_pipeline(args, prompts, max_tokens=100):
                     res = [r for r in res if 'none' not in r.lower()]
                     tmp.append([r for r in res if r !=''])
                 responses = tmp
+            else:
+                responses = [r.split('\n')[0].strip() for r in responses]
         return responses

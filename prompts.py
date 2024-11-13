@@ -335,7 +335,7 @@ def c_prompt(query, texts):
     prompt=f"""Answer the given question, you can refer to the document provided.
 As an assistant, your task is to answer the question based on the given knowledge. Your answer should be after <Answer>.
 The given knowledge will be after the <Context> tage. You can refer to the knowledge to answer the question.
-If the knowledge does not contain the answer, answer the question directly.
+If the context knowledge does not contain the answer, answer the question directly.
 
 There are some examples for you to refer to:
 

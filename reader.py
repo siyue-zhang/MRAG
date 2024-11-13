@@ -1,5 +1,5 @@
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
 
 from utils import *
 from prompts import *
@@ -26,10 +26,10 @@ def TimeLLAMA():
 def main():
     parser = argparse.ArgumentParser(description="Reader")
     parser.add_argument('--max-examples', type=int, default=None)
-    parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
-    # parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_minilm12_outputs.json")
-    parser.add_argument('--ctx-topk', type=int, default=10)
-    parser.add_argument('--param-pred', type=bool, default=True)
+    # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
+    parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_minilm12_outputs.json")
+    parser.add_argument('--ctx-topk', type=int, default=50)
+    parser.add_argument('--param-pred', type=bool, default=False)
     parser.add_argument('--param-cot', type=bool, default=False)
     parser.add_argument('--not-save', type=bool, default=False)
     parser.add_argument('--save-note', type=str, default=None)
@@ -38,7 +38,7 @@ def main():
         choices=['bm25', 'contriever','hybrid'], 
         default='contriever', #
     )
-    parser.add_argument('--reader', type=str, default='llama_70b', choices=['llama', 'timo', 'timellama','llama_70b','llama_8b'])
+    parser.add_argument('--reader', type=str, default='llama_8b', choices=['llama', 'timo', 'timellama','llama_70b','llama_8b'])
     parser.add_argument('--paradigm', type=str, default='concat', choices=['fusion', 'concat'])
 
 
@@ -73,7 +73,7 @@ def main():
         if flg:
             args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=4096)
         else:
-            args.llm = LLM(args.l, tensor_parallel_size=2, dtype='float16', max_model_len=4096)
+            args.llm = LLM(args.l, tensor_parallel_size=2, dtype='float16', max_model_len=15000)
 
     # load examples
     if 'retrieved' not in args.retriever_output:
