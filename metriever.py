@@ -1,5 +1,5 @@
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "5"
+os.environ["CUDA_VISIBLE_DEVICES"] = "5"
 
 from utils import *
 from prompts import *
@@ -35,9 +35,9 @@ def main():
     )
     parser.add_argument(
         '--stage2-model', 
-        choices=['metriever','minilm6','minilm12','bge','tinybert','bgegemma','monot5', None], 
+        choices=['metriever','minilm6','minilm12','bge','tinybert','bgegemma','electra', None], 
         # default='metriever', #
-        default='bgegemma', #
+        default='minilm12', #
         help='Choose a model for stage 2 re-ranking'
     )
     parser.add_argument(
@@ -84,13 +84,6 @@ def main():
             args.model = FlagLLMReranker(name, use_fp16=True)
         elif 'bge' in name:
             args.model = FlagReranker(name, use_fp16=True)
-        elif 'monot5' in name:
-            pass
-            # from pygaggle.rerank.base import Query, Text
-            # from pygaggle.rerank.transformer import MonoT5
-            # import os
-            # os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-            # return MonoT5()
         else:
             args.model = CrossEncoder(name)
 

@@ -92,6 +92,8 @@ def retrival_model_names(m):
         m = 'BAAI/bge-reranker-large'
     elif m == 'bgegemma':
         m = 'BAAI/bge-reranker-v2-gemma'
+    elif m=='electra':
+        m = 'cross-encoder/ms-marco-electra-base'
     return m
 
 def llm_names(l, instruct=False):

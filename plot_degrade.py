@@ -28,11 +28,11 @@ import matplotlib.pyplot as plt
 # title_size = 24  # Title font size
 
 # # Plot for SituatedQA
-# ax1.bar(index, recall_metrics_situatedqa_normal, bar_width, label='Oracle', color='#1f77b4')
+# ax1.bar(index, recall_metrics_situatedqa_normal, bar_width, label='Original', color='#1f77b4')
 # ax1.bar(index + bar_width, recall_metrics_situatedqa_perturbed, bar_width, label='Perturbed', color='#1f77b4', alpha=0.4)
 
 # # Plot for TimeQA
-# ax2.bar(index, recall_metrics_timeqa_normal, bar_width, label='Oracle', color='#ff7f0e')
+# ax2.bar(index, recall_metrics_timeqa_normal, bar_width, label='Original', color='#ff7f0e')
 # ax2.bar(index + bar_width, recall_metrics_timeqa_perturbed, bar_width, label='Perturbed', color='#ff7f0e', alpha=0.4)
 
 # # Labels and Titles for SituatedQA plot (left)
@@ -68,8 +68,8 @@ import matplotlib.pyplot as plt
 # Replace these values with your actual data
 
 # Performance on SituatedQA (left subplot)
-answer_recall_situatedqa_normal = [81.3, 95.1, 95.9, 98.4]    # Recall@1, Recall@5, Recall@10, Recall@20 for normal case
-answer_recall_situatedqa_perturbed = [33.8, 70.9, 84.2, 88.3]  # Perturbed case
+answer_recall_situatedqa_normal = [83.3, 94.2, 95, 98.3]    # Recall@1, Recall@5, Recall@10, Recall@20 for normal case
+answer_recall_situatedqa_perturbed = [36.3, 73.2, 86.1, 90.5]  # Perturbed case
 
 # Performance on TimeQA (right subplot)
 answer_recall_timeqa_normal = [75.6, 92.7, 93.5, 93.5]        # Normal case
@@ -77,8 +77,8 @@ answer_recall_timeqa_perturbed = [33.5, 76.1, 84.3, 87.0]     # Perturbed case
 
 # Gold Evidence Recall (for bottom row)
 # SituatedQA
-gold_recall_situatedqa_normal = [62.6, 80.5, 83.7, 83.7]  # Gold Recall@1, @5, @10, @20 for normal case
-gold_recall_situatedqa_perturbed = [18.7, 36.4, 48.1, 51.4]  # Perturbed case
+gold_recall_situatedqa_normal = [63.3, 80.8, 84.2, 84.2]  # Gold Recall@1, @5, @10, @20 for normal case
+gold_recall_situatedqa_perturbed = [20, 40.3, 50.5, 54.2]  # Perturbed case
 
 # TimeQA
 gold_recall_timeqa_normal = [68.3, 81.3, 82.1, 82.1]      # Normal case
@@ -101,18 +101,18 @@ title_size = 22  # Title font size
 # === Plotting ===
 
 # Top-left: Answer Recall for SituatedQA
-axs[0, 0].bar(index, answer_recall_situatedqa_normal, bar_width, label='Oracle', color='#1f77b4')
+axs[0, 0].bar(index, answer_recall_situatedqa_normal, bar_width, label='Original', color='#1f77b4')
 axs[0, 0].bar(index + bar_width, answer_recall_situatedqa_perturbed, bar_width, label='Perturbed', color='#1f77b4', alpha=0.4)
-axs[0, 0].set_title('SituatedQA', fontsize=title_size+3)
+# axs[0, 0].set_title('SituatedQA', fontsize=title_size+3)
 axs[0, 0].set_xticks(index + bar_width / 2)
 axs[0, 0].set_xticklabels(recall_labels)
 axs[0, 0].set_ylim(0,100)
 axs[0, 0].set_ylabel('Answer Recall (%)', fontsize=title_size)
-# axs[0, 0].legend(fontsize=14)
+axs[0, 0].legend(fontsize=14, loc='lower right')
 axs[0, 0].tick_params(axis='both', which='major', labelsize=font_size)
 
 # Top-right: Answer Recall for TimeQA
-axs[0, 1].bar(index, answer_recall_timeqa_normal, bar_width, label='Oracle', color='#ff7f0e')
+axs[0, 1].bar(index, answer_recall_timeqa_normal, bar_width, label='Original', color='#ff7f0e')
 axs[0, 1].bar(index + bar_width, answer_recall_timeqa_perturbed, bar_width, label='Perturbed', color='#ff7f0e', alpha=0.4)
 axs[0, 1].set_title('TimeQA', fontsize=title_size+3)
 axs[0, 1].set_xticks(index + bar_width / 2)
@@ -123,18 +123,18 @@ axs[0, 1].set_yticklabels([])
 axs[0, 1].tick_params(axis='both', which='major', labelsize=font_size)
 
 # Bottom-left: Gold Evidence Recall for SituatedQA
-axs[1, 0].bar(index, gold_recall_situatedqa_normal, bar_width, label='Oracle', color='cadetblue')
+axs[1, 0].bar(index, gold_recall_situatedqa_normal, bar_width, label='Original', color='cadetblue')
 axs[1, 0].bar(index + bar_width, gold_recall_situatedqa_perturbed, bar_width, label='Perturbed', color='cadetblue', alpha=0.4)
 # axs[1, 0].set_title('SituatedQA', fontsize=title_size)
 axs[1, 0].set_xticks(index + bar_width / 2)
 axs[1, 0].set_xticklabels(recall_labels)
 axs[1, 0].set_ylim(0,100)
 axs[1, 0].set_ylabel('Evidence Recall (%)', fontsize=title_size)
-# axs[1, 0].legend(fontsize=14)
+axs[1, 0].legend(fontsize=14, loc='lower right')
 axs[1, 0].tick_params(axis='both', which='major', labelsize=font_size)
 
 # Bottom-right: Gold Evidence Recall for TimeQA
-axs[1, 1].bar(index, gold_recall_timeqa_normal, bar_width, label='Oracle', color='tan')
+axs[1, 1].bar(index, gold_recall_timeqa_normal, bar_width, label='Original', color='tan')
 axs[1, 1].bar(index + bar_width, gold_recall_timeqa_perturbed, bar_width, label='Perturbed', color='tan', alpha=0.4)
 # axs[1, 1].set_title('TimeQA', fontsize=title_size)
 axs[1, 1].set_xticks(index + bar_width / 2)
