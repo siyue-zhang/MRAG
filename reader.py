@@ -1,5 +1,7 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1,2"
+import ray
+ray.init(num_gpus=2) 
 
 from utils import *
 from prompts import *
@@ -17,15 +19,15 @@ from temp_eval import normalize
 #     pipe = pipeline("text-generation", model="Warrieryes/timo-13b-hf", model_kwargs={'load_in_8bit':True}, device_map='auto')
 #     return pipe
 
-def TimeLLAMA():
-    from transformers import pipeline
-    pipe = pipeline("text-generation", model="chrisyuan45/TimeLlama-13b-chat", device_map='auto')
-    return pipe
+# def TimeLLAMA():
+#     from transformers import pipeline
+#     pipe = pipeline("text-generation", model="chrisyuan45/TimeLlama-13b-chat", device_map='auto')
+#     return pipe
 
 
 def main():
     parser = argparse.ArgumentParser(description="Reader")
-    parser.add_argument('--max-examples', type=int, default=10)
+    parser.add_argument('--max-examples', type=int, default=None)
     parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
     # parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_minilm12_outputs.json")
     parser.add_argument('--ctx-topk', type=int, default=3)
@@ -63,17 +65,17 @@ def main():
     # if args.reader=='timo':
     #     args.llm = TIMO()
     #     args.llm_name = 'timo'
-    if args.reader=='timellama':
-        args.llm = TimeLLAMA()
-        args.llm_name = 'timellama'
+    # if args.reader=='timellama':
+    #     args.llm = TimeLLAMA()
+    #     args.llm_name = 'timellama'
+    # else:
+    args.llm_name = args.reader
+    args.l = llm_names(args.reader, instruct=True)
+    flg = '70b' in args.llm_name
+    if flg:
+        args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=15000)
     else:
-        args.llm_name = args.reader
-        args.l = llm_names(args.reader, instruct=True)
-        flg = '70b' in args.llm_name
-        if flg:
-            args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=15000)
-        else:
-            args.llm = LLM(args.l, tensor_parallel_size=1, dtype='float16', max_model_len=2048)
+        args.llm = LLM(args.l, tensor_parallel_size=2, dtype='float16', max_model_len=2048)
 
     # load examples
     if 'retrieved' not in args.retriever_output:
