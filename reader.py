@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
 
 from utils import *
 from prompts import *
@@ -12,10 +12,10 @@ import argparse
 from temp_eval import normalize
 
 
-def TIMO():
-    from transformers import pipeline
-    pipe = pipeline("text-generation", model="Warrieryes/timo-13b-hf", model_kwargs={'load_in_8bit':True}, device_map='auto')
-    return pipe
+# def TIMO():
+#     from transformers import pipeline
+#     pipe = pipeline("text-generation", model="Warrieryes/timo-13b-hf", model_kwargs={'load_in_8bit':True}, device_map='auto')
+#     return pipe
 
 def TimeLLAMA():
     from transformers import pipeline
@@ -25,10 +25,10 @@ def TimeLLAMA():
 
 def main():
     parser = argparse.ArgumentParser(description="Reader")
-    parser.add_argument('--max-examples', type=int, default=None)
+    parser.add_argument('--max-examples', type=int, default=10)
     parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
-    # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_minilm12_outputs.json")
-    parser.add_argument('--ctx-topk', type=int, default=0)
+    # parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_minilm12_outputs.json")
+    parser.add_argument('--ctx-topk', type=int, default=3)
     parser.add_argument('--param-pred', type=bool, default=True)
     parser.add_argument('--param-cot', type=bool, default=False)
     parser.add_argument('--not-save', type=bool, default=False)
@@ -38,7 +38,7 @@ def main():
         choices=['bm25', 'contriever','hybrid'], 
         default='contriever', #
     )
-    parser.add_argument('--reader', type=str, default='timo', choices=['llama', 'timo', 'timellama','llama_70b','llama_8b'])
+    parser.add_argument('--reader', type=str, default='timellama', choices=['llama', 'timo', 'timellama','llama_70b','llama_8b'])
     parser.add_argument('--paradigm', type=str, default='concat', choices=['fusion', 'concat'])
 
 

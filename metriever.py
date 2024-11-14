@@ -35,9 +35,9 @@ def main():
     )
     parser.add_argument(
         '--stage2-model', 
-        choices=['metriever','minilm6','minilm12','bge','tinybert','bigegemma','monot5', None], 
-        default='metriever', #
-        # default='bge', #
+        choices=['metriever','minilm6','minilm12','bge','tinybert','bgegemma','monot5', None], 
+        # default='metriever', #
+        default='bgegemma', #
         help='Choose a model for stage 2 re-ranking'
     )
     parser.add_argument(
@@ -58,7 +58,7 @@ def main():
     parser.add_argument('--llm', type=str, default="llama_70b")
     parser.add_argument('--save-note', type=str, default=None)
     parser.add_argument('--subset', type=str, default='situatedqa')
-    parser.add_argument('--save', type=bool, default=True)
+    parser.add_argument('--save', type=bool, default=False)
     parser.add_argument('--load-keywords', type=bool, default=False)
 
     args = parser.parse_args()
