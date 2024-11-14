@@ -109,7 +109,8 @@ def llm_names(l, instruct=False):
     elif l=="timo":
         l="Warrieryes/timo-13b-hf"
     elif l=="timellama":
-        l="chrisyuan45/TimeLlama-13b"
+        # l="chrisyuan45/TimeLlama-13b"
+        l="chrisyuan45/TimeLlama-13b-chat"
     return l
 
 def load_contriever_output(path):

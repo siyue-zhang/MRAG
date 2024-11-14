@@ -1,5 +1,5 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 from utils import *
 from prompts import *
@@ -19,7 +19,7 @@ from temp_eval import normalize
 
 def TimeLLAMA():
     from transformers import pipeline
-    pipe = pipeline("text-generation", model="chrisyuan45/TimeLlama-13b", model_kwargs={'load_in_8bit':True}, device_map='auto')
+    pipe = pipeline("text-generation", model="chrisyuan45/TimeLlama-13b-chat", device_map='auto')
     return pipe
 
 
@@ -73,7 +73,7 @@ def main():
         if flg:
             args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=15000)
         else:
-            args.llm = LLM(args.l, tensor_parallel_size=2, dtype='float16', max_model_len=2048)
+            args.llm = LLM(args.l, tensor_parallel_size=1, dtype='float16', max_model_len=2048)
 
     # load examples
     if 'retrieved' not in args.retriever_output:
