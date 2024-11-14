@@ -27,14 +27,14 @@ from temp_eval import normalize
 
 def main():
     parser = argparse.ArgumentParser(description="Reader")
-    parser.add_argument('--max-examples', type=int, default=None)
+    parser.add_argument('--max-examples', type=int, default=100)
     parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
     # parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_minilm12_outputs.json")
-    parser.add_argument('--ctx-topk', type=int, default=3)
-    parser.add_argument('--param-pred', type=bool, default=True)
+    parser.add_argument('--ctx-topk', type=int, default=50)
+    parser.add_argument('--param-pred', type=bool, default=False)
     parser.add_argument('--param-cot', type=bool, default=False)
-    parser.add_argument('--not-save', type=bool, default=False)
-    parser.add_argument('--save-note', type=str, default='dp')
+    parser.add_argument('--not-save', type=bool, default=True)
+    parser.add_argument('--save-note', type=str, default=None)
     parser.add_argument(
         '--stage1-model',
         choices=['bm25', 'contriever','hybrid'], 
@@ -75,8 +75,8 @@ def main():
     if flg:
         args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=15000)
     else:
-        args.llm = LLM(args.l, tensor_parallel_size=2, dtype='float16', max_model_len=2048)
-
+        args.llm = LLM(args.l, tensor_parallel_size=2, max_model_len=15000)
+# , dtype='float16'
     # load examples
     if 'retrieved' not in args.retriever_output:
         args.retriever_output = f'./retrieved/{args.retriever_output}'

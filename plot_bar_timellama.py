@@ -7,8 +7,8 @@ categories = ["DP", "CoT", "RAG", "DiP"] # Labels for bars within each group
 group_labels = ['TimeQA', 'SituatedQA']  # Labels for each group
 
 # Values for each group
-group1_values = [15.4, 15.2, 40.3, 0]
-group2_values = [50.6, 48.6, 51.8, 0]
+group1_values = [0, 0, 29.1, 0]
+group2_values = [0, 0, 37.4, 0]
 
 # Colors for each bar
 group1_colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:purple']
@@ -24,7 +24,7 @@ x = np.arange(len(categories)) * (bar_width + spacing_within_group)  # Position 
 x_shifted = x + group_spacing  # Shift the positions for Group 2 to maintain distance between the groups
 
 # Create the figure and plot the bars
-plt.figure(figsize=(6, 8))
+plt.figure(figsize=(8, 8))
 
 
 # Plotting Group 1 bars

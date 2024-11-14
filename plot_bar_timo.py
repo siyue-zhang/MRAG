@@ -24,7 +24,7 @@ x = np.arange(len(categories)) * (bar_width + spacing_within_group)  # Position 
 x_shifted = x + group_spacing  # Shift the positions for Group 2 to maintain distance between the groups
 
 # Create the figure and plot the bars
-plt.figure(figsize=(6, 8))
+plt.figure(figsize=(8, 8))
 
 
 # Plotting Group 1 bars

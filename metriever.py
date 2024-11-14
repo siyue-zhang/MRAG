@@ -26,7 +26,7 @@ debug_question = None
 
 def main():
     parser = argparse.ArgumentParser(description="Metriever")
-    parser.add_argument('--max-examples', type=int, default=None)
+    parser.add_argument('--max-examples', type=int, default=100)
     parser.add_argument(
         '--stage1-model',
         choices=['bm25', 'contriever','hybrid'], 
@@ -36,8 +36,8 @@ def main():
     parser.add_argument(
         '--stage2-model', 
         choices=['metriever','minilm6','minilm12','bge','tinybert','bgegemma','electra', None], 
-        # default='metriever', #
-        default='minilm12', #
+        default='metriever', #
+        # default='minilm12', #
         help='Choose a model for stage 2 re-ranking'
     )
     parser.add_argument(
@@ -49,17 +49,17 @@ def main():
     parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/TempRAGEval.json")
     parser.add_argument('--bm25-output', type=str, default="./TempRAGEval/BM25_output/TempRAGEval.json")
     parser.add_argument('--ctx-topk', type=int, default=100)
-    parser.add_argument('--QFS-topk', type=int, default=10)
+    parser.add_argument('--QFS-topk', type=int, default=0)
     parser.add_argument('--snt-topk', type=int, default=200)
     parser.add_argument('--complete-ctx-text', type=bool, default=False)
     parser.add_argument('--hybrid-score', type=bool, default=True)
     parser.add_argument('--hybrid-base', type=float, default=0)
     parser.add_argument('--snt-with-title', type=bool, default=True)
-    parser.add_argument('--llm', type=str, default="llama_70b")
+    parser.add_argument('--llm', type=str, default="llama_8b")
     parser.add_argument('--save-note', type=str, default=None)
-    parser.add_argument('--subset', type=str, default='timeqa')
+    parser.add_argument('--subset', type=str, default='situatedqa')
     parser.add_argument('--save', type=bool, default=False)
-    parser.add_argument('--load-keywords', type=bool, default=False)
+    parser.add_argument('--load-keywords', type=bool, default=True)
 
     args = parser.parse_args()
     args.m1 = retrival_model_names(args.stage1_model)
@@ -674,17 +674,25 @@ def get_spline_function(time_relation_type, implicit_condition, question_years):
         y_points = np.array([low, 1])
     linear_interp_function = interp1d(x_points, y_points, kind='linear')
 
-    # x_fine = np.linspace(start, end, 10)
-    # y_fine = linear_interp_function(x_fine)
-
-    # # Plot the original points and the interpolated straight lines
+    x_fine = np.linspace(start, end, 10)
+    y_fine = linear_interp_function(x_fine)
+    x_fine = [start-30, start-0.1] + list(x_fine) + [end+0.1, end+30]
+    y_fine = [0.5, 0.5] + list(y_fine) + [0.5, 0.5]
+    
+    # Plot the original points and the interpolated straight lines
     # plt.plot(x_points, y_points, 'o', label='Original points')
-    # plt.plot(x_fine, y_fine, label='Linear interpolation')
+    plt.figure(figsize=(4, 3))
+    plt.plot(x_fine, y_fine)
+    plt.ylim(0.2, 1.1)
+    plt.yticks(np.arange(0.2, 1.1, 0.2))
     # plt.xlabel('x')
     # plt.ylabel('y')
-    # plt.title('Linear Interpolation')
-    # plt.legend()
-    # plt.savefig('spline_plot.png')
+    title = ', '.join([str(s) for s in question_years])
+    plt.title(f'{implicit_condition} - {time_relation_type} - {title}')
+    # plt.grid(True, linestyle='-', color='lightgrey', axis='y')
+    plt.tight_layout()
+    plt.savefig('spline_plot.png')
+    import ipdb; ipdb.set_trace()
 
     return linear_interp_function
 
