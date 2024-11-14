@@ -57,7 +57,7 @@ def main():
     parser.add_argument('--snt-with-title', type=bool, default=True)
     parser.add_argument('--llm', type=str, default="llama_70b")
     parser.add_argument('--save-note', type=str, default=None)
-    parser.add_argument('--subset', type=str, default='situatedqa')
+    parser.add_argument('--subset', type=str, default='timeqa')
     parser.add_argument('--save', type=bool, default=False)
     parser.add_argument('--load-keywords', type=bool, default=False)
 
