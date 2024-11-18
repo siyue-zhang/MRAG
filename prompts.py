@@ -83,7 +83,7 @@ What was German submarine U-37 (1938) afflicted to?
 ["German", "submarine", "U-37", "1938", "afflicted"]
 </Keywords>
 
-Now your question is as follows.
+Now your question is
 <Question>
 {question}
 </Question>
@@ -136,7 +136,7 @@ What was the worldwide box office of Jurassic movie
 The movie, The Lost World: Jurassic Park, grossed a total of $618.6 million at the worldwide box office in 1997.
 </Summarization>
 
-Now your question and paragraph are as follows.
+Now your question and paragraph are
 <Context>
 {title} | {text}
 </Context>
@@ -153,8 +153,8 @@ Now your question and paragraph are as follows.
 def zc_prompt(question):
 
     prompt=f"""As an assistant, your task is to answer the question directly after <Question>. Your answer should be after <Answer>.
-There are some examples for you to refer to:
 
+There are some examples for you to refer to:
 <Question>
 When did England last get to the semi final of a World Cup before 2019?
 </Question>
@@ -226,7 +226,6 @@ Columbia University
 </Answer>
 
 Now your Question is
-
 <Question>
 {question}
 </Question>
@@ -239,8 +238,8 @@ Now your Question is
 def zc_cot_prompt(question):
 
     prompt=f"""As an assistant, your task is to answer the question after <Question>. You should first think step by step about the question and give your thought and then answer the <Question> in the short form. Your thought should be after <Thought>. The direct answer should be after <Answer>.
-There are some examples for you to refer to:
 
+There are some examples for you to refer to:
 <Question>
 When did England last get to the semi final of a World Cup before 2019?
 </Question>
@@ -332,13 +331,11 @@ Now your Question is
 
 def c_prompt(query, texts):
 
-    prompt=f"""Answer the given question, you can refer to the document provided.
-As an assistant, your task is to answer the question based on the given knowledge. Your answer should be after <Answer>.
+    prompt=f"""As an assistant, your task is to answer the question based on the given knowledge. Answer the given question, you can refer to the document provided. Your answer should be after <Answer>.
 The given knowledge will be after the <Context> tage. You can refer to the knowledge to answer the question.
 If the context knowledge does not contain the answer, answer the question directly.
 
 There are some examples for you to refer to:
-
 <Context>
 Sport in the United Kingdom Field | hockey is the second most popular team recreational sport in the United Kingdom. The Great Britain men's hockey team won the hockey tournament at the 1988 Olympics, while the women's hockey team repeated the success in the 2016 Games.
 
@@ -399,8 +396,7 @@ Theo-Ben Gurirab took which position as of 2004?
 Prime Minister of Namibia
 </Answer>
 
-Now your question and context knowledge are as follows.
-
+Now your question and context knowledge are
 <Context>
 {texts}
 </Context>
@@ -420,7 +416,6 @@ The given knowledge will be after the <Context> tage. You can refer to the knowl
 If the knowledge does not contain the answer, answer the question directly.
 
 There are some examples for you to refer to:
-
 <Context>
 Sport in the United Kingdom Field | hockey is the second most popular team recreational sport in the United Kingdom. The Great Britain men's hockey team won the hockey tournament at the 1988 Olympics, while the women's hockey team repeated the success in the 2016 Games.
 
@@ -468,8 +463,7 @@ The question asks about the last Rugby World Cup held between 2007 and 2016. The
 England
 </Answer>
 
-Now your question and context knowledge are as follows.
-
+Now your question and context knowledge are
 <Context>
 {texts}
 </Context>
@@ -490,6 +484,7 @@ Requirements are follows:
 - Then you should think step by step and give your thought after <Thought>.
 - Finally, write the response by "Yes" or "No" after <Response>.
 
+There are some examples for you to refer to:
 <Context>
 Petronas Towers | From 1996 to 2004, they were officially designated as the tallest buildings in the world until they were surpassed by the completion of Taipei 101. The Petronas Towers remain the world's tallest twin skyscrapers, surpassing the World Trade Center towers in New York City, and were the tallest buildings in Malaysia until 2019, when they were surpassed by The Exchange 106.
 </Context>
@@ -503,7 +498,6 @@ The context paragraph talks about the Petronas Towers. The context paragraph sta
 Yes
 </Response>
 
-There are some examples for you to refer to:
 <Context>
 Petronas Towers | The Petronas Towers (Malay: Menara Berkembar Petronas), also known as the Petronas Twin Towers and colloquially the KLCC Twin Towers, are an interlinked pair of 88-storey supertall skyscrapers in Kuala Lumpur, Malaysia, standing at 451.9 metres (1,483 feet).
 </Context>
@@ -530,7 +524,7 @@ The context paragraph talks about the 20th-century religious leaders Church of E
 Yes
 </Response>
 
-Now your context paragraph and question are as follows.
+Now your context paragraph and question are
 <Context>
 {context}
 </Context>
@@ -609,7 +603,7 @@ Oliver Bulleid was an employee for whom
 - Oliver Bulleid was an employee for the GNR from December 1912.
 </Answer>
 
-Now your context paragraph and question are as follows.
+Now your context paragraph and question are
 <Context>
 {title} | {text}
 </Context>
@@ -699,7 +693,7 @@ Oliver Bulleid was an employee for whom
 {{"Board of Trade": {{"start_year": 1910, "start_month": 0, "end_year": 0, "end_month": 0}}}}
 </Answer>
 
-Now your context sentence and question are as follows.
+Now your context sentence and question are
 <Context>
 {answer}
 </Context>
@@ -715,7 +709,6 @@ def combiner(question, contexts):
     prompt = f"""You will be given a context paragraph and a question. As an assistant, your task is to answer the question only based on the information from the context. You should first think step by step about the question and give your thought and then answer the <Question>. Your thought should be after <Thought>. Your answer should be after <Answer>. If there is no answer in the context, response "None".
     
 There are some examples for you to refer to:
-
 <Context>
 England hosted the World Cup and went on to win the tournament in 1966, defeating West Germany 4-2 in the final.
 England reached the World Cup semi-finals in 1990.
@@ -803,8 +796,7 @@ The question asks about the employer of Oliver Bulleid between 1911 and 1912. Th
 Board of Trade
 </Answer>
 
-Now your context paragraph and question are as follows.
-
+Now your context paragraph and question are
 <Context>
 {contexts}
 </Context>

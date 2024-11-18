@@ -108,7 +108,7 @@ axs[0, 0].set_xticks(index + bar_width / 2)
 axs[0, 0].set_xticklabels(recall_labels)
 axs[0, 0].set_ylim(0,100)
 axs[0, 0].set_ylabel('Answer Recall (%)', fontsize=title_size)
-axs[0, 0].legend(fontsize=14, loc='lower right')
+axs[0, 0].legend(fontsize=16, loc='lower right')
 axs[0, 0].tick_params(axis='both', which='major', labelsize=font_size)
 
 # Top-right: Answer Recall for TimeQA
@@ -130,7 +130,7 @@ axs[1, 0].set_xticks(index + bar_width / 2)
 axs[1, 0].set_xticklabels(recall_labels)
 axs[1, 0].set_ylim(0,100)
 axs[1, 0].set_ylabel('Evidence Recall (%)', fontsize=title_size)
-axs[1, 0].legend(fontsize=14, loc='lower right')
+axs[1, 0].legend(fontsize=16, loc='lower right')
 axs[1, 0].tick_params(axis='both', which='major', labelsize=font_size)
 
 # Bottom-right: Gold Evidence Recall for TimeQA

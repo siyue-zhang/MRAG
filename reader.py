@@ -1,7 +1,7 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "1,2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
 import ray
-ray.init(num_gpus=2) 
+ray.init(num_gpus=4) 
 
 from utils import *
 from prompts import *
@@ -27,21 +27,21 @@ from temp_eval import normalize
 
 def main():
     parser = argparse.ArgumentParser(description="Reader")
-    parser.add_argument('--max-examples', type=int, default=100)
-    parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
+    parser.add_argument('--max-examples', type=int, default=None)
+    parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
     # parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_minilm12_outputs.json")
-    parser.add_argument('--ctx-topk', type=int, default=50)
+    parser.add_argument('--ctx-topk', type=int, default=20)
     parser.add_argument('--param-pred', type=bool, default=False)
     parser.add_argument('--param-cot', type=bool, default=False)
-    parser.add_argument('--not-save', type=bool, default=True)
+    parser.add_argument('--not-save', type=bool, default=False)
     parser.add_argument('--save-note', type=str, default=None)
     parser.add_argument(
         '--stage1-model',
         choices=['bm25', 'contriever','hybrid'], 
         default='contriever', #
     )
-    parser.add_argument('--reader', type=str, default='timellama', choices=['llama', 'timo', 'timellama','llama_70b','llama_8b'])
-    parser.add_argument('--paradigm', type=str, default='concat', choices=['fusion', 'concat'])
+    parser.add_argument('--reader', type=str, default='timo', choices=['llama', 'timo', 'timellama','llama_70b','llama_8b'])
+    parser.add_argument('--paradigm', type=str, default='fusion', choices=['fusion', 'concat'])
 
 
     args = parser.parse_args()
@@ -75,8 +75,8 @@ def main():
     if flg:
         args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=15000)
     else:
-        args.llm = LLM(args.l, tensor_parallel_size=2, max_model_len=15000)
-# , dtype='float16'
+        args.llm = LLM(args.l, tensor_parallel_size=4, max_model_len=20000)
+
     # load examples
     if 'retrieved' not in args.retriever_output:
         args.retriever_output = f'./retrieved/{args.retriever_output}'
@@ -124,6 +124,12 @@ def main():
             gold_evidences = ex['gold_evidences']
             rag_pred = rag_preds[k]
             ex['rag_pred'] = rag_pred
+            if isinstance(rag_pred, list):
+                if len(rag_pred)>0:
+                    rag_pred = str(rag_pred[0])
+                else:
+                    rag_pred = ''
+            assert isinstance(rag_pred, str), rag_pred
             ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
             ex['rag_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(rag_pred))
     
@@ -155,7 +161,7 @@ def main():
         checker_responses = call_pipeline(args, checker_prompts, 500)
         checker_results = ['yes' in res.lower() for res in checker_responses]
         print('started reader')
-        reader_responses = call_pipeline(args, reader_prompts, 500)
+        reader_responses = call_pipeline(args, reader_prompts, 500, return_list=True)
 
 
         for x, y, z in zip(reader_prompts, reader_responses, checker_responses):
