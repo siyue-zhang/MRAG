@@ -43,7 +43,7 @@ def main():
     parser.add_argument(
         '--metriever-model', 
         choices=['minilm6','minilm12','bge','tinybert','bgegemma'], 
-        default='minilm12',
+        default='bgegemma',
         help='Choose a model for metriever stage2 re-ranking'
     )
     parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/TempRAGEval.json")
@@ -241,28 +241,17 @@ def main():
 
     if args.m2 and args.m2 != 'metriever':
         # benchmark baselines
-        if args.stage2_model=='monot5':
-            pass
-            # for example in examples:
-            #     query = Query(example["question"])
-            #     passages = example[ctx_key][:100]
-            #     texts = [Text(p["text"], {"id": p["id"], "title": p["title"], "hasanswer": p["hasanswer"]}, p["score"]) for p in passages]
-            #     reranked = model.rerank(query, texts)
-            #     latest_ctxs = [{"id": ex.metadata["id"], "title": ex.metadata["title"], "text": ex.text, "score": ex.score, "hasanswer": ex.metadata["hasanswer"]} for ex in reranked]
-            #     latest_ctxs = sorted(latest_ctxs, key=lambda x: x["score"], reverse=True)
-            #     example['reranker_ctxs'] = latest_ctxs
-        else:
-            flg = 'bge' in args.stage2_model
-            for ex in tqdm(examples, desc="Reranking contexts"):
-                question = ex['question']
-                latest_ctxs = deepcopy(ex[ctx_key])
-                latest_ctxs = latest_ctxs[:args.ctx_topk]
-                model_inputs = [[question, ctx["title"]+" "+ctx["text"]] for ctx in latest_ctxs]
-                scores = args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)   
-                for i, ctx in enumerate(latest_ctxs):
-                    ctx["score"] = float(scores[i])
-                latest_ctxs = sorted(latest_ctxs, key=lambda x: x['score'], reverse=True)
-                ex['reranker_ctxs'] = latest_ctxs
+        flg = 'bge' in args.stage2_model
+        for ex in tqdm(examples, desc="Reranking contexts"):
+            question = ex['question']
+            latest_ctxs = deepcopy(ex[ctx_key])
+            latest_ctxs = latest_ctxs[:args.ctx_topk]
+            model_inputs = [[question, ctx["title"]+" "+ctx["text"]] for ctx in latest_ctxs]
+            scores = args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)   
+            for i, ctx in enumerate(latest_ctxs):
+                ctx["score"] = float(scores[i])
+            latest_ctxs = sorted(latest_ctxs, key=lambda x: x['score'], reverse=True)
+            ex['reranker_ctxs'] = latest_ctxs
         # evaluate reranking results    
         ctx_key = 'reranker_ctxs'
         examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
