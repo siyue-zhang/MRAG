@@ -146,6 +146,12 @@ Oliver Bulleid was an employee for whom?
 
 </Summarization>
 
+Who was the spouse of Doris Schröder?
+
+Doris Schröder-Köpf
+
+Köpf and partner Sven Kuntze moved to New York City in 1990, where they had a daughter named Klara in the following year. Soon after the birth the pair separated and Köpf moved back to Bavaria with the child. In October 1997, Köpf married Gerhard Schröder, then Minister-President of Lower Saxony.
+
 Now your question and paragraph are
 <Context>
 {title} | {text}
