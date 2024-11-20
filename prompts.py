@@ -91,7 +91,7 @@ Now your question is
 """
     return prompt
 
-
+# TO ADD EXAMPLOR FOR TIMEQA
 def get_QFS_prompt(question, title, text):
     prompt = f"""You are given a context paragraph and a specific question. Your goal is to summarize the context paragraph in one standalone sentence by answering the given question. If dates are mentioned in the paragraph, include them in your answer. If the question cannot be answered based on the paragraph, respond with "None". Ensure that the response is relevant, complete, concise and directly addressing the question.
 
@@ -134,6 +134,16 @@ What was the worldwide box office of Jurassic movie?
 </Question>
 <Summarization>
 The movie, The Lost World: Jurassic Park, grossed a total of $618.6 million at the worldwide box office in 1997.
+</Summarization>
+
+<Context>
+Oliver Bulleid |  He was born in Invercargill, New Zealand, to William Bulleid and his wife Marian Pugh, both British immigrants. On the death of his father in 1889, his mother returned to Llanfyllin, Wales, where the family home had been, with Bulleid. In 1901, after a technical education at Accrington Grammar School, he joined the Great Northern Railway (GNR) at Doncaster at the age of 18, as an apprentice under H. A. Ivatt, the Chief Mechanical Engineer (CME). After a four-year apprenticeship, he became the assistant to the Locomotive Running Superintendent, and a year later, the Doncaster Works manager. In 1908, he left to work in Paris with the French division of Westinghouse Electric Corporation as a Test Engineer, and was soon promoted to Assistant Works Manager and 
+</Context>
+<Question>
+Oliver Bulleid was an employee for whom?
+</Question>
+<Summarization>
+
 </Summarization>
 
 Now your question and paragraph are
