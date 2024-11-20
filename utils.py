@@ -419,10 +419,10 @@ def call_pipeline(args, prompts, max_tokens=100, return_list=False):
         sampling_params = SamplingParams(temperature=0.2, top_p=0.95, max_tokens=max_tokens, seed=0)
         outputs = args.llm.generate(prompts, sampling_params)
         responses = [output.outputs[0].text for output in outputs]
-        print('//////')
-        print(prompts[0])
-        print('//////')
-        print(responses[0])
+        # print('//////')
+        # print(prompts[0])
+        # print('//////')
+        # print(responses[0])
         # import ipdb; ipdb.set_trace()
 
         for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Response>']:
@@ -445,7 +445,9 @@ def call_pipeline(args, prompts, max_tokens=100, return_list=False):
                 for r in responses:
                     ans = r.split('\n')
                     ans = [rr for rr in ans if len(rr)>0]
-                    tmp.append(ans[0].strip())
-                # import ipdb; ipdb.set_trace()
+                    if len(ans)>0:
+                        tmp.append(ans[0].strip())
+                    else:
+                        tmp.append('')
                 responses = tmp
         return responses

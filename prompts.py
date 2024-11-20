@@ -85,7 +85,7 @@ What was German submarine U-37 (1938) afflicted to?
 
 Now your question is
 <Question>
-{question}
+{question}?
 </Question>
 <Keywords>
 """
@@ -100,7 +100,7 @@ There are some examples for you to refer to:
 Houston Rockets | The Houston Rockets have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
 </Context>
 <Question>
-When did the Houston Rockets win the NBA championship
+When did the Houston Rockets win the NBA championship?
 </Question>
 <Summarization>
 The Houston Rockets have won the NBA championship in 1994 and 1995.
@@ -110,7 +110,7 @@ The Houston Rockets have won the NBA championship in 1994 and 1995.
 2019 Grand National | The 2019 Grand National (officially known as the Randox Health 2019 Grand National for sponsorship reasons) was the 172nd annual running of the Grand National horse race at Aintree Racecourse near Liverpool, England. The showpiece steeplechase is the pinnacle of a three-day festival which began on 4 April, followed by Ladies' Day on 5 April.
 </Context>
 <Question>
-Who won the Grand National
+Who won the Grand National?
 </Question>
 <Summarization>
 None
@@ -120,7 +120,7 @@ None
 India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
 </Context>
 <Question>
-Who serve as President of India
+Who serve as President of India?
 </Question>
 <Summarization>
 Neelam Sanjiva Reddy was elected as the President of India in 1977, K. R. Narayanan served as the President of India from 1977 until 2002, Droupadi Murmu was elected as the President of India in 2022.
@@ -130,7 +130,7 @@ Neelam Sanjiva Reddy was elected as the President of India in 1977, K. R. Naraya
 The Lost World: Jurassic Park | The Lost World: Jurassic Park is a 1997 American science fiction action film. In Thailand, The Lost World became the country's highest-grossing film of all time. It ultimately grossed $229.1 million in the U.S. and $389.5 million internationally, for a total of $618.6 million worldwide. The film sold an estimated 49,910,000 tickets in North America.
 </Context>
 <Question>
-What was the worldwide box office of Jurassic movie
+What was the worldwide box office of Jurassic movie?
 </Question>
 <Summarization>
 The movie, The Lost World: Jurassic Park, grossed a total of $618.6 million at the worldwide box office in 1997.
@@ -141,7 +141,7 @@ Now your question and paragraph are
 {title} | {text}
 </Context>
 <Question>
-{question}
+{question}?
 </Question>
 <Summarization>
 """
@@ -410,8 +410,7 @@ Now your question and context knowledge are
 
 def c_cot_prompt(query, texts):
 
-    prompt=f"""Answer the given question, you can refer to the document provided.
-As an assistant, your task is to answer the question based on the given knowledge. Your answer should be after <Answer>.
+    prompt=f"""As an assistant, your task is to answer the question based on the given knowledge. Answer the given question, you can refer to the document provided. Your answer should be after <Answer>.
 The given knowledge will be after the <Context> tage. You can refer to the knowledge to answer the question.
 If the knowledge does not contain the answer, answer the question directly.
 
@@ -489,10 +488,10 @@ There are some examples for you to refer to:
 Petronas Towers | From 1996 to 2004, they were officially designated as the tallest buildings in the world until they were surpassed by the completion of Taipei 101. The Petronas Towers remain the world's tallest twin skyscrapers, surpassing the World Trade Center towers in New York City, and were the tallest buildings in Malaysia until 2019, when they were surpassed by The Exchange 106.
 </Context>
 <Question>
-Tallest building in the world
+Tallest building in the world?
 </Question>
 <Thought>
-The context paragraph talks about the Petronas Towers. The context paragraph states that Petronas Towers were officially designated as the tallest buildings in the world from 1996 to 2004. And the Taipei 101 became the the tallest building in the world after 2004. This context paragraph contains two answers to the question. Therefore, the response is "Yes". 
+The question asks what the tallest building in the world is. The context paragraph talks about the Petronas Towers. The context paragraph states that Petronas Towers were officially designated as the tallest buildings in the world from 1996 to 2004. And the Taipei 101 became the the tallest building in the world after 2004. This context paragraph contains two answers to the question. Therefore, the response is "Yes". 
 </Thought>
 <Response>
 Yes
@@ -502,10 +501,10 @@ Yes
 Petronas Towers | The Petronas Towers (Malay: Menara Berkembar Petronas), also known as the Petronas Twin Towers and colloquially the KLCC Twin Towers, are an interlinked pair of 88-storey supertall skyscrapers in Kuala Lumpur, Malaysia, standing at 451.9 metres (1,483 feet).
 </Context>
 <Question>
-Tallest building in the world
+Tallest building in the world?
 </Question>
 <Thought>
-The context paragraph talks about the Petronas Towers and their height of 451.9 metres (1,483 feet). However, it does not state the Petronas Towers is the tallest building in the world. The context paragraph does not tell which building is the tallest in the world. Therefore, the response is "No". 
+The question asks what the tallest building in the world is. The context paragraph talks about the Petronas Towers and their height of 451.9 metres (1,483 feet). However, it does not state the Petronas Towers is the tallest building in the world. The context paragraph does not tell which building is the tallest in the world. Therefore, the response is "No". 
 </Thought>
 <Response>
 No
@@ -515,13 +514,26 @@ No
 List of 20th-century religious leaders Church of England | Formal leadership: Supreme Governor of the Church of England (complete list) – ; Victoria, Supreme Governor (1837–1901) ; Edward VII, Supreme Governor (1901–1910) ; George V, Supreme Governor (1910–1936) ; Cosmo Gordon Lang, Archbishop of Canterbury (1928–1942) ; William Temple, Archbishop of Canterbury (1942–1944) ; 
 </Context>
 <Question>
-Who is the head of the Church in England
+Who is the head of the Church in England?
 </Question>
 <Thought>
-The context paragraph talks about the 20th-century religious leaders Church of England. In this list, it states the names of Supreme Governor of the Church of England, which is the head of the Church in England. This context contains the answers for the head of the Church in England: Victoria, Edward VII, and George V. Therefore, the response is "Yes". 
+The question asks who the head of the Church in England is. The context paragraph talks about the 20th-century religious leaders Church of England. In this list, it states the names of Supreme Governor of the Church of England, which is the head of the Church in England. This context contains the answers for the head of the Church in England: Victoria, Edward VII, and George V. Therefore, the response is "Yes". 
 </Thought>
 <Response>
 Yes
+</Response>
+
+<Context>
+Abbey Christian Brothers' Grammar School | Frank Aiken (1898-1983) TD, Irish Republican Army commander, Tánaiste and served as Minister for Defence (1932–39), Minister for the Co-ordination of Defensive Measures (1939–45), Minister for Finance (1945–48) and Minister for External Affairs (1951–54; 1957–69) ; Séamus Mallon (1936-2020), Member of Parliament (MP) for Newry & Armagh (1986-2005)
+</Context>
+<Question>
+Who is the Minister for Defence in Ireland?
+</Question>
+<Thought>
+The question asks who the Minister for Defence in Ireland is. The context paragraph talks about Frank Aiken and Séamus Mallon. Frank Aiken was Irish Republican Army commander, Tánaiste and served as Minister for Defence from 1932 to 1939, Minister for the Co-ordination of Defensive Measures from 1939 to 1945, Minister for Finance from 1945 to 1948, and Minister for External Affairs from 1951 to 1954 and from 1957 to 1969. Séamus Mallon was Member of Parliament (MP) for Newry & Armagh from 1986 to 2005. Frank Aiken and Séamus Mallon were not the Minister for Defence in Ireland. The context paragraph does not tell who the the Minister for Defence in Ireland is. Therefore, the response is "No".
+</Thought>
+<Response>
+No
 </Response>
 
 Now your context paragraph and question are
@@ -529,8 +541,68 @@ Now your context paragraph and question are
 {context}
 </Context>
 <Question>
-{question}
+{question}?
 </Question>
+<Thought>
+"""
+    return prompt
+
+
+
+def entailer(context, ans):
+    prompt = f"""You will be given a context paragraph and a sentence. As an assistant, your task is decide whether the context paragraph entails the sentence. Response "Yes" if the sentence can be validated by the context paragraph, otherwise response "No".
+Requirements are follows:
+- First read the paragraph after <Context> and sentence after <Sentence> carefully.
+- Then you should think step by step and give your thought after <Thought>.
+- Finally, write the response by "Yes" or "No" after <Response>.
+
+There are some examples for you to refer to:
+<Context>
+1981 World Series |  during the 1980s. However, since their 1988 World Series win, the Dodgers would not appear in another World Series until 2017 (which they lost to the Houston Astros), despite reaching the NLCS in 2008, 2009, 2013, and 2016.
+</Context>
+<Sentence>
+Dodgers played the Yankees in the World Series in 1988.
+</Sentence>
+<Thought>
+According to the context, the Dodgers won the 1988 World Series. But the context does not mention that Dodgers played the Yankees in the 1988 World Series. The context does not entail the sentence. Therefore, the response is "No". 
+</Thought>
+<Response>
+No
+</Response>
+
+<Context>
+Jurassic Park Movies | The Lost World: Jurassic Park is a 1997 American science fiction action film. The film was backed by an extensive $65 million marketing campaign, which included licensing deals with over 100 companies. It ultimately grossed $229.1 million in the U.S. and $389.5 million internationally, for a total of $618.6 million worldwide. The film sold an estimated 49,910,000 tickets in North America. Jurassic Park premiered on June 9, 1993, at the Uptown Theater in Washington, D.C., and was released on June 11 in the United States. It was a blockbuster hit and went on to gross over $914 million worldwide in its original theatrical run
+</Context>
+<Sentence>
+The worldwide box office of the 1997 Jurassic movie - The Lost World: Jurassic Park was $618.6 million.
+</Sentence>
+<Thought>
+According to the context, the 1997 Jurassic movie - The Lost World: Jurassic Park has the $618.6 million worldwide box office. The context can entail the sentence. Therefore, the response is "Yes". 
+</Thought>
+<Response>
+Yes
+</Response>
+
+<Context>
+Dodgers–Giants rivalry | each league had only one representative in New York—the Giants in the NL and Dodgers (then known as the Bridegrooms) in the AA. The teams met in the 1889 World Series, in which the Giants defeated the Bridegrooms 6 games to 3.
+</Context>
+<Sentence>
+The Dodgers played the Giants in the 1889 World Series.
+</Sentence>
+<Thought>
+According to the context, the the Giants defeated the Bridegrooms in the 1889 World Series. But the Dodgers is not mentioned in the 1889 World Series. The context does not entail the sentence. Therefore, the response is "No". 
+</Thought>
+<Response>
+No
+</Response>
+
+Now your context paragraph and sentence are
+<Context>
+{context}
+</Context>
+<Sentence>
+{ans}
+</Sentence>
 <Thought>
 """
     return prompt
@@ -538,32 +610,31 @@ Now your context paragraph and question are
 
 def reader(question, title, text):
 
-    prompt = f"""You will be given a context paragraph and a question. First read the context paragraph carefully. Only based on this context information, write the answers in standalone sentences for the question accurately. Sentences should start after <Answer> and end with </Answer>.
-Requirements are follows:
-- Only include one anwer in one sentence per line.
-- Each sentence should also include the date corresponding to the answer if it is mentioned or can be inferred.
-- If the context knowledge contains no answer to the question, write "None".
+    prompt = f"""You will be given a context paragraph and a question. Your task is to find the answers in the given context paragraph for the given question.  
+- Read the provided context carefully.
+- Answer the question based strictly on the context. Do not use your own knowledge
+- Write one answer per line with the corresponding date especially the year for the answer.
+- If the context knowledge does not contain any answer to the question, write "None".
 
 There are some examples for you to refer to:
 <Context>
-Houston Rockets | The Houston Rockets have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995. They have also won the champions in 1996-1997, 1999, 2000-01. 
+Houston Rockets | The team has won the NBA championships in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. After losing the championship in 1999, they won in 2000-01. They have not won the title since 2001. In 2008, the team reclaimed the championship for the first time since 2001. Houston Rockets lost the NBA championship in 2012.
 </Context>
 <Question>
-When did the Houston Rockets win the NBA championship
+When did the Houston Rockets win the NBA championship?
 </Question>
 <Answer>
 - Houston Rockets won the NBA championship in 1994.
 - Houston Rockets won the NBA championship in 1995.
-- Houston Rockets won the NBA championship in 1996-1997.
-- Houston Rockets won the NBA championship in 1999.
 - Houston Rockets won the NBA championship in 2000-01.
+- Houston Rockets won the NBA championship in 2008.
 </Answer>
 
 <Context>
-List of presidents of India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
+List of presidents of India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president. Averaging an economic growth rate of 7.5% for several years prior to 2007, India has more than doubled its hourly wage rates during the first decade of the 21st century.
 </Context>
 <Question>
-Who serve as President of India
+Who serve as President of India?
 </Question>
 <Answer>
 - Neelam Sanjiva Reddy served as the sixth President of India from 1977.
@@ -572,31 +643,31 @@ Who serve as President of India
 </Answer>
 
 <Context>
-Jurassic Park Movies | The Lost World: Jurassic Park is a 1997 American science fiction action film. In Thailand, The Lost World became the country's highest-grossing film of all time. It ultimately grossed $229.1 million in the U.S. and $389.5 million internationally, for a total of $618.6 million worldwide. The film sold an estimated 49,910,000 tickets in North America. Jurassic Park premiered on June 9, 1993, at the Uptown Theater in Washington, D.C., and was released on June 11 in the United States. It was a blockbuster hit and went on to gross over $914 million worldwide in its original theatrical run
+Jurassic Park Movies | The Lost World: Jurassic Park is a 1997 American science fiction action film. The film was backed by an extensive $65 million marketing campaign, which included licensing deals with over 100 companies. It ultimately grossed $229.1 million in the U.S. and $389.5 million internationally, for a total of $618.6 million worldwide. The film sold an estimated 49,910,000 tickets in North America. Jurassic Park premiered on June 9, 1993, at the Uptown Theater in Washington, D.C., and was released on June 11 in the United States. It was a blockbuster hit and went on to gross over $914 million worldwide in its original theatrical run
 </Context>
 <Question>
-What was the worldwide box office of Jurassic movie
+What was the worldwide box office of the Jurassic movie?
 </Question>
 <Answer>
-- The worldwide box office of Jurassic movie - The Lost World: Jurassic Park was $618.6 million in 1997.
-- The worldwide box office of Jurassic movie - Jurassic Park was $914 million, which was premiered on June 9, 1993.
+- The worldwide box office of the 1997 Jurassic movie - The Lost World: Jurassic Park was $618.6 million.
+- The worldwide box office of the 1993 Jurassic movie - Jurassic Park was $914 million, which was premiered on June 9, 1993.
 </Answer>
 
 <Context>
-1980 Summer Olympics | Hence, the selection process for the 1984 Summer Olympics consisted of a single finalized bid from Los Angeles, which the International Olympic Committee (IOC) accepted in 1976. Los Angeles was awarded the selection officially on May 18, 1978 for the 1984 Summer Olympics.
+1980 Summer Olympics | Hence, the selection process for the 1984 Summer Olympics consisted of a single finalized bid from Los Angeles, which the International Olympic Committee (IOC) accepted in 1976. Los Angeles was awarded the selection officially on May 18, 1978 for the 1984 Summer Olympics. The choice between them was made at the 75th IOC Session in Vienna, Austria on 23 October 1974.
 </Context>
 <Question>
-When has the United States hosted Summer Olympics
+When has the United States hosted Summer Olympics?
 </Question>
 <Answer>
 - The United States has hosted 1984 Summer Olympics.
 </Answer>
 
 <Context>
-Oliver Bulleid | A brief period working for the Board of Trade followed from 1910, arranging exhibitions in Brussels, Paris and Turin. He was able to travel widely in Europe, later including a trip with Nigel Gresley, William Stanier and Frederick Hawksworth, to Belgium, in 1934, to see a metre-gauge bogie locomotive. In December 1912, he rejoined the GNR as Personal Assistant to Nigel Gresley, the new CME. Gresley was only six years Bulleid's senior.
+Oliver Bulleid | (19 September 1882 – 25 April 1970). A brief period working for the Board of Trade followed from 1910, arranging exhibitions in Brussels, Paris and Turin. He was able to travel widely in Europe, later including a trip with Nigel Gresley, William Stanier and Frederick Hawksworth, to Belgium, in 1934, to see a metre-gauge bogie locomotive. In December 1912, he rejoined the GNR as Personal Assistant to Nigel Gresley, the new CME. Gresley was only six years Bulleid's senior. Bulleid was elected president of the Institution of Mechanical Engineers for 1946.
 </Context>
 <Question>
-Oliver Bulleid was an employee for whom
+Oliver Bulleid was an employee for whom?
 </Question>
 <Answer>
 - Oliver Bulleid was an employee for the Board of Trade from 1910.
@@ -608,7 +679,7 @@ Now your context paragraph and question are
 {title} | {text}
 </Context>
 <Question>
-{question}
+{question}?
 </Question>
 <Answer>
 """
@@ -627,7 +698,7 @@ There are some examples for you to refer to:
 Neelam Sanjiva Reddy served the sixth President of India from 1977.
 </Context>
 <Question>
-Who served as President of India
+Who served as President of India?
 </Question>
 <Answer>
 {{"Neelam Sanjiva Reddy": {{"start_year": 1977, "start_month": 0, "end_year": 0, "end_month": 0}}}}
@@ -637,7 +708,7 @@ Who served as President of India
 K. R. Narayanan served as the President of India from 1997 until 2002.
 </Context>
 <Question>
-Who served as President of India
+Who served as President of India?
 </Question>
 <Answer>
 {{"K. R. Narayanan": {{"start_year": 1997, "start_month": 0, "end_year": 2002, "end_month": 0}}}}
@@ -647,7 +718,7 @@ Who served as President of India
 The worldwide box office of Jurassic movie - Jurassic Park was $914 million, which was premiered on June 9, 1993.
 </Context>
 <Question>
-What was the worldwide box office of Jurassic movie
+What was the worldwide box office of Jurassic movie?
 </Question>
 <Answer>
 {{"$914 million": {{"start_year": 1993, "start_month": 6, "end_year": 1993, "end_month": 6}}}}
@@ -657,17 +728,27 @@ What was the worldwide box office of Jurassic movie
 Houston Rockets won the NBA championship in 1996-1997.
 </Context>
 <Question>
-When was the time the Houston Rockets win the NBA championship
+When was the time the Houston Rockets win the NBA championship?
 </Question>
 <Answer>
 {{"1996-1997": {{"start_year": 1996, "start_month": 0, "end_year": 1997, "end_month": 0}}}}
 </Answer>
 
 <Context>
+Yao Ming played for the Houston Rockets in 2009.
+</Context>
+<Question>
+When was the time Yao Ming played for the Houston Rockets?
+</Question>
+<Answer>
+{{"2009": {{"start_year": 2009, "start_month": 0, "end_year": 2009, "end_month": 0}}}}
+</Answer>
+
+<Context>
 Houston Rockets won the NBA championship in 2000-01.
 </Context>
 <Question>
-When was the time the Houston Rockets win the NBA championship
+When was the time the Houston Rockets win the NBA championship?
 </Question>
 <Answer>
 {{"2000-01": {{"start_year": 2000, "start_month": 0, "end_year": 2001, "end_month": 0}}}}
@@ -677,7 +758,7 @@ When was the time the Houston Rockets win the NBA championship
 The United States has hosted 1984 Summer Olympics.
 </Context>
 <Question>
-When has the United States hosted Summer Olympics
+When has the United States hosted Summer Olympics?
 </Question>
 <Answer>
 {{"1984": {{"start_year": 1984, "start_month": 0, "end_year": 1984, "end_month": 0}}}}
@@ -687,7 +768,7 @@ When has the United States hosted Summer Olympics
 Oliver Bulleid was an employee for the Board of Trade from 1910.
 </Context>
 <Question>
-Oliver Bulleid was an employee for whom
+Oliver Bulleid was an employee for whom?
 </Question>
 <Answer>
 {{"Board of Trade": {{"start_year": 1910, "start_month": 0, "end_year": 0, "end_month": 0}}}}
@@ -698,7 +779,7 @@ Now your context sentence and question are
 {answer}
 </Context>
 <Question>
-{question}
+{question}?
 </Question>
 <Answer>
 """
@@ -756,6 +837,8 @@ K. R. Narayanan
 <Context>
 The United States has hosted 1984 Summer Olympics.
 The United States has hosted Summer Olympics in 1984.
+The United States hosted the Summer Olympics in 1984.
+The United States hosted the Summer Olympics on October 17, 1984.
 The United States has hosted Summer Olympics in 1996.
 </Context>
 <Question>
@@ -794,6 +877,35 @@ The question asks about the employer of Oliver Bulleid between 1911 and 1912. Th
 </Thought>
 <Answer>
 Board of Trade
+</Answer>
+
+<Context>
+The Dallas Cowboys won the Super Bowl in the 1995 season.
+The Dallas Cowboys won the Super Bowl for the 1995-1996 NFL season.
+</Context>
+<Question>
+For which NFL season did the Dallas Cowboys win the most recent Super Bowl as of 1998?
+</Question>
+<Thought>
+The question asks about the NFL season when Dallas Cowboys won the Super Bowl as of 1998. The answer should be a date. Based on the context, Dallas Cowboys won the Super Bowl for the 1995-1996 season. The 1995-1996 season is before 1998. Therefore, the answer is 1995.
+</Thought>
+<Answer>
+1995
+</Answer>
+
+<Context>
+The Super Bowl championship in 1986-1987.
+The Super Bowl championship in 1990.
+The Super Bowl championship in 2007.
+</Context>
+<Question>
+When was the last time the Giants won Super Bowl championship before 2008?
+</Question>
+<Thought>
+The question asks about the last time the Giants won Super Bowl championship before 2008. The answer should be a date. Based on the context, the last time when the Giants won Super Bowl championship before 2008 is in 2007. Therefore, the answer is 2007.
+</Thought>
+<Answer>
+2007
 </Answer>
 
 Now your context paragraph and question are

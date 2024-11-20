@@ -17,7 +17,7 @@ def print_top_ctx(ex, topk, ctx_key):
             break
 
 
-examples = load_json_file('./retrieved/situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json')
+examples = load_json_file('./retrieved/situatedqa_contriever_metriever_bgegemma_llama_8b_qfs5_outputs.json')
 examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
 
 # for i,ex in enumerate(examples):

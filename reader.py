@@ -1,5 +1,7 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
+
 import ray
 ray.init(num_gpus=4) 
 
@@ -28,21 +30,20 @@ from temp_eval import normalize
 def main():
     parser = argparse.ArgumentParser(description="Reader")
     parser.add_argument('--max-examples', type=int, default=None)
-    parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
-    # parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_minilm12_outputs.json")
-    parser.add_argument('--ctx-topk', type=int, default=20)
-    parser.add_argument('--param-pred', type=bool, default=False)
+    parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_metriever_bgegemma_llama_8b_qfs5_outputs.json")
+    # parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_bgegemma_outputs.json")
+    parser.add_argument('--ctx-topk', type=int, default=3)
+    parser.add_argument('--param-pred', type=bool, default=True)
     parser.add_argument('--param-cot', type=bool, default=False)
     parser.add_argument('--not-save', type=bool, default=False)
-    parser.add_argument('--save-note', type=str, default=None)
+    parser.add_argument('--save-note', type=str, default='dp')
     parser.add_argument(
         '--stage1-model',
         choices=['bm25', 'contriever','hybrid'], 
         default='contriever', #
     )
     parser.add_argument('--reader', type=str, default='timo', choices=['llama', 'timo', 'timellama','llama_70b','llama_8b'])
-    parser.add_argument('--paradigm', type=str, default='fusion', choices=['fusion', 'concat'])
-
+    parser.add_argument('--paradigm', type=str, default='concat', choices=['fusion', 'concat'])
 
     args = parser.parse_args()
     assert args.stage1_model in args.retriever_output
@@ -61,21 +62,14 @@ def main():
     else:
         args.ctx_key_s1 = 'ctxs'
 
-    # load llm
-    # if args.reader=='timo':
-    #     args.llm = TIMO()
-    #     args.llm_name = 'timo'
-    # if args.reader=='timellama':
-    #     args.llm = TimeLLAMA()
-    #     args.llm_name = 'timellama'
-    # else:
     args.llm_name = args.reader
     args.l = llm_names(args.reader, instruct=True)
     flg = '70b' in args.llm_name
     if flg:
-        args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=15000)
+        args.llm = LLM(args.l, tensor_parallel_size=4, quantization="AWQ", max_model_len=20000)
     else:
-        args.llm = LLM(args.l, tensor_parallel_size=4, max_model_len=20000)
+        mx_len = 2048 if args.reader=='timo' else 20000
+        args.llm = LLM(args.l, tensor_parallel_size=4, max_model_len=mx_len)
 
     # load examples
     if 'retrieved' not in args.retriever_output:
@@ -87,9 +81,8 @@ def main():
         examples = examples[:min(len(examples),args.max_examples)]
 
     # examples = examples[100:200]
-    # x = "Who is in charge of the Minister of Personnel, Public Grievances, and Pensions since 27 May 2014?"
+    # x = "When was the last time the Dodgers played the Yankees in the World Series between 1979 and 1999?"
     # examples = [ex for ex in examples if x in ex['question']]
-
     
     examples = [ex for ex in examples if ex['time_relation'] != '']
     if len(examples)==0:
@@ -117,7 +110,9 @@ def main():
             prompts.append(prompt)
 
         rag_preds = call_pipeline(args, prompts, 500)
+
         print(f'{tmp_key} top {args.ctx_topk} contexts prediction finished.')
+        # import ipdb; ipdb.set_trace()
 
         for k, ex in enumerate(examples):
             question = ex['question']
@@ -163,10 +158,36 @@ def main():
         print('started reader')
         reader_responses = call_pipeline(args, reader_prompts, 500, return_list=True)
 
+        # ensure the year appears in the responses also appears in the reader context
+        tmp=[]
+        for r_p, r_r in zip(reader_prompts, reader_responses):
+            r_p = r_p.split('Now your context paragraph and question are')[-1]
+            r_r = [snt for snt in r_r if year_identifier(snt)==None or all([str(y) in r_p for y in year_identifier(snt)])]
+            tmp.append(r_r)
+        reader_responses = tmp
+
+        entail_check_map = {}
+        contexts, anss = [], []
+        entailer_prompts = []
+        for reader_prompt, reader_response, checker_res in zip(reader_prompts, reader_responses, checker_results):
+            if checker_res:
+                reader_prompt = reader_prompt.split('Now your context paragraph and question are\n')[-1]
+                context = reader_prompt.split('\n</Context>')[0].split('<Context>\n')[-1]
+                for ans in reader_response:
+                    contexts.append(context)
+                    anss.append(ans)
+                    entailer_prompt = entailer(context, ans)
+                    entailer_prompts.append(entailer_prompt)
+        entailer_responses = call_pipeline(args, entailer_prompts, 200)
+        entailer_results = ['yes' in res.lower() for res in entailer_responses]
+        for context, ans, entail in zip(contexts, anss, entailer_results):
+            entail_check_map[context.strip()+'<>'+ans.strip()] = entail
+
+        # import ipdb; ipdb.set_trace()
 
         for x, y, z in zip(reader_prompts, reader_responses, checker_responses):
             print('\n==\n')
-            print(x.split('Now your context paragraph and question are as follows.')[-1])
+            print(x.split('Now your context paragraph and question are')[-1])
             print(y)
             print(z)
 
@@ -180,7 +201,16 @@ def main():
                 checker_result = checker_results.pop(0)
                 reader_response = reader_responses.pop(0)
                 if checker_result and len(reader_response)>0:
-                    reader_ans += reader_response
+                    print('xxx ', reader_response)
+                    tmp = []
+                    for ans in reader_response:
+                        context = f"{ctx['title']} | {ctx['text']}"
+                        key = context.strip()+'<>'+ans.strip()
+                        if key in entail_check_map and entail_check_map[key]:
+                            tmp.append(ans)
+                    if tmp != reader_response:
+                        print('yyy ', tmp)
+                    reader_ans += tmp
             reader_ans = list(set(reader_ans))
             for reader_a in reader_ans:
                 sub_examples.append([question, normalized_question, reader_a])
@@ -190,11 +220,18 @@ def main():
         else:
             timer_responses = []
 
+
         question_result_map = {}
+        question_no_date_result_map = {}
         for sub_ex, timer_r in zip(sub_examples, timer_responses):
             try:
                 answer_dict = eval(timer_r)
                 assert isinstance(answer_dict, dict)
+                if sub_ex[0] not in question_no_date_result_map:
+                    question_no_date_result_map[sub_ex[0]] = []
+                ans = list(answer_dict.keys())[0].strip()
+                if len(ans)>0:
+                    question_no_date_result_map[sub_ex[0]].append(ans)
                 assert all([item in list(answer_dict.values())[0] for item in ["start_year", "start_month", "end_year", "end_month"]])
                 # if there is no time info, skip
                 assert sum(list(answer_dict.values())[0].values())>0
@@ -221,8 +258,6 @@ def main():
             result = question_result_map[question]
 
             print('\n------\n', k,' ',question,'\n------\n') 
-            print('\nanswer dicts')
-            print(result)
         
             answer_dicts = [r[3] for r in result]
             append_flgs = []
@@ -301,13 +336,14 @@ def main():
                 continue
 
             if len(filtered_result)>0:
-                # if ex['implicit_condition'] == 'last':
-                #     filtered_result = sorted(filtered_result, key=lambda x: (list(x[-1].values())[0]['start_year'], list(x[-1].values())[0]['end_year'], list(x[-1].values())[0]['start_month']), reverse=True)
-                # elif ex['implicit_condition'] == 'first':
                 filtered_result = sorted(filtered_result, key=lambda x: (list(x[-1].values())[0]['start_year'], list(x[-1].values())[0]['start_month']), reverse=False)
 
             new_questions.append(question)
+            if len(filtered_result)>10:
+                filtered_result = filtered_result[:5]+filtered_result[-5:]
             contexts = '\n'.join([tp[2].replace(' first','').replace(' last','') for tp in filtered_result])
+
+
             combiner_prompt = combiner(question, contexts)
             combiner_prompts.append(combiner_prompt)
         
@@ -318,7 +354,7 @@ def main():
             combiner_responses = []
 
         for x,y in zip(combiner_prompts, combiner_responses):
-            print(x.split('Now your context paragraph and question are as follows.')[-1])
+            print(x.split('Now your context paragraph and question are')[-1])
             print(y)
 
         question_answer_map = {q: a for q, a in zip(new_questions, combiner_responses) if len(a)>0}
@@ -328,10 +364,17 @@ def main():
             find_flg = True
             if question in question_answer_map:
                 rag_pred = question_answer_map[question]
-                if any([item in rag_pred.lower() for item in ['unknown', 'none', 'not provided', "do not know"]]):
+                if any([item in rag_pred.lower() for item in ['unknown', 'none', 'not mention', 'not provide', "do not know"]]):
                     find_flg = False
             else:
                 find_flg = False
+
+            # pick from top candidate answer without dates
+            if find_flg==False and question in question_no_date_result_map:
+                tmp = question_no_date_result_map[question]
+                if len(tmp)>0:
+                    rag_pred = tmp[0]
+                    find_flg = True
 
             if not find_flg:
                 print('no context is useful.')
@@ -347,7 +390,11 @@ def main():
                 print('prametric knowledge does not know.')
                 text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'].strip() for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]])
                 prompt = c_prompt(ex['question'], text)
-                rag_pred = call_pipeline(args, [prompt], 100)[0]
+                tmp = call_pipeline(args, [prompt], 100)
+                rag_pred = tmp[0] if len(tmp)>0 else ''
+
+            if '&amp;' in rag_pred:
+                rag_pred = rag_pred.replace('&amp;','&')
 
             ex['rag_pred'] = rag_pred
             ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
