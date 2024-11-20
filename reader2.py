@@ -27,10 +27,10 @@ from temp_eval import normalize
 
 def main():
     parser = argparse.ArgumentParser(description="Reader")
-    parser.add_argument('--max-examples', type=int, default=100)
-    parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json")
+    parser.add_argument('--max-examples', type=int, default=None)
+    parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_metriever_bgegemma_llama_8b_qfs5_outputs.json")
     # parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_minilm12_outputs.json")
-    parser.add_argument('--ctx-topk', type=int, default=20)
+    parser.add_argument('--ctx-topk', type=int, default=5)
     parser.add_argument('--param-pred', type=bool, default=False)
     parser.add_argument('--param-cot', type=bool, default=False)
     parser.add_argument('--not-save', type=bool, default=False)

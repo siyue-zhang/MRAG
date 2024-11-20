@@ -1,6 +1,6 @@
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
 import ray
 ray.init(num_gpus=4) 
@@ -30,10 +30,10 @@ from temp_eval import normalize
 def main():
     parser = argparse.ArgumentParser(description="Reader")
     parser.add_argument('--max-examples', type=int, default=None)
-    parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_metriever_bgegemma_llama_8b_qfs5_outputs.json")
-    # parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_bgegemma_outputs.json")
-    parser.add_argument('--ctx-topk', type=int, default=3)
-    parser.add_argument('--param-pred', type=bool, default=True)
+    # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_bgegemma_llama_8b_qfs5_outputs.json")
+    parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_bgegemma_outputs.json")
+    parser.add_argument('--ctx-topk', type=int, default=40)
+    parser.add_argument('--param-pred', type=bool, default=False)
     parser.add_argument('--param-cot', type=bool, default=False)
     parser.add_argument('--not-save', type=bool, default=False)
     parser.add_argument('--save-note', type=str, default='dp')
@@ -42,7 +42,7 @@ def main():
         choices=['bm25', 'contriever','hybrid'], 
         default='contriever', #
     )
-    parser.add_argument('--reader', type=str, default='timo', choices=['llama', 'timo', 'timellama','llama_70b','llama_8b'])
+    parser.add_argument('--reader', type=str, default='llama', choices=['llama', 'timo', 'timellama','llama_70b','llama_8b'])
     parser.add_argument('--paradigm', type=str, default='concat', choices=['fusion', 'concat'])
 
     args = parser.parse_args()

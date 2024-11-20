@@ -1,13 +1,13 @@
 import matplotlib.pyplot as plt
 
 # Data
-x = [0, 1, 5, 10, 20, 30]
+x = [0, 1, 5, 10, 20, 30, 40]
 
-y2 = [42.0, 52.6, 59.0, 59.2, 60.6, 60.4]
-y22 = [44.2, 55.3, 61.7, 61.7, 62.5, 62.6]
+y2 = [42.0, 52.6, 59.0, 59.2, 60.6, 60.4, 57.8]
+y22 = [44.2, 55.3, 61.7, 61.7, 62.5, 62.6, 60.2]
 
-y3 = [42.0, 57.4, 64.0, 64.0, 61.0, 60.4]
-y33 = [44.2, 59.5, 66.3, 66.3, 63.3, 62.7]
+y3 = [42.0, 57.4, 64.0, 64.0, 61.0, 60.4, 59.8]
+y33 = [44.2, 59.5, 66.3, 66.3, 63.3, 62.7, 62.6]
 
 # Plotting
 plt.figure(figsize=(8, 5))
@@ -25,7 +25,7 @@ plt.plot(x, y33, color='lightgreen', label='Modular (F1)', linestyle='dashed', l
 # Customizing the plot
 # plt.xlabel('Number of context chunks', fontsize=20,labelpad=10)
 # plt.ylabel('Score', fontsize=20, labelpad=10)
-plt.xticks(x, ['0', '1', '5', '10', '20', '30'], fontsize=16)
+plt.xticks(x, ['0', '1', '5', '10', '20', '30', '40'], fontsize=16)
 plt.yticks(range(30, 71, 10), [f'{val}%' for val in range(30, 71, 10)], fontsize=16)
 plt.grid(True, linestyle='-', color='lightgrey')
 
