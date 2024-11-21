@@ -396,7 +396,7 @@ def eval_reader(to_save, param_pred, subset='situatedqa', metric='acc'):
 
 
 
-def call_pipeline(args, prompts, max_tokens=100, return_list=False):
+def call_pipeline(args, prompts, max_tokens=100, return_list=False, ver=False):
 
     if args.reader == None:
         sampling_params = SamplingParams(temperature=0.2, top_p=0.95, max_tokens=max_tokens, seed=0)
@@ -419,10 +419,14 @@ def call_pipeline(args, prompts, max_tokens=100, return_list=False):
         sampling_params = SamplingParams(temperature=0.2, top_p=0.95, max_tokens=max_tokens, seed=0)
         outputs = args.llm.generate(prompts, sampling_params)
         responses = [output.outputs[0].text for output in outputs]
-        for x, y in zip(prompts, responses):
-            print(x.split('Now your context paragraph and question are')[-1])
-            print(y.split('</Response>')[0])
-            print('//////\n')
+        if ver:
+            for x, y in zip(prompts, responses):
+                # print(x.split('Now your context paragraph and question are')[-1])
+                print(x.split('Now your document and question are')[-1])
+                print(y.split('</Summarization>')[0])
+                # print(y.split('</Response>')[0])
+                # print(y.split('</Answer>')[0])
+                print('//////\n')
         # print(prompts[0])
         # print('//////')
         # print(responses[0])

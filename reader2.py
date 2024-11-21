@@ -103,6 +103,16 @@ Who owned the Newton D. Baker House in Washington DC?
 The Newton D. Baker House in Washington, D.C. was owned by the following individuals over time: Thomas Beall from 1794 to 1796, John Laird from 1796, George Peter to 1827, and David W. Hudgens from 2017.
 </Summarization>
 
+<Document>
+Intel | Intel embarked on a 10-year period of unprecedented growth as the primary and most profitable hardware supplier to the PC industry, part of the winning 'Wintel' combination. Moore handed over his position as CEO to Andy Grove in 1987. By launching its Intel Inside marketing campaign in 1991, Intel was able to associate brand loyalty with consumer selection, so that by the end
+</Document>
+<Question>
+Who was the CEO of Intel?
+</Question>
+<Summarization>
+Moore was the CEO of Intel before 1987 and Andy Grove was the CEO of Intel after 1987.
+</Summarization>
+
 Now your document and question are
 <Document>
 {document}
@@ -271,6 +281,23 @@ According to the context, Pittsburgh Steelers won Super Bowl championship for 20
 2005
 </Answer>
 
+<Context>
+A. P. J. Abdul Kalam served as the President of India from 2002 to 2007.
+
+K. R. Narayanan served as the President of India from 1997 until 2002.
+
+Droupadi Murmu served as the 15th President of India from 2022.
+</Context>
+<Question>
+Who was the first President of India between 2006 and 2022?
+</Question>
+<Thought>
+According to the context, A. P. J. Abdul Kalam was the President of India in 2006. A. P. J. Abdul Kalam is the first President of India between 2006 and 2022. Therefore, the answer is A. P. J. Abdul Kalam. 
+</Thought>
+<Answer>
+A. P. J. Abdul Kalam
+</Answer>
+
 Now your question and context knowledge are
 <Context>
 {generations}
@@ -409,14 +436,48 @@ def main():
 
         checker_responses = call_pipeline(args, checker_prompts, 400)
         checker_results = ['yes' in res.lower() for res in checker_responses]
-        print('started reader')
+        print('\nstarted reader.\n')
+
+        generation_prompts = []
+        questions = []
+        for ex in examples:
+            question = ex['question']
+            normalized_question = ex['normalized_question']
+            for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
+                checker_result = checker_results.pop(0)
+                if checker_result:
+                    doc = ctx['title'] + ' | ' + ctx['text'].strip()
+                    generation_prompt = LLMGenerations(doc, normalized_question)
+                    generation_prompts.append(generation_prompt)
+                    questions.append(question)
+        generation_responses = call_pipeline(args, generation_prompts, 400, ver=True)
+        buf = {}
+        for question, gen in zip(questions, generation_responses):
+            if question not in buf:
+                buf[question] = []
+            if gen not in buf[question]:
+                buf[question].append(gen)
+
+        assert 1==2
+
+
+        combined_prompts = []
+        for ex in examples:
+            question = ex['question']
+            normalized_question = ex['normalized_question']
+            combined_prompt = CombinedReader('\n\n'.join(buf[question]), question)
+            combined_prompts.append(combined_prompt)
+        combined_responses = call_pipeline(args, combined_prompts, 400, ver=True)
+            
+        assert 1==2
+
+
 
 
         # for x, y in zip(checker_prompts, checker_responses):
         #     print('\n==\n')
         #     print(x.split('Now your context paragraph and question are')[-1])
         #     print(y)
-        assert 1==2
 
         prompts, texts = [], []
         for ex in examples:
