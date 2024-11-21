@@ -49,10 +49,10 @@ Current captain of the England mens cricket team?
 </Keywords>
 
 <Question>
-Top 10 most popular songs of the 2000s?
+Who was Elizabeth Montgomery's spouse?
 </Question>
 <Keywords>
-["top", "10", "most", "popular", "songs", "2000s"]
+["Elizabeth Montgomery", "spouse"]
 </Keywords>
 
 <Question>
@@ -91,7 +91,7 @@ Now your question is
 """
     return prompt
 
-# TO ADD EXAMPLOR FOR TIMEQA
+
 def get_QFS_prompt(question, title, text):
     prompt = f"""You are given a context paragraph and a specific question. Your goal is to summarize the context paragraph in one standalone sentence by answering the given question. If dates are mentioned in the paragraph, include them in your answer. If the question cannot be answered based on the paragraph, respond with "None". Ensure that the response is relevant, complete, concise and directly addressing the question.
 
@@ -143,14 +143,18 @@ Oliver Bulleid |  He was born in Invercargill, New Zealand, to William Bulleid a
 Oliver Bulleid was an employee for whom?
 </Question>
 <Summarization>
-
+Oliver Bulleid was an employee for the Great Northern Railway (GNR) from 1901 and the Westinghouse Electric Corporation from 1908.
 </Summarization>
 
+<Context>
+Doris Schröder-Köpf | Köpf and partner Sven Kuntze moved to New York City in 1990, where they had a daughter named Klara in the following year. Soon after the birth the pair separated and Köpf moved back to Bavaria with the child. In October 1997, Köpf married Gerhard Schröder, then Minister-President of Lower Saxony.
+</Context>
+<Question>
 Who was the spouse of Doris Schröder?
-
-Doris Schröder-Köpf
-
-Köpf and partner Sven Kuntze moved to New York City in 1990, where they had a daughter named Klara in the following year. Soon after the birth the pair separated and Köpf moved back to Bavaria with the child. In October 1997, Köpf married Gerhard Schröder, then Minister-President of Lower Saxony.
+</Question>
+<Summarization>
+Gerhard Schröder was the spouse of Doris Schröder from October 1997.
+</Summarization>
 
 Now your question and paragraph are
 <Context>
@@ -442,7 +446,7 @@ England national football team | They have qualified for the World Cup sixteen t
 When did England last get to the semi final of a World Cup before 2019?
 </Question>
 <Thought>
-The question asks about the time when England last get to the semi final of a World Cup before 2019. The first context is about the Great Britain hockey team and Olympics, which are irrelevant to the World Cup. So, the first context is irrelevant. The second context mentions England reaching the semi-finals of the 2018 FIFA World Cup. And 2018 World Cup is before 2019. So, the second context is relevant. The third context mentions that England finished fourth-place in the 1990 and 2018, which implies England got to the seme-finals of World Cup in 1990 and 2018. So, the third context is relevant. Based on above relevant contexts, England got to the seme-finals of World Cup in 1990 and 2018. The last time before 2019 is 2018. Therefore, the answer is 2018. 
+According to the context, England got to the semi final of a World Cup in 1990 and 2018. 2018 is the last time before 2019. Therefore, the answer is 2018. 
 </Thought>
 <Answer>
 2018
@@ -457,25 +461,42 @@ Super Bowl LVI | For Super Bowl LVI, which took place in February 2022, the nati
 Who sang the national anthem in the last Super Bowl as of 2021?
 </Question>
 <Thought>
-The question asks about the person who sang the national anthem in the last Super Bowl as of 2021. The first context mentions Eric Church and Jazmine Sullivan performed the national anthem for Super Bowl LV in February 2021. So the first context is relevent. The second context mentions Mickey Guyton performed the national anthem for Super Bowl LVI in February 2022. So, the second context is relevant. Based on above relevant contexts, Eric Church and Jazmine Sullivan sang the national anthem in 2021 and Mickey Guyton sang the national anthem in 2022. 2022 is after 2021. Eric Church and Jazmine Sullivan sang the national anthem in the last Super Bowl as of 2021. Therefore, the answer is Eric Church and Jazmine Sullivan.
+According to the context, Super Bowl LV, which took place in February 2021, is the last Super Bowl as of 2021. Eric Church and Jazmine Sullivan sang the national anthem for Super Bowl LV. Therefore, the answer is Eric Church and Jazmine Sullivan.
 </Thought>
 <Answer>
 Eric Church and Jazmine Sullivan
 </Answer>
 
 <Context>
-Rugby World Cup | Starting in 2021, the women's equivalent tournament was officially renamed the Rugby World Cup to promote equality with the men's tournament.
+Houston Rockets | The team has won the NBA championships in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. After losing the championship in 1999, they won in 2000-01. They have not won the title since 2001.
 
-Rugby union | Rugby union football, commonly known simply as rugby union or more often just rugby, is a close-contact team sport that originated at Rugby School in England in the first half of the 19th century.
+Houston Rockets | In 2008, the team reclaimed the NBA championship for the first time since 2001. Houston Rockets lost the NBA championship in 2012.
 </Context>
 <Question>
-Where was the last Rugby World Cup held between 2007 and 2016?
+Where was the last time Houston Rockets won the NBA championship before 2002?
 </Question>
 <Thought>
-The question asks about the last Rugby World Cup held between 2007 and 2016. The first context does not mention the location of Rugby World Cup. So, the first context is irrelevant. The second context does not mention the location of Rugby World Cup. So, the second context is irrelevant. Therefore, there is no relevant context provided. I will answer the question based on my own knowledge.
+According to the context, the Houston Rockets won the NBA championships in 1994, 1995, 2000-01, and 2008. The last time before 2001 is 2000-01. Therefore, the answer is 2000-01.
 </Thought>
 <Answer>
-England
+2000-01
+</Answer>
+
+<Context>
+Theo-Ben Gurirab | He served as the second Prime Minister of Namibia from 28 August 2002 to 20 March 2005, following the demotion and subsequent resignation of Hage Geingob.
+
+Theo-Ben Gurirab | He was Associate Representative of the SWAPO Mission to the United Nations and the United States from 1964 to 1972
+
+Saara Kuugongelwa | Saara Kuugongelwa-Amadhila (born 12 October 1967) is a Namibian politician who has served as the Prime Minister of Namibia since 2015.
+</Context>
+<Question>
+Theo-Ben Gurirab took which position as of 2004?
+</Question>
+<Thought>
+According to the context, Theo-Ben Gurirab served as the Prime Minister of Namibia from 28 August 2002 to 20 March 2005. 2004 is between 28 August 2002 and 20 March 2005. Therefore, the answer is Prime Minister of Namibia.
+</Thought>
+<Answer>
+Prime Minister of Namibia
 </Answer>
 
 Now your question and context knowledge are
@@ -493,7 +514,7 @@ Now your question and context knowledge are
 #### Fusion-in-Prompt ####
 
 def checker(question, context):
-    prompt = f"""You will be given a context paragraph and a question. As an assistant, your task is decide whether the context contains the answer to the question.
+    prompt = f"""You will be given a context paragraph and a question. Your task is decide whether the context is relevant and contains the answer to the question.
 Requirements are follows:
 - First read the paragraph after <Context> and question after <Question> carefully.
 - Then you should think step by step and give your thought after <Thought>.
@@ -624,14 +645,13 @@ Now your context paragraph and sentence are
     return prompt
 
 
+
+
+
+
 def reader(question, title, text):
 
-    prompt = f"""You will be given a context paragraph and a question. Your task is to find the answers in the given context paragraph for the given question.  
-- Read the provided context carefully.
-- Answer the question based strictly on the context. Do not use your own knowledge
-- Write one answer per line with the corresponding date especially the year for the answer.
-- If the context knowledge does not contain any answer to the question, write "None".
-
+    prompt = f"""You will be given a context paragraph and a question. You should first read the context and find all answers in the context paragraph. Then you should find the corresponding key dates for each answer such as starting date or ending date. Write your reasoning thoughts after <Thought>. Finally, you should write the answers and dates in complete sentences after <Answer>. If there is no  starting or ending date mentioned in the context, only write the answer without dates. Write one answer sentence per line. If the context paragraph does not contain any answer to the question, write "None".
 There are some examples for you to refer to:
 <Context>
 Houston Rockets | The team has won the NBA championships in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. After losing the championship in 1999, they won in 2000-01. They have not won the title since 2001. In 2008, the team reclaimed the championship for the first time since 2001. Houston Rockets lost the NBA championship in 2012.
@@ -639,23 +659,30 @@ Houston Rockets | The team has won the NBA championships in their history. Their
 <Question>
 When did the Houston Rockets win the NBA championship?
 </Question>
+<Thought>
+According to the context, the Houston Rockets won the NBA championship in 1994, 1995, 2000-01, and 2008.
+</Thought>
 <Answer>
 - Houston Rockets won the NBA championship in 1994.
 - Houston Rockets won the NBA championship in 1995.
-- Houston Rockets won the NBA championship in 2000-01.
+- Houston Rockets won the NBA championship from 2000 to 2001.
 - Houston Rockets won the NBA championship in 2008.
 </Answer>
 
 <Context>
-List of presidents of India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president. Averaging an economic growth rate of 7.5% for several years prior to 2007, India has more than doubled its hourly wage rates during the first decade of the 21st century.
+List of presidents of India | distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president. Averaging an economic growth rate of 7.5% for several years prior to 2007, India has more than doubled its hourly wage rates during the first decade of the 21st century. A. P. J. Abdul Kalam was the president of India. Jagdeep Dhankhar of the Bharatiya Janata Party is the current vice president.
 </Context>
 <Question>
 Who serve as President of India?
 </Question>
+<Thought>
+According to the context, Neelam Sanjiva Reddy, K. R. Narayanan, Droupadi Murmu, and A. P. J. Abdul Kalam have served as President of India. Neelam Sanjiva Reddy served as the sixth President of India from 1977. K. R. Narayanan served as the President of India from 1997 until 2002. Droupadi Murmu served as the 15th President from 2022. A. P. J. Abdul Kalam served as the President of India.
+</Thought>
 <Answer>
 - Neelam Sanjiva Reddy served as the sixth President of India from 1977.
 - K. R. Narayanan served as the President of India from 1997 until 2002.
 - Droupadi Murmu served as the 15th President from 2022.
+- A. P. J. Abdul Kalam served as the President of India.
 </Answer>
 
 <Context>
@@ -664,29 +691,42 @@ Jurassic Park Movies | The Lost World: Jurassic Park is a 1997 American science 
 <Question>
 What was the worldwide box office of the Jurassic movie?
 </Question>
+<Thought>
+According to the context, The Lost World: Jurassic Park and Jurassic Park are the Jurassic movie. The Lost World: Jurassic Park was released in 1997 and it has the worldwide box office of $618.6 million. Jurassic Park was released on June 9, 1993 and it has the worldwide box office of $914 million.
+</Thought>
 <Answer>
 - The worldwide box office of the 1997 Jurassic movie - The Lost World: Jurassic Park was $618.6 million.
 - The worldwide box office of the 1993 Jurassic movie - Jurassic Park was $914 million, which was premiered on June 9, 1993.
 </Answer>
 
 <Context>
-1980 Summer Olympics | Hence, the selection process for the 1984 Summer Olympics consisted of a single finalized bid from Los Angeles, which the International Olympic Committee (IOC) accepted in 1976. Los Angeles was awarded the selection officially on May 18, 1978 for the 1984 Summer Olympics. The choice between them was made at the 75th IOC Session in Vienna, Austria on 23 October 1974.
+Newton D. Baker House | 1794-1796 - Thomas Beall ; 1796-? - John Laird ; Dr. E. H. Gushing ; ?-1827 - George Peter ; 2017-present - David W. Hudgens
 </Context>
 <Question>
-When has the United States hosted Summer Olympics?
+Who owned the Newton D. Baker House in Washington DC?
 </Question>
+<Thought>
+According to the context, Thomas Beall, John Laird, Dr. E. H. Gushing, George Peter, and David W. Hudgens have owned the Newton D. Baker House. Thomas Beall owned the Newton D. Baker House in Washington DC from 1794 to 1796. John Laird owned the Newton D. Baker House in Washington DC from 1796. Dr. E. H. Gushing owned the Newton D. Baker House in Washington DC. George Peter owned the Newton D. Baker House in Washington DC until 1827. David W. Hudgens owned the Newton D. Baker House in Washington DC from 2017.
+</Thought>
 <Answer>
-- The United States has hosted 1984 Summer Olympics.
+- Thomas Beall owned the Newton D. Baker House in Washington DC from 1794 to 1796.
+- John Laird owned the Newton D. Baker House in Washington DC from 1796.
+- Dr. E. H. Gushing owned the Newton D. Baker House in Washington DC.
+- George Peter owned the Newton D. Baker House in Washington DC until 1827.
+- David W. Hudgens owned the Newton D. Baker House in Washington DC from 2017.
 </Answer>
 
 <Context>
-Oliver Bulleid | (19 September 1882 – 25 April 1970). A brief period working for the Board of Trade followed from 1910, arranging exhibitions in Brussels, Paris and Turin. He was able to travel widely in Europe, later including a trip with Nigel Gresley, William Stanier and Frederick Hawksworth, to Belgium, in 1934, to see a metre-gauge bogie locomotive. In December 1912, he rejoined the GNR as Personal Assistant to Nigel Gresley, the new CME. Gresley was only six years Bulleid's senior. Bulleid was elected president of the Institution of Mechanical Engineers for 1946.
+Oliver Bulleid | 25 April 1970). A brief period working for the Board of Trade followed from 1910, arranging exhibitions in Brussels, Paris and Turin. He was able to travel widely in Europe, later including a trip with Nigel Gresley, William Stanier and Frederick Hawksworth, to Belgium, in 1934, to see a metre-gauge bogie locomotive. He worked for the Board of Trade until 1911. In December 1912, he rejoined the GNR as Personal Assistant to Nigel Gresley, the new CME. Gresley was only six years Bulleid's senior. Bulleid was elected president of the Institution of Mechanical Engineers for 1946.
 </Context>
 <Question>
 Oliver Bulleid was an employee for whom?
 </Question>
+<Thought>
+According to the context, Oliver Bulleid was an employee for the Board of Trade and the GNR. Oliver Bulleid was an employee for the Board of Trade from 1910 to 1911. Oliver Bulleid was an employee for the GNR from December 1912.
+</Thought>
 <Answer>
-- Oliver Bulleid was an employee for the Board of Trade from 1910.
+- Oliver Bulleid was an employee for the Board of Trade from 1910 to 1911.
 - Oliver Bulleid was an employee for the GNR from December 1912.
 </Answer>
 
@@ -697,9 +737,90 @@ Now your context paragraph and question are
 <Question>
 {question}?
 </Question>
-<Answer>
+<Thought>
 """
     return prompt
+
+
+# def reader(question, title, text):
+
+#     prompt = f"""You will be given a context paragraph and a question. Your task is to find the answers in the given context paragraph for the given question.  
+# - Read the provided context carefully.
+# - Answer the question based strictly on the context. Do not use your own knowledge
+# - Write one answer per line with the corresponding date especially the year for the answer.
+# - If the context knowledge does not contain any answer to the question, write "None".
+
+# There are some examples for you to refer to:
+# <Context>
+# Houston Rockets | The team has won the NBA championships in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. After losing the championship in 1999, they won in 2000-01. They have not won the title since 2001. In 2008, the team reclaimed the championship for the first time since 2001. Houston Rockets lost the NBA championship in 2012.
+# </Context>
+# <Question>
+# When did the Houston Rockets win the NBA championship?
+# </Question>
+# <Answer>
+# - Houston Rockets won the NBA championship in 1994.
+# - Houston Rockets won the NBA championship in 1995.
+# - Houston Rockets won the NBA championship in 2000-01.
+# - Houston Rockets won the NBA championship in 2008.
+# </Answer>
+
+# <Context>
+# List of presidents of India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president. Averaging an economic growth rate of 7.5% for several years prior to 2007, India has more than doubled its hourly wage rates during the first decade of the 21st century.
+# </Context>
+# <Question>
+# Who serve as President of India?
+# </Question>
+# <Answer>
+# - Neelam Sanjiva Reddy served as the sixth President of India from 1977.
+# - K. R. Narayanan served as the President of India from 1997 until 2002.
+# - Droupadi Murmu served as the 15th President from 2022.
+# </Answer>
+
+# <Context>
+# Jurassic Park Movies | The Lost World: Jurassic Park is a 1997 American science fiction action film. The film was backed by an extensive $65 million marketing campaign, which included licensing deals with over 100 companies. It ultimately grossed $229.1 million in the U.S. and $389.5 million internationally, for a total of $618.6 million worldwide. The film sold an estimated 49,910,000 tickets in North America. Jurassic Park premiered on June 9, 1993, at the Uptown Theater in Washington, D.C., and was released on June 11 in the United States. It was a blockbuster hit and went on to gross over $914 million worldwide in its original theatrical run
+# </Context>
+# <Question>
+# What was the worldwide box office of the Jurassic movie?
+# </Question>
+# <Answer>
+# - The worldwide box office of the 1997 Jurassic movie - The Lost World: Jurassic Park was $618.6 million.
+# - The worldwide box office of the 1993 Jurassic movie - Jurassic Park was $914 million, which was premiered on June 9, 1993.
+# </Answer>
+
+# <Context>
+# Newton D. Baker House | 1794-1796 - Thomas Beall ; 1796-? - John Laird ; ?-1827 - George Peter ; 2017-present - David W. Hudgens
+# </Context>
+# <Question>
+# Who owned the Newton D. Baker House in Washington DC?
+# </Question>
+# <Answer>
+# - Thomas Beall owned the Newton D. Baker House in Washington DC from 1794 to 1796.
+# - John Laird owned the Newton D. Baker House in Washington DC from 1796.
+# - George Peter owned the Newton D. Baker House in Washington DC until 1827.
+# - David W. Hudgens owned the Newton D. Baker House in Washington DC from 2017.
+# </Answer>
+
+# <Context>
+# Oliver Bulleid | (19 September 1882 – 25 April 1970). A brief period working for the Board of Trade followed from 1910, arranging exhibitions in Brussels, Paris and Turin. He was able to travel widely in Europe, later including a trip with Nigel Gresley, William Stanier and Frederick Hawksworth, to Belgium, in 1934, to see a metre-gauge bogie locomotive. In December 1912, he rejoined the GNR as Personal Assistant to Nigel Gresley, the new CME. Gresley was only six years Bulleid's senior. Bulleid was elected president of the Institution of Mechanical Engineers for 1946.
+# </Context>
+# <Question>
+# Oliver Bulleid was an employee for whom?
+# </Question>
+# <Answer>
+# - Oliver Bulleid was an employee for the Board of Trade from 1910.
+# - Oliver Bulleid was an employee for the GNR from December 1912.
+# </Answer>
+
+# Now your context paragraph and question are
+# <Context>
+# {title} | {text}
+# </Context>
+# <Question>
+# {question}?
+# </Question>
+# <Answer>
+# """
+#     return prompt
 
 
 def timer(question, answer):
@@ -802,8 +923,143 @@ Now your context sentence and question are
     return prompt
 
 
+# def combiner(question, contexts):
+#     prompt = f"""You will be given a context paragraph and a question. As an assistant, your task is to answer the question only based on the information from the context. You should first think step by step about the question and give your thought and then answer the <Question>. Your thought should be after <Thought>. Your answer should be after <Answer>. If there is no answer in the context, response "None".
+    
+# There are some examples for you to refer to:
+# <Context>
+# England hosted the World Cup and went on to win the tournament in 1966, defeating West Germany 4-2 in the final.
+# England reached the World Cup semi-finals in 1990.
+# England made it to the World Cup semi-finals in 2018.
+# </Context>
+# <Question>
+# When did England last get to the semi final of a World Cup before 2019?
+# </Question>
+# <Thought>
+# The question asks about the last time when England got to the semi final of a World Cup before 2019. The answer should be a date. Based on the context, 2018 is the last time when England got to the World Cup semi-finals. 2018 is before 2019. Therefore, the answer is 2018.
+# </Thought>
+# <Answer>
+# 2018
+# </Answer>
+
+# <Context>
+# The United States has hosted 1984 Summer Olympics.
+# The United States has hosted Summer Olympics in 1984.
+# The United States has hosted Summer Olympics in 1996.
+# </Context>
+# <Question>
+# How many times had the United States hosted Summer Olympics before 2000?
+# </Question>
+# <Thought>
+# The question asks about the number of times that the United States had hosted Summer Olympics before 2000. The answer should be an integer. Based on the context, the United States has hosted Summer Olympics twice in 1984 and 1996. 1984 and 1996 are before 2000. Therefore, the answer is 2.
+# </Thought>
+# <Answer>
+# 2
+# </Answer>
+
+# <Context>
+# Neelam Sanjiva Reddy served the sixth President of India from 1977.
+# K. R. Narayanan served as the President of India from 1997 until 2002.
+# </Context>
+# <Question>
+# Who is the President of India on Jan 10, 1998?
+# </Question>
+# <Thought>
+# The question asks about the person of the President of India on Jan 10, 1998. The answer should be a person's name. Based on the context, K. R. Narayanan served as the President of India from 1997 until 2002. Jan 10, 1998 is between 1997 and 2002. Therefore, the answer is K. R. Narayanan.
+# </Thought>
+# <Answer>
+# K. R. Narayanan
+# </Answer>
+
+# <Context>
+# The United States has hosted 1984 Summer Olympics.
+# The United States has hosted Summer Olympics in 1984.
+# The United States hosted the Summer Olympics in 1984.
+# The United States hosted the Summer Olympics on October 17, 1984.
+# The United States has hosted Summer Olympics in 1996.
+# </Context>
+# <Question>
+# When is the last Summer Olympics that the United States hosted as of 2000?
+# </Question>
+# <Thought>
+# The question asks about the time of the last Summer Olympics that the United States hosted as of 2000. The answer should be a date. Based on the context, the last time when the United States hosted Summer Olympics is 1996. 1996 is not later than 2000. Therefore, the answer is 1996.
+# </Thought>
+# <Answer>
+# 1996
+# </Answer>
+
+# <Context>
+# The worldwide box office of Jurassic movie - Jurassic Park was $914 million, which was premiered on June 9, 1993.
+# The worldwide box office of Jurassic movie - The Lost World: Jurassic Park was $618.6 million in 1997.
+# </Context>
+# <Question>
+# What was the worldwide box office of the first Jurassic movie after 1990?
+# </Question>
+# <Thought>
+# The question asks about the worldwide box office of the first Jurassic movie after 1990. The answer should be a monetary value. Based on the context, the first Jurassic movie is Jurassic Park premiered on June 9, 1993. 1993 is after 1990. The worldwide box office of Jurassic Park was $914 million. Therefore, the answer is $914 million.
+# </Thought>
+# <Answer>
+# $914 million
+# </Answer>
+
+# <Context>
+# Oliver Bulleid was an employee for the Board of Trade from 1910.
+# Oliver Bulleid was an employee for the GNR from December 1912.
+# </Context>
+# <Question>
+# Oliver Bulleid was an employee for whom between 1911 and 1912?
+# </Question>
+# <Thought>
+# The question asks about the employer of Oliver Bulleid between 1911 and 1912. The answer should be a name of company or organization. Based on the context, Oliver Bulleid started to work for the Board of Trade from 1910 and GNR from December 1912. 1911 and 1912 are after 1910 and before December 1912. Oliver Bulleid worked for the Board of Trade between 1911 and 1912. Therefore, the answer is Board of Trade.
+# </Thought>
+# <Answer>
+# Board of Trade
+# </Answer>
+
+# <Context>
+# The Dallas Cowboys won the Super Bowl in the 1995 season.
+# The Dallas Cowboys won the Super Bowl for the 1995-1996 NFL season.
+# </Context>
+# <Question>
+# For which NFL season did the Dallas Cowboys win the most recent Super Bowl as of 1998?
+# </Question>
+# <Thought>
+# The question asks about the NFL season when Dallas Cowboys won the Super Bowl as of 1998. The answer should be a date. Based on the context, Dallas Cowboys won the Super Bowl for the 1995-1996 season. The 1995-1996 season is before 1998. Therefore, the answer is 1995.
+# </Thought>
+# <Answer>
+# 1995
+# </Answer>
+
+# <Context>
+# The Super Bowl championship in 1986-1987.
+# The Super Bowl championship in 1990.
+# The Super Bowl championship in 2007.
+# </Context>
+# <Question>
+# When was the last time the Giants won Super Bowl championship before 2008?
+# </Question>
+# <Thought>
+# The question asks about the last time the Giants won Super Bowl championship before 2008. The answer should be a date. Based on the context, the last time when the Giants won Super Bowl championship before 2008 is in 2007. Therefore, the answer is 2007.
+# </Thought>
+# <Answer>
+# 2007
+# </Answer>
+
+# Now your context paragraph and question are
+# <Context>
+# {contexts}
+# </Context>
+# <Question>
+# {question}
+# </Question>
+# <Thought>
+# """
+#     return prompt
+
+
+
 def combiner(question, contexts):
-    prompt = f"""You will be given a context paragraph and a question. As an assistant, your task is to answer the question only based on the information from the context. You should first think step by step about the question and give your thought and then answer the <Question>. Your thought should be after <Thought>. Your answer should be after <Answer>. If there is no answer in the context, response "None".
+    prompt = f"""You will be given a context paragraph and a question. As an assistant, your task is to answer the question only based on the information from the context. Your answer should be after <Answer>. If there is no answer in the context, response "None".
     
 There are some examples for you to refer to:
 <Context>
@@ -814,9 +1070,6 @@ England made it to the World Cup semi-finals in 2018.
 <Question>
 When did England last get to the semi final of a World Cup before 2019?
 </Question>
-<Thought>
-The question asks about the last time when England got to the semi final of a World Cup before 2019. The answer should be a date. Based on the context, 2018 is the last time when England got to the World Cup semi-finals. 2018 is before 2019. Therefore, the answer is 2018.
-</Thought>
 <Answer>
 2018
 </Answer>
@@ -829,9 +1082,6 @@ The United States has hosted Summer Olympics in 1996.
 <Question>
 How many times had the United States hosted Summer Olympics before 2000?
 </Question>
-<Thought>
-The question asks about the number of times that the United States had hosted Summer Olympics before 2000. The answer should be an integer. Based on the context, the United States has hosted Summer Olympics twice in 1984 and 1996. 1984 and 1996 are before 2000. Therefore, the answer is 2.
-</Thought>
 <Answer>
 2
 </Answer>
@@ -843,9 +1093,6 @@ K. R. Narayanan served as the President of India from 1997 until 2002.
 <Question>
 Who is the President of India on Jan 10, 1998?
 </Question>
-<Thought>
-The question asks about the person of the President of India on Jan 10, 1998. The answer should be a person's name. Based on the context, K. R. Narayanan served as the President of India from 1997 until 2002. Jan 10, 1998 is between 1997 and 2002. Therefore, the answer is K. R. Narayanan.
-</Thought>
 <Answer>
 K. R. Narayanan
 </Answer>
@@ -860,9 +1107,6 @@ The United States has hosted Summer Olympics in 1996.
 <Question>
 When is the last Summer Olympics that the United States hosted as of 2000?
 </Question>
-<Thought>
-The question asks about the time of the last Summer Olympics that the United States hosted as of 2000. The answer should be a date. Based on the context, the last time when the United States hosted Summer Olympics is 1996. 1996 is not later than 2000. Therefore, the answer is 1996.
-</Thought>
 <Answer>
 1996
 </Answer>
@@ -874,9 +1118,6 @@ The worldwide box office of Jurassic movie - The Lost World: Jurassic Park was $
 <Question>
 What was the worldwide box office of the first Jurassic movie after 1990?
 </Question>
-<Thought>
-The question asks about the worldwide box office of the first Jurassic movie after 1990. The answer should be a monetary value. Based on the context, the first Jurassic movie is Jurassic Park premiered on June 9, 1993. 1993 is after 1990. The worldwide box office of Jurassic Park was $914 million. Therefore, the answer is $914 million.
-</Thought>
 <Answer>
 $914 million
 </Answer>
@@ -888,9 +1129,6 @@ Oliver Bulleid was an employee for the GNR from December 1912.
 <Question>
 Oliver Bulleid was an employee for whom between 1911 and 1912?
 </Question>
-<Thought>
-The question asks about the employer of Oliver Bulleid between 1911 and 1912. The answer should be a name of company or organization. Based on the context, Oliver Bulleid started to work for the Board of Trade from 1910 and GNR from December 1912. 1911 and 1912 are after 1910 and before December 1912. Oliver Bulleid worked for the Board of Trade between 1911 and 1912. Therefore, the answer is Board of Trade.
-</Thought>
 <Answer>
 Board of Trade
 </Answer>
@@ -902,9 +1140,6 @@ The Dallas Cowboys won the Super Bowl for the 1995-1996 NFL season.
 <Question>
 For which NFL season did the Dallas Cowboys win the most recent Super Bowl as of 1998?
 </Question>
-<Thought>
-The question asks about the NFL season when Dallas Cowboys won the Super Bowl as of 1998. The answer should be a date. Based on the context, Dallas Cowboys won the Super Bowl for the 1995-1996 season. The 1995-1996 season is before 1998. Therefore, the answer is 1995.
-</Thought>
 <Answer>
 1995
 </Answer>
@@ -917,11 +1152,19 @@ The Super Bowl championship in 2007.
 <Question>
 When was the last time the Giants won Super Bowl championship before 2008?
 </Question>
-<Thought>
-The question asks about the last time the Giants won Super Bowl championship before 2008. The answer should be a date. Based on the context, the last time when the Giants won Super Bowl championship before 2008 is in 2007. Therefore, the answer is 2007.
-</Thought>
 <Answer>
 2007
+</Answer>
+
+<Context>
+Rishi Sunak took the position of Prime Minister of the United Kingdom from 2022 to 2024.
+Rishi Sunak took the position of vice-president on the Court of Governors in 2023.
+</Context>
+<Question>
+What is the first position Rishi Sunak took from 2023 to 2025?
+</Question>
+<Answer>
+Prime Minister
 </Answer>
 
 Now your context paragraph and question are
@@ -934,5 +1177,3 @@ Now your context paragraph and question are
 <Thought>
 """
     return prompt
-
-

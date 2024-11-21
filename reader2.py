@@ -1,7 +1,7 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
-import ray
-ray.init(num_gpus=4) 
+os.environ["CUDA_VISIBLE_DEVICES"] = "7"
+# import ray
+# ray.init(num_gpus=4) 
 
 from utils import *
 from prompts import *
@@ -14,27 +14,286 @@ import argparse
 from temp_eval import normalize
 
 
-# def TIMO():
-#     from transformers import pipeline
-#     pipe = pipeline("text-generation", model="Warrieryes/timo-13b-hf", model_kwargs={'load_in_8bit':True}, device_map='auto')
-#     return pipe
 
-# def TimeLLAMA():
-#     from transformers import pipeline
-#     pipe = pipeline("text-generation", model="chrisyuan45/TimeLlama-13b-chat", device_map='auto')
-#     return pipe
+# def GradeHallucinations(generation, document):
+#     prompt = f"""You are a grader assessing whether an LLM generation is grounded in / supported by a set of retrieved facts.
+# Give a binary score 'yes' or 'no'. 'Yes' means that the answer is grounded in / supported by the set of facts.
+
+# Set of facts: \n\n {document} \n\n LLM generation: {generation}
+# """
+#     return prompt
+
+# def GradeAnswers(answer)
+
+# """You are a grader assessing whether an answer addresses / resolves a question.
+# Give a binary score 'yes' or 'no'. Yes' means that the answer resolves the question."""
+
+
+def LLMGenerations(document, qeustion):
+    prompt = f"""You are a summarizer summarizing a retrieved document about a user question. Keep the key dates in the summarization. Write "None" if the document has no relevant content about the question.
+
+There are some examples for you to refer to:
+<Document>
+Houston Rockets | The Houston Rockets have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
+</Document>
+<Question>
+When did the Houston Rockets win the NBA championship?
+</Question>
+<Summarization>
+The Houston Rockets won the NBA championship twice, in 1994 and 1995.
+</Summarization>
+
+<Document>
+India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
+</Document>
+<Question>
+Who serve as President of India?
+</Question>
+<Summarization>
+Neelam Sanjiva Reddy became the sixth President in 1977. K. R. Narayanan, the first Dalit president, served from 1997 to 2002. In 2022, Droupadi Murmu became the 15th President and the first tribal woman to hold the position.
+</Summarization>
+
+<Document>
+The Lost World: Jurassic Park | The Lost World: Jurassic Park is a 1997 American science fiction action film. In Thailand, The Lost World became the country's highest-grossing film of all time. It ultimately grossed $229.1 million in the U.S. and $389.5 million internationally, for a total of $618.6 million worldwide. The film sold an estimated 49,910,000 tickets in North America.
+</Document>
+<Question>
+What was the worldwide box office of Jurassic movie?
+</Question>
+<Summarization>
+The worldwide box office for The Lost World: Jurassic Park (1997) was $618.6 million.
+</Summarization>
+
+<Document>
+2019 Grand National | The 2019 Grand National (officially known as the Randox Health 2019 Grand National for sponsorship reasons) was the 172nd annual running of the Grand National horse race at Aintree Racecourse near Liverpool, England. The showpiece steeplechase is the pinnacle of a three-day festival which began on 4 April, followed by Ladies' Day on 5 April.
+</Document>
+<Question>
+Who won the Grand National?
+</Question>
+<Summarization>
+None
+</Summarization>
+
+<Document>
+Oliver Bulleid |  He was born in Invercargill, New Zealand, to William Bulleid and his wife Marian Pugh, both British immigrants. On the death of his father in 1889, his mother returned to Llanfyllin, Wales, where the family home had been, with Bulleid. In 1901, after a technical education at Accrington Grammar School, he joined the Great Northern Railway (GNR) at Doncaster at the age of 18, as an apprentice under H. A. Ivatt, the Chief Mechanical Engineer (CME). After a four-year apprenticeship, he became the assistant to the Locomotive Running Superintendent, and a year later, the Doncaster Works manager. In 1908, he left to work in Paris with the French division of Westinghouse Electric Corporation as a Test Engineer, and was soon promoted to Assistant Works Manager and 
+</Document>
+<Question>
+Oliver Bulleid was an employee for whom?
+</Question>
+<Summarization>
+Oliver Bulleid was an employee of the Great Northern Railway (GNR) from 1901 and the Westinghouse Electric Corporation from 1908.
+</Summarization>
+
+<Document>
+Doris Schröder-Köpf | Köpf and partner Sven Kuntze moved to New York City in 1990, where they had a daughter named Klara in the following year. Soon after the birth the pair separated and Köpf moved back to Bavaria with the child. In October 1997, Köpf married Gerhard Schröder, then Minister-President of Lower Saxony.
+</Document>
+<Question>
+Who was the spouse of Doris Schröder?
+</Question>
+<Summarization>
+Doris Schröder-Köpf married Gerhard Schröder, then Minister-President of Lower Saxony, in October 1997.
+</Summarization>
+
+<Document>
+Newton D. Baker House | 1794-1796 - Thomas Beall ; 1796-? - John Laird  ; ?-1827 - George Peter ; 2017-present - David W. Hudgens
+</Document>
+<Question>
+Who owned the Newton D. Baker House in Washington DC?
+</Question>
+<Summarization>
+The Newton D. Baker House in Washington, D.C. was owned by the following individuals over time: Thomas Beall from 1794 to 1796, John Laird from 1796, George Peter to 1827, and David W. Hudgens from 2017.
+</Summarization>
+
+Now your document and question are
+<Document>
+{document}
+</Document>
+<Question>
+{qeustion}
+</Question>
+<Summarization>
+"""
+    return prompt
+
+
+def GradeDocuments(context, question):
+    prompt = f"""You will be given a context paragraph and a question. Your task is decide whether the context is relevant and contains the answer to the question.
+Requirements are follows:
+- First read the paragraph after <Context> and question after <Question> carefully.
+- Then you should think step by step and give your thought after <Thought>.
+- Finally, write the response by "Yes" or "No" after <Response>.
+
+There are some examples for you to refer to:
+<Context>
+1882 in rail transport | September 19 – Oliver Bulleid, chief mechanical engineer of the Southern Railway (Great Britain) 1937–1948, born in New Zealand (d. 1970). 
+</Context>
+<Question>
+Oliver Bulleid was an employee for whom?
+</Question>
+<Thought>
+The mentions that Oliver Bulleid was the chief mechanical engineer of the Southern Railway (Great Britain) from 1937 to 1948, which answers the question about whom he was employed by. So the context is relevant to the question. Therefore, the response is "Yes".
+</Thought>
+<Response>
+Yes
+</Response>
+
+<Context>
+Petronas Towers | The Petronas Towers (Malay: Menara Berkembar Petronas), also known as the Petronas Twin Towers and colloquially the KLCC Twin Towers, are an interlinked pair of 88-storey supertall skyscrapers in Kuala Lumpur, Malaysia, standing at 451.9 metres (1,483 feet).
+</Context>
+<Question>
+Tallest building in the world?
+</Question>
+<Thought>
+The context about the Petronas Towers is not directly relevant to the question about the tallest building in the world. So the context is not relevant to the question. Therefore, the response is "No".
+</Thought>
+<Response>
+No
+</Response>
+
+<Context>
+List of 20th-century religious leaders Church of England | Formal leadership: Supreme Governor of the Church of England (complete list) – ; Victoria, Supreme Governor (1837–1901) ; Edward VII, Supreme Governor (1901–1910) ; George V, Supreme Governor (1910–1936) ; Cosmo Gordon Lang, Archbishop of Canterbury (1928–1942) ; William Temple, Archbishop of Canterbury (1942–1944) ; 
+</Context>
+<Question>
+Who is the head of the Church in England?
+</Question>
+<Thought>
+The context provides a list of historical figures who held the title of Supreme Governor, including monarchs such as Queen Victoria, King Edward VII, and King George V. So the context is relevant to the question. Therefore, the response is "Yes".
+</Thought>
+<Response>
+Yes
+</Response>
+
+<Context>
+Abbey Christian Brothers' Grammar School | Frank Aiken (1898-1983) TD, Irish Republican Army commander, Tánaiste and served as Minister for Defence (1932–39), Minister for the Co-ordination of Defensive Measures (1939–45), Minister for Finance (1945–48) and Minister for External Affairs (1951–54; 1957–69) ; Séamus Mallon (1936-2020), Member of Parliament (MP) for Newry & Armagh (1986-2005)
+</Context>
+<Question>
+Who is the Minister for Defence in Ireland?
+</Question>
+<Thought>
+The provided context, which includes information about Frank Aiken and Séamus Mallon, is not directly relevant to the question about the current Minister for Defence in Ireland. So the context is not relevant to the question. Therefore, the response is "No".
+</Thought>
+<Response>
+No
+</Response>
+
+Now your context paragraph and question are
+<Context>
+{context}
+</Context>
+<Question>
+{question}?
+</Question>
+<Thought>
+"""
+    return prompt
+
+
+def CombinedReader(generations, question):
+
+    prompt=f"""As an assistant, your task is to answer the question based on the given knowledge. Answer the given question, you can refer to the document provided. Your answer should be after <Answer>.
+The given knowledge will be after the <Context> tage. You can refer to the knowledge to answer the question.
+If the knowledge does not contain the answer, answer the question directly.
+
+There are some examples for you to refer to:
+<Context>
+The Newton D. Baker House in Washington, D.C. was owned by the following individuals over time: Thomas Beall from 1794 to 1796, John Laird from 1796, George Peter to 1827, and David W. Hudgens from 2017.
+</Context>
+<Question>
+Who owned the Newton D. Baker House in Washington, D.C on 2 Jan 1795? 
+</Question>
+<Thought>
+According to the context, the Newton D. Baker House in Washington, D.C. was owned by Thomas Beall from 1794 to 1796. 2 Jan 1795 is between 1794 and 1796. Therefore, the answer is Thomas Beall. 
+</Thought>
+<Answer>
+Thomas Beall
+</Answer>
+
+<Context>
+In 1977, Trump married Czech model Ivana Zelníčková. The couple divorced in 1990, following his affair with actress Marla Maples.
+
+Trump and Maples married in 1993 and divorced in 1999.
+
+In 2005, Donald Trump married Slovenian model Melania Knauss. They have one son, Barron (born 2006).
+</Context>
+<Question>
+Who was the spouse of Donald Trump between 2010 and 2014?
+</Question>
+<Thought>
+According to the context, Donald Trump married Slovenian model Melania Knauss in 2005. The period between 2010 and 2014 is after 2005. Therefore, the answer is Melania Knauss. 
+</Thought>
+<Answer>
+Melania Knauss
+</Answer>
+
+<Context>
+Theo-Ben Gurirab served as the second Prime Minister of Namibia from 28 August 2002 to 20 March 2005, following the demotion and subsequent resignation of Hage Geingob.
+
+Theo-Ben Gurirab was Associate Representative of the SWAPO Mission to the United Nations and the United States from 1964 to 1972
+
+Saara Kuugongelwa-Amadhila (born 12 October 1967) is a Namibian politician who has served as the Prime Minister of Namibia since 2015.
+</Context>
+<Question>
+Theo-Ben Gurirab took which position as of 2004?
+</Question>
+<Thought>
+According to the context, Theo-Ben Gurirab served as the Prime Minister of Namibia from 28 August 2002 to 20 March 2005. 2004 is between 28 August 2002 and 20 March 2005. Therefore, the answer is Prime Minister of Namibia.
+</Thought>
+<Answer>
+Prime Minister of Namibia
+</Answer>
+
+<Context>
+England national football team has qualified for the World Cup sixteen times, with fourth-place finishes in the 1990 and 2018 editions.
+</Context>
+<Question>
+When did England last get to the semi final of a World Cup before 2019?
+</Question>
+<Thought>
+According to the context, England got to the semi final of a World Cup in 1990 and 2018. 2018 is the last time before 2019. Therefore, the answer is 2018. 
+</Thought>
+<Answer>
+Prime Minister of Namibia
+</Answer>
+
+<Context>
+Super Bowl XL was an American football game between Seattle Seahawks and Pittsburgh Steelers to decide the National Football League (NFL) champion for the 2005 season. The Steelers defeated the Seahawks by the score of 21–10. The game was played on February 5, 2006.
+
+The winner of Super Bowl XLIII, which took place on February 1, 2009, was the Pittsburgh Steelers.
+
+Pittsburgh Steelers won the Super Bowl XLIII for the 2008 NFL season.
+</Context>
+<Question>
+When was the first season that Pittsburgh Steelers won Super Bowl championship between 2000 and 2010?
+</Question>
+<Thought>
+According to the context, Pittsburgh Steelers won Super Bowl championship for 2005 and 2008 seasons. 2005 is the first time between 2000 and 2010. Therefore, the answer is 2005. 
+</Thought>
+<Answer>
+2005
+</Answer>
+
+Now your question and context knowledge are
+<Context>
+{generations}
+</Context>
+<Question>
+{question}
+</Question>
+<Thought>
+"""
+    return prompt
+
 
 
 def main():
     parser = argparse.ArgumentParser(description="Reader")
-    parser.add_argument('--max-examples', type=int, default=None)
+    parser.add_argument('--max-examples', type=int, default=10)
     parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_metriever_bgegemma_llama_8b_qfs5_outputs.json")
     # parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_minilm12_outputs.json")
     parser.add_argument('--ctx-topk', type=int, default=5)
     parser.add_argument('--param-pred', type=bool, default=False)
     parser.add_argument('--param-cot', type=bool, default=False)
-    parser.add_argument('--not-save', type=bool, default=False)
-    parser.add_argument('--save-note', type=str, default="concat_filter")
+    parser.add_argument('--not-save', type=bool, default=True)
+    parser.add_argument('--save-note', type=str, default=None)
     parser.add_argument(
         '--stage1-model',
         choices=['bm25', 'contriever','hybrid'], 
@@ -67,7 +326,7 @@ def main():
         args.llm = LLM(args.l, tensor_parallel_size=4, quantization="AWQ", max_model_len=20000)
     else:
         mx_len = 2048 if args.reader=='timo' else 20000
-        args.llm = LLM(args.l, tensor_parallel_size=4, max_model_len=mx_len)
+        args.llm = LLM(args.l, tensor_parallel_size=1, max_model_len=mx_len)
 
     # load examples
     if 'retrieved' not in args.retriever_output:
@@ -75,9 +334,14 @@ def main():
     examples = load_json_file(args.retriever_output)
     print('examples loaded.')
 
+    examples = examples[100:200]
+
     if args.max_examples:
         examples = examples[:min(len(examples),args.max_examples)]
-    
+
+    # x = "What was the official name of Tinkoff (cycling team) in 2003?"
+    # examples = [ex for ex in examples if x in ex['question']]
+
     examples = [ex for ex in examples if ex['time_relation'] != '']
     if len(examples)==0:
         print(f'find no example in top {args.max_examples}.')
@@ -99,8 +363,8 @@ def main():
         for ex in examples:
             text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'].strip() for ctx in ex[tmp_key][:args.ctx_topk]])
             texts.append(text)
-            # prompt = c_cot_prompt(ex['question'], text)
-            prompt = c_prompt(ex['question'], text)
+            prompt = c_cot_prompt(ex['question'], text)
+            # prompt = c_prompt(ex['question'], text)
             prompts.append(prompt)
 
         rag_preds = call_pipeline(args, prompts, 500)
@@ -140,12 +404,19 @@ def main():
 
             for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
                 context = f"{ctx['title']} | {ctx['text']}"
-                checker_prompt = checker(normalized_question, context)
+                checker_prompt = GradeDocuments(context, normalized_question)
                 checker_prompts.append(checker_prompt)
 
-        checker_responses = call_pipeline(args, checker_prompts, 500)
+        checker_responses = call_pipeline(args, checker_prompts, 400)
         checker_results = ['yes' in res.lower() for res in checker_responses]
         print('started reader')
+
+
+        # for x, y in zip(checker_prompts, checker_responses):
+        #     print('\n==\n')
+        #     print(x.split('Now your context paragraph and question are')[-1])
+        #     print(y)
+        assert 1==2
 
         prompts, texts = [], []
         for ex in examples:
@@ -178,6 +449,7 @@ def main():
             ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
             ex['rag_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(rag_pred))
     
+    print(rag_preds)
 
     to_save=[]
     for k, ex in enumerate(examples):

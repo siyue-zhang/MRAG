@@ -17,7 +17,7 @@ def print_top_ctx(ex, topk, ctx_key):
             break
 
 
-examples = load_json_file('./retrieved/situatedqa_contriever_metriever_bgegemma_llama_8b_qfs5_outputs.json')
+examples = load_json_file('./retrieved/timeqa_contriever_metriever_bgegemma_llama_8b_qfs5_outputs.json')
 examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
 
 # for i,ex in enumerate(examples):
@@ -29,25 +29,25 @@ examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
 #     print_top_ctx(ex, 10, 'snt_hybrid_rank')
 
 
-print('\n**** Answers ****\n')
-print('~~~~~~~ctx_keyword_rank~~~~~~~~')
-eval_recall(examples_exact, ctxs_key='ctx_keyword_rank', ans_key='answers')
-print('~~~~~~~ctx_semantic_rank~~~~~~~~')
-eval_recall(examples_exact, ctxs_key='ctx_semantic_rank', ans_key='answers')
-print('~~~~~~~snt_keyword_rank~~~~~~~~')
-eval_recall(examples_exact, ctxs_key='snt_keyword_rank', ans_key='answers')
-print('~~~~~~~snt_hybrid_rank~~~~~~~~')
-eval_recall(examples_exact, ctxs_key='snt_hybrid_rank', ans_key='answers') 
+# print('\n**** Answers ****\n')
+# print('~~~~~~~ctx_keyword_rank~~~~~~~~')
+# eval_recall(examples_exact, ctxs_key='ctx_keyword_rank', ans_key='answers')
+# print('~~~~~~~ctx_semantic_rank~~~~~~~~')
+# eval_recall(examples_exact, ctxs_key='ctx_semantic_rank', ans_key='answers')
+# print('~~~~~~~snt_keyword_rank~~~~~~~~')
+# eval_recall(examples_exact, ctxs_key='snt_keyword_rank', ans_key='answers')
+# print('~~~~~~~snt_hybrid_rank~~~~~~~~')
+# eval_recall(examples_exact, ctxs_key='snt_hybrid_rank', ans_key='answers') 
 
-print('\n**** Gold Evidences ****\n')
-print('~~~~~~~ctx_keyword_rank~~~~~~~~')
-eval_recall(examples_exact, ctxs_key='ctx_keyword_rank', ans_key='gold_evidences')
-print('~~~~~~~ctx_semantic_rank~~~~~~~~')
-eval_recall(examples_exact, ctxs_key='ctx_semantic_rank', ans_key='gold_evidences')
-print('~~~~~~~snt_keyword_rank~~~~~~~~')
-eval_recall(examples_exact, ctxs_key='snt_keyword_rank', ans_key='gold_evidences')
-print('~~~~~~~snt_hybrid_rank~~~~~~~~')
-eval_recall(examples_exact, ctxs_key='snt_hybrid_rank', ans_key='gold_evidences') 
+# print('\n**** Gold Evidences ****\n')
+# print('~~~~~~~ctx_keyword_rank~~~~~~~~')
+# eval_recall(examples_exact, ctxs_key='ctx_keyword_rank', ans_key='gold_evidences')
+# print('~~~~~~~ctx_semantic_rank~~~~~~~~')
+# eval_recall(examples_exact, ctxs_key='ctx_semantic_rank', ans_key='gold_evidences')
+# print('~~~~~~~snt_keyword_rank~~~~~~~~')
+# eval_recall(examples_exact, ctxs_key='snt_keyword_rank', ans_key='gold_evidences')
+# print('~~~~~~~snt_hybrid_rank~~~~~~~~')
+# eval_recall(examples_exact, ctxs_key='snt_hybrid_rank', ans_key='gold_evidences') 
 
 print('=====================================')
 

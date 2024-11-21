@@ -1,6 +1,6 @@
 import os
+# os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
 import ray
 ray.init(num_gpus=4) 
@@ -30,13 +30,13 @@ from temp_eval import normalize
 def main():
     parser = argparse.ArgumentParser(description="Reader")
     parser.add_argument('--max-examples', type=int, default=None)
-    # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_metriever_bgegemma_llama_8b_qfs5_outputs.json")
+    # parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_metriever_bgegemma_llama_8b_qfs5_outputs.json")
     parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_bgegemma_outputs.json")
-    parser.add_argument('--ctx-topk', type=int, default=40)
+    parser.add_argument('--ctx-topk', type=int, default=5)
     parser.add_argument('--param-pred', type=bool, default=False)
     parser.add_argument('--param-cot', type=bool, default=False)
     parser.add_argument('--not-save', type=bool, default=False)
-    parser.add_argument('--save-note', type=str, default='dp')
+    parser.add_argument('--save-note', type=str, default='c_cot')
     parser.add_argument(
         '--stage1-model',
         choices=['bm25', 'contriever','hybrid'], 
@@ -77,11 +77,12 @@ def main():
     examples = load_json_file(args.retriever_output)
     print('examples loaded.')
 
+
+    # examples = examples[100:200]
     if args.max_examples:
         examples = examples[:min(len(examples),args.max_examples)]
 
-    # examples = examples[100:200]
-    # x = "When was the last time the Dodgers played the Yankees in the World Series between 1979 and 1999?"
+    # x = "What is the first position Henry Addington took from 1802 to 1811?"
     # examples = [ex for ex in examples if x in ex['question']]
     
     examples = [ex for ex in examples if ex['time_relation'] != '']
@@ -105,8 +106,8 @@ def main():
         for ex in examples:
             text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'].strip() for ctx in ex[tmp_key][:args.ctx_topk]])
             texts.append(text)
-            # prompt = c_cot_prompt(ex['question'], text)
-            prompt = c_prompt(ex['question'], text)
+            prompt = c_cot_prompt(ex['question'], text)
+            # prompt = c_prompt(ex['question'], text)
             prompts.append(prompt)
 
         rag_preds = call_pipeline(args, prompts, 500)
@@ -153,10 +154,10 @@ def main():
                 reader_prompt = reader(normalized_question, ctx['title'], ctx['text'])
                 reader_prompts.append(reader_prompt)
         
-        checker_responses = call_pipeline(args, checker_prompts, 500)
-        checker_results = ['yes' in res.lower() for res in checker_responses]
+        # checker_responses = call_pipeline(args, checker_prompts, 500)
+        # checker_results = ['yes' in res.lower() for res in checker_responses]
         print('started reader')
-        reader_responses = call_pipeline(args, reader_prompts, 500, return_list=True)
+        reader_responses = call_pipeline(args, reader_prompts, 1000, return_list=True)
 
         # ensure the year appears in the responses also appears in the reader context
         tmp=[]
@@ -166,30 +167,31 @@ def main():
             tmp.append(r_r)
         reader_responses = tmp
 
-        entail_check_map = {}
-        contexts, anss = [], []
-        entailer_prompts = []
-        for reader_prompt, reader_response, checker_res in zip(reader_prompts, reader_responses, checker_results):
-            if checker_res:
-                reader_prompt = reader_prompt.split('Now your context paragraph and question are\n')[-1]
-                context = reader_prompt.split('\n</Context>')[0].split('<Context>\n')[-1]
-                for ans in reader_response:
-                    contexts.append(context)
-                    anss.append(ans)
-                    entailer_prompt = entailer(context, ans)
-                    entailer_prompts.append(entailer_prompt)
-        entailer_responses = call_pipeline(args, entailer_prompts, 200)
-        entailer_results = ['yes' in res.lower() for res in entailer_responses]
-        for context, ans, entail in zip(contexts, anss, entailer_results):
-            entail_check_map[context.strip()+'<>'+ans.strip()] = entail
+        # entail_check_map = {}
+        # contexts, anss = [], []
+        # entailer_prompts = []
+        # for reader_prompt, reader_response, checker_res in zip(reader_prompts, reader_responses, checker_results):
+        #     if checker_res:
+        #         reader_prompt = reader_prompt.split('Now your context paragraph and question are\n')[-1]
+        #         context = reader_prompt.split('\n</Context>')[0].split('<Context>\n')[-1]
+        #         for ans in reader_response:
+        #             contexts.append(context)
+        #             anss.append(ans)
+        #             entailer_prompt = entailer(context, ans)
+        #             entailer_prompts.append(entailer_prompt)
+        # entailer_responses = call_pipeline(args, entailer_prompts, 200)
+        # entailer_results = ['yes' in res.lower() for res in entailer_responses]
+        # for context, ans, entail in zip(contexts, anss, entailer_results):
+        #     entail_check_map[context.strip()+'<>'+ans.strip()] = entail
 
-        # import ipdb; ipdb.set_trace()
 
-        for x, y, z in zip(reader_prompts, reader_responses, checker_responses):
+        for x, y in zip(reader_prompts, reader_responses):
             print('\n==\n')
             print(x.split('Now your context paragraph and question are')[-1])
             print(y)
-            print(z)
+            print('\n')
+            import ipdb; ipdb.set_trace()
+
 
         sub_examples = []
         timer_prompts = []
@@ -198,19 +200,20 @@ def main():
             normalized_question = ex['normalized_question']
             reader_ans = []
             for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
-                checker_result = checker_results.pop(0)
+                # checker_result = checker_results.pop(0)
                 reader_response = reader_responses.pop(0)
-                if checker_result and len(reader_response)>0:
-                    print('xxx ', reader_response)
-                    tmp = []
-                    for ans in reader_response:
-                        context = f"{ctx['title']} | {ctx['text']}"
-                        key = context.strip()+'<>'+ans.strip()
-                        if key in entail_check_map and entail_check_map[key]:
-                            tmp.append(ans)
-                    if tmp != reader_response:
-                        print('yyy ', tmp)
-                    reader_ans += tmp
+                # if checker_result and len(reader_response)>0:
+                if len(reader_response)>0:
+                    # print('xxx ', reader_response)
+                    # tmp = []
+                    # for ans in reader_response:
+                    #     context = f"{ctx['title']} | {ctx['text']}"
+                    #     key = context.strip()+'<>'+ans.strip()
+                    #     if key in entail_check_map and entail_check_map[key]:
+                    #         tmp.append(ans)
+                    # if tmp != reader_response:
+                    #     print('yyy ', tmp)
+                    reader_ans += reader_response
             reader_ans = list(set(reader_ans))
             for reader_a in reader_ans:
                 sub_examples.append([question, normalized_question, reader_a])
@@ -339,8 +342,8 @@ def main():
                 filtered_result = sorted(filtered_result, key=lambda x: (list(x[-1].values())[0]['start_year'], list(x[-1].values())[0]['start_month']), reverse=False)
 
             new_questions.append(question)
-            if len(filtered_result)>10:
-                filtered_result = filtered_result[:5]+filtered_result[-5:]
+            # if len(filtered_result)>10:
+            filtered_result = filtered_result[:1]+filtered_result[-1:]
             contexts = '\n'.join([tp[2].replace(' first','').replace(' last','') for tp in filtered_result])
 
 

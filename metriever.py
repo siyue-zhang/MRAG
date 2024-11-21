@@ -1,5 +1,8 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "2,5"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
+# import ray
+# ray.init(num_gpus=4)
 
 from utils import *
 from prompts import *
@@ -36,8 +39,8 @@ def main():
     parser.add_argument(
         '--stage2-model', 
         choices=['metriever','minilm6','minilm12','bge','tinybert','bgegemma','electra', None], 
-        # default='metriever', #
-        default='bgegemma', #
+        default='metriever', #
+        # default='bgegemma', #
         help='Choose a model for stage 2 re-ranking'
     )
     parser.add_argument(
@@ -49,7 +52,7 @@ def main():
     parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/TempRAGEval.json")
     parser.add_argument('--bm25-output', type=str, default="./TempRAGEval/BM25_output/TempRAGEval.json")
     parser.add_argument('--ctx-topk', type=int, default=100)
-    parser.add_argument('--QFS-topk', type=int, default=0)
+    parser.add_argument('--QFS-topk', type=int, default=5)
     parser.add_argument('--snt-topk', type=int, default=200)
     parser.add_argument('--complete-ctx-text', type=bool, default=False)
     parser.add_argument('--hybrid-score', type=bool, default=True)

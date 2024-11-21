@@ -419,7 +419,10 @@ def call_pipeline(args, prompts, max_tokens=100, return_list=False):
         sampling_params = SamplingParams(temperature=0.2, top_p=0.95, max_tokens=max_tokens, seed=0)
         outputs = args.llm.generate(prompts, sampling_params)
         responses = [output.outputs[0].text for output in outputs]
-        # print('//////')
+        for x, y in zip(prompts, responses):
+            print(x.split('Now your context paragraph and question are')[-1])
+            print(y.split('</Response>')[0])
+            print('//////\n')
         # print(prompts[0])
         # print('//////')
         # print(responses[0])
@@ -428,7 +431,17 @@ def call_pipeline(args, prompts, max_tokens=100, return_list=False):
         for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Response>']:
             responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
 
-        if '<Thought>' in prompts[0]:
+        if return_list and '<Thought>' in prompts[0]:
+            output = []
+            for res in responses:
+                res = res.split('\n</Answer>')[0]
+                res = res.split('<Answer>\n')[-1]
+                res = res.split('- ')
+                res = [r.replace('\n','').strip() for r in res]
+                res = [r for r in res if len(r)>0 ] # and len(r.split())<30
+                output.append(res)
+            return output
+        elif '<Thought>' in prompts[0]:
             for mid_stopper in ['</Thought>', '<Answer>', '<Response>']:
                 responses = [res.split(mid_stopper)[-1].replace('\n','').strip() if mid_stopper in res else res for res in responses]
         else:
