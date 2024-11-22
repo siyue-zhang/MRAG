@@ -5,7 +5,7 @@ titles = ["TIMO", "Llama3.1-8B", "Llama3.1-70B"]
 y_titles = ['Exact Match','','']
 
 # Data for the bar chart
-categories = ["DP", "CoT", "RAG", "Self-RAG"]  # Labels for bars within each group
+categories = ["DP", "CoT", "RAG", "Self-mRAG"]  # Labels for bars within each group
 group_labels = ['TimeQA', 'SituatedQA']  # Labels for each group
 
 # Values for each group

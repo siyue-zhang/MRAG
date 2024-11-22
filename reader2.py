@@ -34,23 +34,33 @@ def LLMGenerations(document, qeustion):
 
 There are some examples for you to refer to:
 <Document>
+David Beckham | As the summer 2003 transfer window approached, Manchester United appeared keen to sell Beckham to Barcelona and the two clubs even announced that they reached a deal for Beckham's transfer, but instead he joined reigning Spanish champions Real Madrid for €37 million on a four-year contract. Beckham made his Galaxy debut, coming on for Alan Gordon in the 78th minute of a 0–1 friendly loss to Chelsea as part of the World Series of Soccer on 21 July 2007. 
+</Document>
+<Question>
+David Beckham played for which team?
+</Question>
+<Summarization>
+David Beckham played for Real Madrid from 2003 to 2007 and for LA Galaxy from July 21, 2007.
+</Summarization>
+
+<Document>
 Houston Rockets | The Houston Rockets have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
 </Document>
 <Question>
 When did the Houston Rockets win the NBA championship?
 </Question>
 <Summarization>
-The Houston Rockets won the NBA championship twice, in 1994 and 1995.
+The Houston Rockets won the NBA championship twice in 1994 and 1995.
 </Summarization>
 
 <Document>
-India | India has had several distinguished presidents throughout its history. In 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
+India | India has had several distinguished presidents throughout its history. In 21 July 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
 </Document>
 <Question>
 Who serve as President of India?
 </Question>
 <Summarization>
-Neelam Sanjiva Reddy became the sixth President in 1977. K. R. Narayanan, the first Dalit president, served from 1997 to 2002. In 2022, Droupadi Murmu became the 15th President and the first tribal woman to hold the position.
+Neelam Sanjiva Reddy became the sixth President in 21 July 1977. K. R. Narayanan, the first Dalit president, served from 1997 to 2002. In 2022, Droupadi Murmu became the 15th President and the first tribal woman to hold the position.
 </Summarization>
 
 <Document>
@@ -80,7 +90,7 @@ Oliver Bulleid |  He was born in Invercargill, New Zealand, to William Bulleid a
 Oliver Bulleid was an employee for whom?
 </Question>
 <Summarization>
-Oliver Bulleid was an employee of the Great Northern Railway (GNR) from 1901 and the Westinghouse Electric Corporation from 1908.
+Oliver Bulleid was an employee of the Great Northern Railway (GNR) from 1901 and of the Westinghouse Electric Corporation from 1908.
 </Summarization>
 
 <Document>
@@ -361,7 +371,7 @@ def main():
     examples = load_json_file(args.retriever_output)
     print('examples loaded.')
 
-    examples = examples[100:200]
+    examples = examples[300:400]
 
     if args.max_examples:
         examples = examples[:min(len(examples),args.max_examples)]
