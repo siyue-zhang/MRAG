@@ -1,8 +1,7 @@
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
-# os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
-# import ray
-# ray.init(num_gpus=4)
+# os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,7"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "2,3,6"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 
 from utils import *
 from prompts import *
@@ -52,15 +51,15 @@ def main():
     parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/TempRAGEval.json")
     parser.add_argument('--bm25-output', type=str, default="./TempRAGEval/BM25_output/TempRAGEval.json")
     parser.add_argument('--ctx-topk', type=int, default=100)
-    parser.add_argument('--QFS-topk', type=int, default=5)
+    parser.add_argument('--QFS-topk', type=int, default=10)
     parser.add_argument('--snt-topk', type=int, default=200)
     parser.add_argument('--complete-ctx-text', type=bool, default=False)
     parser.add_argument('--hybrid-score', type=bool, default=True)
     parser.add_argument('--hybrid-base', type=float, default=0)
     parser.add_argument('--snt-with-title', type=bool, default=True)
-    parser.add_argument('--llm', type=str, default="llama_8b")
+    parser.add_argument('--llm', type=str, default="llama_70b")
     parser.add_argument('--save-note', type=str, default=None)
-    parser.add_argument('--subset', type=str, default='timeqa')
+    parser.add_argument('--subset', type=str, default='situatedqa')
     parser.add_argument('--save', type=bool, default=True)
     parser.add_argument('--load-keywords', type=bool, default=False)
 
@@ -78,13 +77,13 @@ def main():
         if flg:
             args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=4096)
         else:
-            args.llm = LLM(args.l, tensor_parallel_size=1, max_model_len=4096)
+            args.llm = LLM(args.l, tensor_parallel_size=2, max_model_len=4096)
         
     # load semantic ranker for stage 2 / metriever
     if args.m2:
         name = args.m3 if args.m2 == 'metriever' else args.m2
         if 'gemma' in name:
-            args.model = FlagLLMReranker(name, use_fp16=True, device='cuda:1')
+            args.model = FlagLLMReranker(name, use_fp16=True, device='cuda:2')
         elif 'bge' in name:
             args.model = FlagReranker(name, use_fp16=True)
         else:
@@ -98,7 +97,7 @@ def main():
     elif args.stage1_model == 'bm25':
         ctx_key = 'bm25_ctxs'
         path = args.bm25_output
-        with open(path, 'r') as file:
+        with open(path, 'r', encoding="utf-8") as file:
             examples = json.load(file)
     else:
         # hybrid
@@ -481,12 +480,12 @@ def main():
         # generate summaries
         QFS_prompts = []
         for ctx in latest_ctxs[:args.QFS_topk]:
-            qfs_prompt = get_QFS_prompt(normalized_question, ctx['title'], ctx['text'])
+            qfs_prompt = LLMGenerations(ctx['title']+' | '+ctx['text'],  normalized_question)
+            # qfs_prompt = get_QFS_prompt(normalized_question, ctx['title'], ctx['text'])
             QFS_prompts.append(qfs_prompt)
         all_QFS_prompts += QFS_prompts
 
     all_summary_responses = call_pipeline(args, all_QFS_prompts, 200)
-        # import ipdb; ipdb.set_trace()
 
     for k, ex in enumerate(examples):
 

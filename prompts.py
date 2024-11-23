@@ -92,6 +92,119 @@ Now your question is
     return prompt
 
 
+def LLMGenerations(document, qeustion, short=False):
+    prompt = f"""You are a summarizer summarizing a retrieved document about a user question. Keep the key dates in the summarization. Write "None" if the document has no relevant content about the question.
+
+There are some examples for you to refer to:
+<Document>
+David Beckham | As the summer 2003 transfer window approached, Manchester United appeared keen to sell Beckham to Barcelona and the two clubs even announced that they reached a deal for Beckham's transfer, but instead he joined reigning Spanish champions Real Madrid for €37 million on a four-year contract. Beckham made his Galaxy debut, coming on for Alan Gordon in the 78th minute of a 0–1 friendly loss to Chelsea as part of the World Series of Soccer on 21 July 2007. 
+</Document>
+<Question>
+David Beckham played for which team?
+</Question>
+<Summarization>
+David Beckham played for Real Madrid from 2003 to 2007 and for LA Galaxy from July 21, 2007.
+</Summarization>
+
+<Document>
+Houston Rockets | The Houston Rockets have won the NBA championship twice in their history. Their first win came in 1994, when they defeated the New York Knicks in a seven-game series. The following year, in 1995, they claimed their second title by sweeping the Orlando Magic. Despite several playoff appearances in the 2000s and 2010s, the Rockets have not reached the NBA Finals since their last championship victory in 1995.
+</Document>
+<Question>
+When did the Houston Rockets win the NBA championship?
+</Question>
+<Summarization>
+The Houston Rockets won the NBA championship twice in 1994 and 1995.
+</Summarization>
+
+<Document>
+India | India has had several distinguished presidents throughout its history. In 21 July 1977, Neelam Sanjiva Reddy was elected as the sixth President of India. Years later, in 1997, K. R. Narayanan became the first Dalit to hold the office, serving until 2002. In 2022, Droupadi Murmu was elected as the 15th President, making her the first tribal woman to serve as the country's president.
+</Document>
+<Question>
+Who serve as President of India?
+</Question>
+<Summarization>
+Neelam Sanjiva Reddy became the sixth President in 21 July 1977. K. R. Narayanan, the first Dalit president, served from 1997 to 2002. In 2022, Droupadi Murmu became the 15th President and the first tribal woman to hold the position.
+</Summarization>
+
+<Document>
+Doris Schröder-Köpf | Köpf and partner Sven Kuntze moved to New York City in 1990, where they had a daughter named Klara in the following year. Soon after the birth the pair separated and Köpf moved back to Bavaria with the child. In October 1997, Köpf married Gerhard Schröder, then Minister-President of Lower Saxony.
+</Document>
+<Question>
+Who was the spouse of Doris Schröder?
+</Question>
+<Summarization>
+Doris Schröder-Köpf married Gerhard Schröder, then Minister-President of Lower Saxony, in October 1997.
+</Summarization>
+
+<Document>
+The Lost World: Jurassic Park | The Lost World: Jurassic Park is a 1997 American science fiction action film. In Thailand, The Lost World became the country's highest-grossing film of all time. It ultimately grossed $229.1 million in the U.S. and $389.5 million internationally, for a total of $618.6 million worldwide. The film sold an estimated 49,910,000 tickets in North America.
+</Document>
+<Question>
+What was the worldwide box office of Jurassic movie?
+</Question>
+<Summarization>
+The worldwide box office for The Lost World: Jurassic Park (1997) was $618.6 million.
+</Summarization>
+
+<Document>
+Oliver Bulleid |  He was born in Invercargill, New Zealand, to William Bulleid and his wife Marian Pugh, both British immigrants. On the death of his father in 1889, his mother returned to Llanfyllin, Wales, where the family home had been, with Bulleid. In 1901, after a technical education at Accrington Grammar School, he joined the Great Northern Railway (GNR) at Doncaster at the age of 18, as an apprentice under H. A. Ivatt, the Chief Mechanical Engineer (CME). After a four-year apprenticeship, he became the assistant to the Locomotive Running Superintendent, and a year later, the Doncaster Works manager. In 1908, he left to work in Paris with the French division of Westinghouse Electric Corporation as a Test Engineer, and was soon promoted to Assistant Works Manager and 
+</Document>
+<Question>
+Oliver Bulleid was an employee for whom?
+</Question>
+<Summarization>
+Oliver Bulleid was an employee of the Great Northern Railway (GNR) from 1901 and of the Westinghouse Electric Corporation from 1908.
+</Summarization>"""
+    
+    extend="""
+<Document>
+2019 Grand National | The 2019 Grand National (officially known as the Randox Health 2019 Grand National for sponsorship reasons) was the 172nd annual running of the Grand National horse race at Aintree Racecourse near Liverpool, England. The showpiece steeplechase is the pinnacle of a three-day festival which began on 4 April, followed by Ladies' Day on 5 April.
+</Document>
+<Question>
+Who won the Grand National?
+</Question>
+<Summarization>
+None
+</Summarization>
+
+<Document>
+Newton D. Baker House | 1794-1796 - Thomas Beall ; 1796-? - John Laird  ; ?-1827 - George Peter ; 2017-present - David W. Hudgens
+</Document>
+<Question>
+Who owned the Newton D. Baker House in Washington DC?
+</Question>
+<Summarization>
+The Newton D. Baker House in Washington, D.C. was owned by the following individuals over time: Thomas Beall from 1794 to 1796, John Laird from 1796, George Peter to 1827, and David W. Hudgens from 2017.
+</Summarization>
+
+<Document>
+Intel | Intel embarked on a 10-year period of unprecedented growth as the primary and most profitable hardware supplier to the PC industry, part of the winning 'Wintel' combination. Moore handed over his position as CEO to Andy Grove in 1987. By launching its Intel Inside marketing campaign in 1991, Intel was able to associate brand loyalty with consumer selection, so that by the end
+</Document>
+<Question>
+Who was the CEO of Intel?
+</Question>
+<Summarization>
+Moore was the CEO of Intel before 1987 and Andy Grove was the CEO of Intel after 1987.
+</Summarization>"""
+
+    ask=f"""
+
+Now your document and question are
+<Document>
+{document}
+</Document>
+<Question>
+{qeustion}
+</Question>
+<Summarization>
+"""
+    if not short:
+        prompt += extend
+    prompt += ask
+    return prompt
+
+
+
 def get_QFS_prompt(question, title, text):
     prompt = f"""You are given a context paragraph and a specific question. Your goal is to summarize the context paragraph in one standalone sentence by answering the given question. If dates are mentioned in the paragraph, include them in your answer. If the question cannot be answered based on the paragraph, respond with "None". Ensure that the response is relevant, complete, concise and directly addressing the question.
 

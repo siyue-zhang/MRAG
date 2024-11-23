@@ -1,13 +1,14 @@
 import matplotlib.pyplot as plt
 
 # Data
-x = [0, 1, 5, 10, 20, 30, 40]
+x = [0, 2, 6, 10, 20, 30, 40]
 
-y2 = [42.0, 52.6, 59.0, 59.2, 60.6, 60.4, 57.8]
-y22 = [44.2, 55.3, 61.7, 61.7, 62.5, 62.6, 60.2]
+y2 = [42.8, 53.2, 60.0, 60.0, 61.0, 61.4, 60.8]
+y22 = [45.0, 55.9, 62.7, 62.5, 63.0, 63.6, 63.2]
 
-y3 = [42.0, 57.4, 64.0, 64.0, 61.0, 60.4, 59.8]
-y33 = [44.2, 59.5, 66.3, 66.3, 63.3, 62.7, 62.6]
+y3 = [42.8, 57.6, 65.8, 64.0, 62.8, 61.0, 59.6]
+y33 = [45.0, 59.1, 68.0, 66.2, 64.6, 63.5, 62.2]
+
 
 # Plotting
 plt.figure(figsize=(8, 5))
@@ -17,8 +18,8 @@ l=2
 # plt.plot(x, y, color='yellowgreen', label='TableQA', linestyle='dashed', linewidth=l)
 plt.plot(x, y2, color='tab:blue', label='Standard (EM)', linewidth=l)
 plt.plot(x, y22, color='lightblue', label='Standard (F1)', linestyle='dashed', linewidth=l)
-plt.plot(x, y3, color='tab:green', label='Modular (EM)', linewidth=l)
-plt.plot(x, y33, color='lightgreen', label='Modular (F1)', linestyle='dashed', linewidth=l)
+plt.plot(x, y3, color='tab:green', label='MRAG (EM)', linewidth=l)
+plt.plot(x, y33, color='lightgreen', label='MRAG (F1)', linestyle='dashed', linewidth=l)
 # plt.plot(x, y4, color='blue', label='Oracle', marker='o', linewidth=l)
 
 
@@ -26,7 +27,7 @@ plt.plot(x, y33, color='lightgreen', label='Modular (F1)', linestyle='dashed', l
 # plt.xlabel('Number of context chunks', fontsize=20,labelpad=10)
 # plt.ylabel('Score', fontsize=20, labelpad=10)
 plt.xticks(x, ['0', '1', '5', '10', '20', '30', '40'], fontsize=16)
-plt.yticks(range(30, 71, 10), [f'{val}%' for val in range(30, 71, 10)], fontsize=16)
+plt.yticks(range(30, 81, 10), [f'{val}%' for val in range(30, 81, 10)], fontsize=16)
 plt.grid(True, linestyle='-', color='lightgrey')
 
 #

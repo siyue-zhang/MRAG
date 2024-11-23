@@ -1,9 +1,8 @@
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "6"
-os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
 
-import ray
-ray.init(num_gpus=4) 
 
 from utils import *
 from prompts import *
@@ -16,34 +15,277 @@ import argparse
 from temp_eval import normalize
 
 
-# def TIMO():
-#     from transformers import pipeline
-#     pipe = pipeline("text-generation", model="Warrieryes/timo-13b-hf", model_kwargs={'load_in_8bit':True}, device_map='auto')
-#     return pipe
 
-# def TimeLLAMA():
-#     from transformers import pipeline
-#     pipe = pipeline("text-generation", model="chrisyuan45/TimeLlama-13b-chat", device_map='auto')
-#     return pipe
+# def GradeHallucinations(generation, document):
+#     prompt = f"""You are a grader assessing whether an LLM generation is grounded in / supported by a set of retrieved facts.
+# Give a binary score 'yes' or 'no'. 'Yes' means that the answer is grounded in / supported by the set of facts.
+
+# Set of facts: \n\n {document} \n\n LLM generation: {generation}
+# """
+#     return prompt
+
+# def GradeAnswers(answer)
+
+# """You are a grader assessing whether an answer addresses / resolves a question.
+# Give a binary score 'yes' or 'no'. Yes' means that the answer resolves the question."""
+
+
+def GradeDocuments(context, question):
+    prompt = f"""You will be given a context paragraph and a question. Your task is decide whether the context is relevant and contains the answer to the question.
+First read the paragraph after <Context> and question after <Question> carefully.
+Then you should think step by step and give your thought after <Thought>.
+Finally, write the response by "Yes" or "No" after <Response>.
+
+There are some examples for you to refer to:
+<Context>
+1882 in rail transport | September 19 – Oliver Bulleid, chief mechanical engineer of the Southern Railway (Great Britain) 1937–1948, born in New Zealand (d. 1970). 
+</Context>
+<Question>
+Oliver Bulleid was an employee for whom?
+</Question>
+<Thought>
+The mentions that Oliver Bulleid was the chief mechanical engineer of the Southern Railway (Great Britain) from 1937 to 1948, which answers the question about whom he was employed by. So the context is relevant to the question. Therefore, the response is "Yes".
+</Thought>
+<Response>
+Yes
+</Response>
+
+<Context>
+Petronas Towers | The Petronas Towers (Malay: Menara Berkembar Petronas), also known as the Petronas Twin Towers and colloquially the KLCC Twin Towers, are an interlinked pair of 88-storey supertall skyscrapers in Kuala Lumpur, Malaysia, standing at 451.9 metres (1,483 feet).
+</Context>
+<Question>
+Tallest building in the world?
+</Question>
+<Thought>
+The context about the Petronas Towers is not directly relevant to the question about the tallest building in the world. So the context is not relevant to the question. Therefore, the response is "No".
+</Thought>
+<Response>
+No
+</Response>
+
+<Context>
+List of 20th-century religious leaders Church of England | Formal leadership: Supreme Governor of the Church of England (complete list) – ; Victoria, Supreme Governor (1837–1901) ; Edward VII, Supreme Governor (1901–1910) ; George V, Supreme Governor (1910–1936) ; Cosmo Gordon Lang, Archbishop of Canterbury (1928–1942) ; William Temple, Archbishop of Canterbury (1942–1944) ; 
+</Context>
+<Question>
+Who is the head of the Church in England?
+</Question>
+<Thought>
+The context provides a list of historical figures who held the title of Supreme Governor, including monarchs such as Queen Victoria, King Edward VII, and King George V. So the context is relevant to the question. Therefore, the response is "Yes".
+</Thought>
+<Response>
+Yes
+</Response>
+
+<Context>
+Abbey Christian Brothers' Grammar School | Frank Aiken (1898-1983) TD, Irish Republican Army commander, Tánaiste and served as Minister for Defence (1932–39), Minister for the Co-ordination of Defensive Measures (1939–45), Minister for Finance (1945–48) and Minister for External Affairs (1951–54; 1957–69) ; Séamus Mallon (1936-2020), Member of Parliament (MP) for Newry & Armagh (1986-2005)
+</Context>
+<Question>
+Who is the Minister for Defence in Ireland?
+</Question>
+<Thought>
+The provided context, which includes information about Frank Aiken and Séamus Mallon, is not directly relevant to the question about the current Minister for Defence in Ireland. So the context is not relevant to the question. Therefore, the response is "No".
+</Thought>
+<Response>
+No
+</Response>
+
+Now your context paragraph and question are
+<Context>
+{context}
+</Context>
+<Question>
+{question}?
+</Question>
+<Thought>
+"""
+    return prompt
+
+
+def CombinedReader(generations, question, short=False):
+
+    prompt=f"""As an assistant, your task is to answer the question based on the given knowledge. Answer the given question, you can refer to the document provided. Your answer should be after <Answer>.
+The given knowledge will be after the <Context> tage. You can refer to the knowledge to answer the question.
+Answer only the name for 'Who' questions.
+If the knowledge does not contain the answer, answer the question directly.
+
+There are some examples for you to refer to:
+<Context>
+The Newton D. Baker House in Washington, D.C. was owned by the following individuals over time: Thomas Beall from 1794 to 1796, John Laird from 1796, George Peter to 1827, and David W. Hudgens from 2017.
+</Context>
+<Question>
+Who owned the Newton D. Baker House in Washington, D.C on 2 Jan 1795? 
+</Question>
+<Thought>
+According to the context, the Newton D. Baker House in Washington, D.C. was owned by Thomas Beall from 1794 to 1796. 2 Jan 1795 is between 1794 and 1796. Therefore, the answer is Thomas Beall. 
+</Thought>
+<Answer>
+Thomas Beall
+</Answer>
+
+<Context>
+In 1977, Trump married Czech model Ivana Zelníčková. The couple divorced in 1990, following his affair with actress Marla Maples.
+
+Trump and Maples married in 1993 and divorced in 1999.
+
+In 2005, Donald Trump married Slovenian model Melania Knauss. They have one son, Barron (born 2006).
+</Context>
+<Question>
+Who was the spouse of Donald Trump between 2010 and 2014?
+</Question>
+<Thought>
+According to the context, Donald Trump married Melania Knauss in 2005. The period between 2010 and 2014 is after 2005. Therefore, the answer is Melania Knauss. 
+</Thought>
+<Answer>
+Melania Knauss
+</Answer>
+
+<Context>
+Dwight Howard played for Orlando Magic from 2004 to 2012.
+
+Dwight Howard played for Los Angeles Lakers from 2012.
+
+On November 21, 2020, the Philadelphia 76ers signed Howard to a one-year deal.
+</Context>
+<Question>
+Dwight Howard played for which team in 2012?
+</Question>
+<Thought>
+According to the context, Dwight Howard transferred from Orlando Magic to Los Angeles Lakers in 2012. Therefore, the answer is Los Angeles Lakers. 
+</Thought>
+<Answer>
+Los Angeles Lakers
+</Answer>
+
+<Context>
+Theo-Ben Gurirab served as the second Prime Minister of Namibia from 28 August 2002 to 20 March 2005, following the demotion and subsequent resignation of Hage Geingob.
+
+Theo-Ben Gurirab was Associate Representative of the SWAPO Mission to the United Nations and the United States from 1964 to 1972
+
+Saara Kuugongelwa-Amadhila (born 12 October 1967) is a Namibian politician who has served as the Prime Minister of Namibia since 2015.
+</Context>
+<Question>
+Theo-Ben Gurirab took which position as of 2004?
+</Question>
+<Thought>
+According to the context, Theo-Ben Gurirab served as the Prime Minister of Namibia from 28 August 2002 to 20 March 2005. 2004 is between 28 August 2002 and 20 March 2005. Therefore, the answer is Prime Minister of Namibia.
+</Thought>
+<Answer>
+Prime Minister of Namibia
+</Answer>
+
+<Context>
+England national football team has qualified for the World Cup sixteen times, with fourth-place finishes in the 1990 and 2018 editions.
+</Context>
+<Question>
+When did England last get to the semi final of a World Cup before 2019?
+</Question>
+<Thought>
+According to the context, England got to the semi final of a World Cup in 1990 and 2018. 2018 is the last time before 2019. Therefore, the answer is 2018. 
+</Thought>
+<Answer>
+Prime Minister of Namibia
+</Answer>
+
+<Context>
+Super Bowl XL was an American football game between Seattle Seahawks and Pittsburgh Steelers to decide the National Football League (NFL) champion for the 2005 season. The Steelers defeated the Seahawks by the score of 21–10. The game was played on February 5, 2006.
+
+The winner of Super Bowl XLIII, which took place on February 1, 2009, was the Pittsburgh Steelers.
+
+Pittsburgh Steelers won the Super Bowl XLIII for the 2008 NFL season.
+</Context>
+<Question>
+When was the first season that Pittsburgh Steelers won Super Bowl championship between 2000 and 2010?
+</Question>
+<Thought>
+According to the context, Pittsburgh Steelers won Super Bowl championship for 2005 and 2008 seasons. 2005 is the first time between 2000 and 2010. Therefore, the answer is 2005. 
+</Thought>
+<Answer>
+2005
+</Answer>"""
+    
+    extend = """
+<Context>
+A. P. J. Abdul Kalam served as the President of India from 2002 to 2007.
+
+K. R. Narayanan served as the President of India from 1997 until 2002.
+
+Droupadi Murmu served as the 15th President of India from 2021.
+</Context>
+<Question>
+Who was the first President of India between 2006 and 2022?
+</Question>
+<Thought>
+According to the context, between 2006 and 2022, A. P. J. Abdul Kalam was the President of India from 2006 to 2007 and Droupadi Murmu was the President of India from 2021 to 2022. A. P. J. Abdul Kalam is the first President of India between 2006 and 2022. Therefore, the answer is A. P. J. Abdul Kalam. 
+</Thought>
+<Answer>
+A. P. J. Abdul Kalam
+</Answer>
+
+<Context>
+Sam Nujoma: president of Namibia (1990-2005)
+
+Hifikepunye Pohamba was the president of Namibia between 2005 and 2015.
+
+Hage Geingob is the incumbent president of Namibia from 2015.
+</Context>
+<Question>
+Who was the last Namibia's president from 29 January 2002 to January 2016?
+</Question>
+<Thought>
+According to the context, from 29 January 2002 to January 2016, Sam Nujoma was the Namibia's president from 29 January 2002 to 2005, Hifikepunye Pohamba was the Namibia's president from 2005 to 2015, and Hage Geingob was the Namibia's president from 2015 to January 2016. Hage Geingob was the last Namibia's president from 29 January 2002 to January 2016. Therefore, the answer is Hage Geingob.
+</Thought>
+<Answer>
+Hage Geingob
+</Answer>
+
+<Context>
+Hifikepunye Pohamba was the president of Namibia between 2005 and 2016 and the chief of the Army from 2012 to 2014.
+</Context>
+<Question>
+What is the last position Hifikepunye Pohamba took between 2012 and 2015?
+</Question>
+<Thought>
+According to the context, Hifikepunye Pohamba was the president of Namibia and the chief of the Army from 2012 to 2014. Hifikepunye Pohamba was the president of Namibia from 2014 to 2015. The last position Hifikepunye Pohamba took was the president of Namibia. Therefore, the answer is president of Namibia.
+</Thought>
+<Answer>
+president of Namibia
+</Answer>"""
+
+    ask = f"""
+
+Now your question and context knowledge are
+<Context>
+{generations}
+</Context>
+<Question>
+{question}
+</Question>
+<Thought>
+"""
+    if not short:
+        prompt += extend
+    prompt += ask
+    return prompt
+
 
 
 def main():
     parser = argparse.ArgumentParser(description="Reader")
     parser.add_argument('--max-examples', type=int, default=None)
-    # parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_metriever_bgegemma_llama_8b_qfs5_outputs.json")
-    parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_bgegemma_outputs.json")
+    parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_metriever_bgegemma_llama_8b_qfs5_outputs.json")
+    # parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_bgegemma_outputs.json")
     parser.add_argument('--ctx-topk', type=int, default=5)
     parser.add_argument('--param-pred', type=bool, default=False)
     parser.add_argument('--param-cot', type=bool, default=False)
     parser.add_argument('--not-save', type=bool, default=False)
-    parser.add_argument('--save-note', type=str, default='c_cot')
+    parser.add_argument('--save-note', type=str, default=None)
     parser.add_argument(
         '--stage1-model',
         choices=['bm25', 'contriever','hybrid'], 
         default='contriever', #
     )
-    parser.add_argument('--reader', type=str, default='llama', choices=['llama', 'timo', 'timellama','llama_70b','llama_8b'])
-    parser.add_argument('--paradigm', type=str, default='concat', choices=['fusion', 'concat'])
+    parser.add_argument('--reader', type=str, default='llama_70b', choices=['llama', 'timo', 'timellama','llama_70b','llama_8b'])
+    parser.add_argument('--paradigm', type=str, default='fusion', choices=['fusion', 'concat'])
 
     args = parser.parse_args()
     assert args.stage1_model in args.retriever_output
@@ -66,7 +308,7 @@ def main():
     args.l = llm_names(args.reader, instruct=True)
     flg = '70b' in args.llm_name
     if flg:
-        args.llm = LLM(args.l, tensor_parallel_size=4, quantization="AWQ", max_model_len=20000)
+        args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=20000)
     else:
         mx_len = 2048 if args.reader=='timo' else 20000
         args.llm = LLM(args.l, tensor_parallel_size=4, max_model_len=mx_len)
@@ -77,14 +319,14 @@ def main():
     examples = load_json_file(args.retriever_output)
     print('examples loaded.')
 
+    # examples = examples[:100]
 
-    # examples = examples[100:200]
     if args.max_examples:
         examples = examples[:min(len(examples),args.max_examples)]
 
-    # x = "What is the first position Henry Addington took from 1802 to 1811?"
+    # x = "What was the official name of Tinkoff (cycling team) in 2003?"
     # examples = [ex for ex in examples if x in ex['question']]
-    
+
     examples = [ex for ex in examples if ex['time_relation'] != '']
     if len(examples)==0:
         print(f'find no example in top {args.max_examples}.')
@@ -106,8 +348,7 @@ def main():
         for ex in examples:
             text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'].strip() for ctx in ex[tmp_key][:args.ctx_topk]])
             texts.append(text)
-            prompt = c_cot_prompt(ex['question'], text)
-            # prompt = c_prompt(ex['question'], text)
+            prompt = c_prompt(ex['question'], text)
             prompts.append(prompt)
 
         rag_preds = call_pipeline(args, prompts, 500)
@@ -133,7 +374,6 @@ def main():
         # checker & reader
         print('\nstarted checker.\n')
         checker_prompts = []
-        reader_prompts = []
 
         for ex in examples:
             question = ex['question']
@@ -148,261 +388,86 @@ def main():
 
             for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
                 context = f"{ctx['title']} | {ctx['text']}"
-                checker_prompt = checker(normalized_question, context)
+                checker_prompt = GradeDocuments(context, normalized_question)
                 checker_prompts.append(checker_prompt)
 
-                reader_prompt = reader(normalized_question, ctx['title'], ctx['text'])
-                reader_prompts.append(reader_prompt)
-        
-        # checker_responses = call_pipeline(args, checker_prompts, 500)
-        # checker_results = ['yes' in res.lower() for res in checker_responses]
-        print('started reader')
-        reader_responses = call_pipeline(args, reader_prompts, 1000, return_list=True)
+        checker_responses = call_pipeline(args, checker_prompts, 400)
+        checker_results = ['yes' in res.lower() for res in checker_responses]
+        print('\nstarted reader.\n')
 
-        # ensure the year appears in the responses also appears in the reader context
-        tmp=[]
-        for r_p, r_r in zip(reader_prompts, reader_responses):
-            r_p = r_p.split('Now your context paragraph and question are')[-1]
-            r_r = [snt for snt in r_r if year_identifier(snt)==None or all([str(y) in r_p for y in year_identifier(snt)])]
-            tmp.append(r_r)
-        reader_responses = tmp
-
-        # entail_check_map = {}
-        # contexts, anss = [], []
-        # entailer_prompts = []
-        # for reader_prompt, reader_response, checker_res in zip(reader_prompts, reader_responses, checker_results):
-        #     if checker_res:
-        #         reader_prompt = reader_prompt.split('Now your context paragraph and question are\n')[-1]
-        #         context = reader_prompt.split('\n</Context>')[0].split('<Context>\n')[-1]
-        #         for ans in reader_response:
-        #             contexts.append(context)
-        #             anss.append(ans)
-        #             entailer_prompt = entailer(context, ans)
-        #             entailer_prompts.append(entailer_prompt)
-        # entailer_responses = call_pipeline(args, entailer_prompts, 200)
-        # entailer_results = ['yes' in res.lower() for res in entailer_responses]
-        # for context, ans, entail in zip(contexts, anss, entailer_results):
-        #     entail_check_map[context.strip()+'<>'+ans.strip()] = entail
-
-
-        for x, y in zip(reader_prompts, reader_responses):
-            print('\n==\n')
-            print(x.split('Now your context paragraph and question are')[-1])
-            print(y)
-            print('\n')
-            import ipdb; ipdb.set_trace()
-
-
-        sub_examples = []
-        timer_prompts = []
+        generation_prompts = []
+        questions = []
         for ex in examples:
             question = ex['question']
             normalized_question = ex['normalized_question']
-            reader_ans = []
             for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
-                # checker_result = checker_results.pop(0)
-                reader_response = reader_responses.pop(0)
-                # if checker_result and len(reader_response)>0:
-                if len(reader_response)>0:
-                    # print('xxx ', reader_response)
-                    # tmp = []
-                    # for ans in reader_response:
-                    #     context = f"{ctx['title']} | {ctx['text']}"
-                    #     key = context.strip()+'<>'+ans.strip()
-                    #     if key in entail_check_map and entail_check_map[key]:
-                    #         tmp.append(ans)
-                    # if tmp != reader_response:
-                    #     print('yyy ', tmp)
-                    reader_ans += reader_response
-            reader_ans = list(set(reader_ans))
-            for reader_a in reader_ans:
-                sub_examples.append([question, normalized_question, reader_a])
-                timer_prompts.append(timer(normalized_question, reader_a))
-        if len(sub_examples)>0:
-            timer_responses = call_pipeline(args, timer_prompts, 100)
-        else:
-            timer_responses = []
+                checker_result = checker_results.pop(0)
+                if checker_result:
+                    doc = ctx['title'] + ' | ' + ctx['text'].strip()
+                    generation_prompt = LLMGenerations(doc, normalized_question, args.reader=='timo')
+                    generation_prompts.append(generation_prompt)
+                    questions.append(question)
+        generation_responses = call_pipeline(args, generation_prompts, 400)
+        buf = {}
+        for question, gen in zip(questions, generation_responses):
+            if question not in buf:
+                buf[question] = []
+            if gen not in buf[question]:
+                if len(gen.split())<50:
+                    buf[question].append(gen)
 
+        for question in buf:
+            summarizations = buf[question]
+            years = [year_identifier(s) for s in summarizations]
+            filtered_data = [(s, y) for s, y in zip(summarizations, years) if y is not None]
+            filtered_data = [(s, min(y)) for s,y in filtered_data]
+            sorted_data = sorted(filtered_data, key=lambda pair: pair[1])
+            sorted_summarizations, sorted_years = zip(*sorted_data) if sorted_data else ([], [])
+            buf[question] = sorted_summarizations
 
-        question_result_map = {}
-        question_no_date_result_map = {}
-        for sub_ex, timer_r in zip(sub_examples, timer_responses):
-            try:
-                answer_dict = eval(timer_r)
-                assert isinstance(answer_dict, dict)
-                if sub_ex[0] not in question_no_date_result_map:
-                    question_no_date_result_map[sub_ex[0]] = []
-                ans = list(answer_dict.keys())[0].strip()
-                if len(ans)>0:
-                    question_no_date_result_map[sub_ex[0]].append(ans)
-                assert all([item in list(answer_dict.values())[0] for item in ["start_year", "start_month", "end_year", "end_month"]])
-                # if there is no time info, skip
-                assert sum(list(answer_dict.values())[0].values())>0
-            except Exception as e:
-                sub_years = year_identifier(sub_ex[2])
-                print('ERROR: ', timer_r)
-                if sub_years:
-                    print(sub_years[0])
-                    answer_dict = {str(sub_years[0]):{'start_year': sub_years[0], 'start_month': 0, 'end_year': sub_years[0], 'end_month': 0}}
-                else:
-                    continue
-            sub_ex.append(answer_dict)
-            if sub_ex[0] not in question_result_map:
-                question_result_map[sub_ex[0]] = []
-            question_result_map[sub_ex[0]].append(sub_ex)
-
-        combiner_prompts=[]
-        new_questions=[]
-        for k, ex in enumerate(examples):
+        combined_prompts = []
+        for ex in examples:
             question = ex['question']
             normalized_question = ex['normalized_question']
-            if question not in question_result_map:
-                continue
-            result = question_result_map[question]
-
-            print('\n------\n', k,' ',question,'\n------\n') 
-        
-            answer_dicts = [r[3] for r in result]
-            append_flgs = []
-            if ex['time_relation_type']=='before':
-                q_year = ex['years'][0]
-                q_month = ex['months'][0] if sum(ex['months'])>0 else None
-
-                for answer_dict in answer_dicts:
-                    answer_dict = list(answer_dict.values())[0]
-                    start_year = answer_dict['start_year']
-                    start_month = answer_dict['start_month']
-
-                    append_flg = True
-                    if start_year>0:
-                        if start_year==q_year and q_month and start_month>0:
-                            if start_month>q_month:
-                                append_flg=False
-                        else:
-                            if ex['time_relation']=='before':
-                                if start_year>=q_year:
-                                    append_flg=False
-                            else:
-                                if start_year>q_year:
-                                    append_flg=False
-
-                    append_flgs.append(append_flg)
-   
-            elif ex['time_relation_type']=='after':
-                q_year = ex['years'][0]
-                q_month = ex['months'][0] if sum(ex['months'])>0 else None
-
-                for answer_dict in answer_dicts:
-                    answer_dict = list(answer_dict.values())[0]
-                    end_year = answer_dict['end_year']
-                    end_month = answer_dict['end_month']              
-                    
-                    append_flg = True
-                    if end_year>0:
-                        if end_year==q_year and q_month and end_month>0:
-                            if ex['time_relation']=='since':
-                                if end_month<q_month:
-                                    append_flg=False
-                            else:
-                                if end_month<=q_month:
-                                    append_flg=False
-                        elif ex['time_relation']=='after':
-                            if end_year<=q_year:
-                                append_flg=False
-                        else:
-                            if end_year<q_year:
-                                append_flg=False
-                    append_flgs.append(append_flg)
-
-            elif ex['time_relation_type']=='between':
-                q_year_s = min(ex['years'])
-                q_year_e = max(ex['years'])
-
-                for answer_dict in answer_dicts:
-                    answer_dict = list(answer_dict.values())[0]
-                    start_year = answer_dict['start_year']
-                    end_year = answer_dict['end_year']
-                    
-                    append_flg = True
-                    if start_year>q_year_e:
-                        append_flg = False
-                    if end_year>0 and end_year<q_year_s:
-                        append_flg = False
-
-                    append_flgs.append(append_flg)
-            else:
-                append_flgs.append(True)
-
-
-            filtered_result = [r for r, flg in zip(result, append_flgs) if flg]
-            if len(filtered_result)==0:
-                continue
-
-            if len(filtered_result)>0:
-                filtered_result = sorted(filtered_result, key=lambda x: (list(x[-1].values())[0]['start_year'], list(x[-1].values())[0]['start_month']), reverse=False)
-
-            new_questions.append(question)
-            # if len(filtered_result)>10:
-            filtered_result = filtered_result[:1]+filtered_result[-1:]
-            contexts = '\n'.join([tp[2].replace(' first','').replace(' last','') for tp in filtered_result])
-
-
-            combiner_prompt = combiner(question, contexts)
-            combiner_prompts.append(combiner_prompt)
-        
-        if len(combiner_prompts)>0:
-            combiner_responses = call_pipeline(args, combiner_prompts, 500)
-            combiner_responses = [res.replace('\n','').strip() for res in combiner_responses]
-        else:
-            combiner_responses = []
-
-        for x,y in zip(combiner_prompts, combiner_responses):
-            print(x.split('Now your context paragraph and question are')[-1])
-            print(y)
-
-        question_answer_map = {q: a for q, a in zip(new_questions, combiner_responses) if len(a)>0}
-        
+            if question not in buf:
+                buf[question] = []
+            combined_prompt = CombinedReader('\n\n'.join(buf[question]), question, args.reader=='timo')
+            combined_prompts.append(combined_prompt)
+        combined_responses = call_pipeline(args, combined_prompts, 400)
         for k, ex in enumerate(examples):
             question = ex['question']
-            find_flg = True
-            if question in question_answer_map:
-                rag_pred = question_answer_map[question]
-                if any([item in rag_pred.lower() for item in ['unknown', 'none', 'not mention', 'not provide', "do not know"]]):
-                    find_flg = False
-            else:
-                find_flg = False
+            if len(buf[question])==0:
+                combined_responses[k]=''
 
-            # pick from top candidate answer without dates
-            if find_flg==False and question in question_no_date_result_map:
-                tmp = question_no_date_result_map[question]
-                if len(tmp)>0:
-                    rag_pred = tmp[0]
-                    find_flg = True
-
-            if not find_flg:
-                print('no context is useful.')
-                prompt  = zc_cot_prompt(question)
-                rag_pred = call_pipeline(args, [prompt], 400)[0]
-
-            pred_years = year_identifier(rag_pred)
-            if question.lower().startswith('when') and pred_years:
-                rag_pred = str(pred_years[-1])
-
-            # too many words for answer
-            if len(rag_pred.split())>20:
-                print('prametric knowledge does not know.')
-                text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'].strip() for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]])
+        for k, ex in enumerate(examples):
+            question = ex['question']
+            gold_evidences = ex['gold_evidences']
+            rag_pred = combined_responses[k]
+            rag_pred = force_string(rag_pred)
+            print(f'\n----{k}-----')
+            if check_no_knowledge(rag_pred):
+                print('parallel read no knowledge.')
+                text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'].strip() for ctx in ex[tmp_key][:args.ctx_topk]])
                 prompt = c_prompt(ex['question'], text)
-                tmp = call_pipeline(args, [prompt], 100)
-                rag_pred = tmp[0] if len(tmp)>0 else ''
+                rag_pred = call_pipeline(args, [prompt], 500)[0]
+                rag_pred = force_string(rag_pred)
+                if len(rag_pred.split())>50:
+                    rag_pred=''
 
-            if '&amp;' in rag_pred:
-                rag_pred = rag_pred.replace('&amp;','&')
+            if check_no_knowledge(rag_pred):
+                print('concat read no knowledge.')
+                prompt = zc_cot_prompt(question)
+                param_pred = call_pipeline(args, [prompt], 400)[0]
+                rag_pred = force_string(param_pred)
+                if len(rag_pred.split())>50:
+                    rag_pred=''
 
             ex['rag_pred'] = rag_pred
             ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
             ex['rag_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(rag_pred))
-            print(rag_pred, ex['answers'], ex['rag_acc'])
+            print(question)
+            print(combined_prompts[k].split('Now your question and context knowledge are')[-1])
+            print('\n',rag_pred, ex['rag_acc'])
 
 
     to_save=[]
@@ -481,6 +546,7 @@ def main():
         to_save.append(result)
 
 
+
     to_save_df = pd.DataFrame(to_save)
     retriever_name = args.retriever_output.split('/')[-1].split('_outputs')[0]
     result_name = f'./answered/{retriever_name}_top{args.ctx_topk}_{args.llm_name}_{args.paradigm}_results.csv'
@@ -489,6 +555,7 @@ def main():
     if not args.not_save:
         to_save_df.to_csv(result_name, index=False, encoding='utf-8')
         print(f"Saved as {result_name}")
+
 
 
     ##########

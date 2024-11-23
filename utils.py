@@ -114,7 +114,7 @@ def llm_names(l, instruct=False):
 
 def load_contriever_output(path):
     examples = []
-    with open(path, 'r') as file:
+    with open(path, 'r', encoding="utf-8") as file:
         print(f'loaded: {path}')
         for line in file:
             examples.append(json.loads(line))
@@ -394,7 +394,30 @@ def eval_reader(to_save, param_pred, subset='situatedqa', metric='acc'):
     print(f'    all date {metric} : {round(np.mean(not_exact_rag + exact_rag),4) if len(not_exact_rag + exact_rag)>0 else 0}')
 
 
+def check_no_knowledge(string):
+    assert isinstance(string, str)
+    flg=False
+    if len(string)==0:
+        flg=True
+    else:
+        string=string.lower()
+        if 'not' in string.split():
+            flg=True
+        else:
+            phrases = ['unknown', 'none', "unable", "no information", "no answer", "don't have"]
+            flg = any([p in string for p in phrases])
+    return flg
 
+def force_string(item):
+    if isinstance(item, str):
+        return item
+    if isinstance(item, list):
+        item =item[0] if len(item)>0 else ''
+    try:
+        item = str(item)
+    except Exception as e:
+        item = ''
+    return item
 
 def call_pipeline(args, prompts, max_tokens=100, return_list=False, ver=False):
 

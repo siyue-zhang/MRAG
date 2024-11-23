@@ -5,12 +5,12 @@ titles = ["TIMO", "Llama3.1-8B", "Llama3.1-70B"]
 y_titles = ['Exact Match','','']
 
 # Data for the bar chart
-categories = ["DP", "CoT", "RAG", "Self-mRAG"]  # Labels for bars within each group
+categories = ["DP", "CoT", "RAG", "Self-MRAG"]  # Labels for bars within each group
 group_labels = ['TimeQA', 'SituatedQA']  # Labels for each group
 
 # Values for each group
-group1_values = [[16.2, 15.4, 48.3, 0],[15.2, 16.4, 49.7, 0],[30.5 , 32.7 , 57.5, 0]]
-group2_values = [[49.8, 47.6, 61.2, 0],[42.0, 50.4, 64.0, 0],[58.2 , 68.6 , 68.6, 0]]
+group1_values = [[16.2, 15.8, 48.2, 0],[16.0, 16.8, 49.2, 0],[31.0 , 33.2 , 58.0, 0]]
+group2_values = [[50.6, 49.4, 61.4, 0],[42.8, 49.6, 65.8, 0],[59.0 , 69.0 , 66.2, 0]]
 
 # Colors for each bar
 group1_colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:purple']
