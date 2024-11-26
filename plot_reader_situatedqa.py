@@ -16,10 +16,10 @@ plt.figure(figsize=(8, 5))
 l=2
 # Plotting the line
 # plt.plot(x, y, color='yellowgreen', label='TableQA', linestyle='dashed', linewidth=l)
-plt.plot(x, y2, color='tab:blue', label='Standard (EM)', linewidth=l)
-plt.plot(x, y22, color='lightblue', label='Standard (F1)', linestyle='dashed', linewidth=l)
-plt.plot(x, y3, color='tab:green', label='MRAG (EM)', linewidth=l)
-plt.plot(x, y33, color='lightgreen', label='MRAG (F1)', linestyle='dashed', linewidth=l)
+plt.plot(x, y2, color='tab:green', label='Standard (EM)', linewidth=l)
+plt.plot(x, y22, color='lightgreen', label='Standard (F1)', linestyle='dashed', linewidth=l)
+plt.plot(x, y3, color='tab:purple', label='MRAG (EM)', linewidth=l)
+plt.plot(x, y33, color='thistle', label='MRAG (F1)', linestyle='dashed', linewidth=l)
 # plt.plot(x, y4, color='blue', label='Oracle', marker='o', linewidth=l)
 
 

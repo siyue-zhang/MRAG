@@ -92,7 +92,7 @@ Now your question is
     return prompt
 
 
-def LLMGenerations(document, qeustion, short=False):
+def LLMGenerations(document, qeustion, short=False, ):
     prompt = f"""You are a summarizer summarizing a retrieved document about a user question. Keep the key dates in the summarization. Write "None" if the document has no relevant content about the question.
 
 There are some examples for you to refer to:
@@ -145,7 +145,9 @@ What was the worldwide box office of Jurassic movie?
 <Summarization>
 The worldwide box office for The Lost World: Jurassic Park (1997) was $618.6 million.
 </Summarization>
-
+"""
+    
+    extend="""
 <Document>
 Oliver Bulleid |  He was born in Invercargill, New Zealand, to William Bulleid and his wife Marian Pugh, both British immigrants. On the death of his father in 1889, his mother returned to Llanfyllin, Wales, where the family home had been, with Bulleid. In 1901, after a technical education at Accrington Grammar School, he joined the Great Northern Railway (GNR) at Doncaster at the age of 18, as an apprentice under H. A. Ivatt, the Chief Mechanical Engineer (CME). After a four-year apprenticeship, he became the assistant to the Locomotive Running Superintendent, and a year later, the Doncaster Works manager. In 1908, he left to work in Paris with the French division of Westinghouse Electric Corporation as a Test Engineer, and was soon promoted to Assistant Works Manager and 
 </Document>
@@ -154,9 +156,8 @@ Oliver Bulleid was an employee for whom?
 </Question>
 <Summarization>
 Oliver Bulleid was an employee of the Great Northern Railway (GNR) from 1901 and of the Westinghouse Electric Corporation from 1908.
-</Summarization>"""
-    
-    extend="""
+</Summarization>
+
 <Document>
 2019 Grand National | The 2019 Grand National (officially known as the Randox Health 2019 Grand National for sponsorship reasons) was the 172nd annual running of the Grand National horse race at Aintree Racecourse near Liverpool, England. The showpiece steeplechase is the pinnacle of a three-day festival which began on 4 April, followed by Ladies' Day on 5 April.
 </Document>
@@ -176,7 +177,9 @@ Who owned the Newton D. Baker House in Washington DC?
 <Summarization>
 The Newton D. Baker House in Washington, D.C. was owned by the following individuals over time: Thomas Beall from 1794 to 1796, John Laird from 1796, George Peter to 1827, and David W. Hudgens from 2017.
 </Summarization>
+"""
 
+    ask=f"""
 <Document>
 Intel | Intel embarked on a 10-year period of unprecedented growth as the primary and most profitable hardware supplier to the PC industry, part of the winning 'Wintel' combination. Moore handed over his position as CEO to Andy Grove in 1987. By launching its Intel Inside marketing campaign in 1991, Intel was able to associate brand loyalty with consumer selection, so that by the end
 </Document>
@@ -185,16 +188,14 @@ Who was the CEO of Intel?
 </Question>
 <Summarization>
 Moore was the CEO of Intel before 1987 and Andy Grove was the CEO of Intel after 1987.
-</Summarization>"""
-
-    ask=f"""
+</Summarization>
 
 Now your document and question are
 <Document>
 {document}
 </Document>
 <Question>
-{qeustion}
+{qeustion}?
 </Question>
 <Summarization>
 """

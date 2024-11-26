@@ -1,6 +1,6 @@
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,7"
-# os.environ["CUDA_VISIBLE_DEVICES"] = "2,3,6"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 
 from utils import *
@@ -10,10 +10,7 @@ from prompts import *
 
 import argparse
 from copy import deepcopy
-from vllm import LLM, SamplingParams
-
-from sentence_transformers import CrossEncoder
-from FlagEmbedding import FlagReranker, FlagLLMReranker
+from vllm import LLM
 
 from nltk.tokenize import sent_tokenize
 
@@ -37,8 +34,8 @@ def main():
     )
     parser.add_argument(
         '--stage2-model', 
-        choices=['metriever','minilm6','minilm12','bge','tinybert','bgegemma','electra', None], 
-        default='metriever', #
+        choices=['metriever','minilm6','minilm12','bge','tinybert','bgegemma','electra','nv','jina', None], 
+        default='nv', #
         # default='bgegemma', #
         help='Choose a model for stage 2 re-ranking'
     )
@@ -51,7 +48,7 @@ def main():
     parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/TempRAGEval.json")
     parser.add_argument('--bm25-output', type=str, default="./TempRAGEval/BM25_output/TempRAGEval.json")
     parser.add_argument('--ctx-topk', type=int, default=100)
-    parser.add_argument('--QFS-topk', type=int, default=10)
+    parser.add_argument('--QFS-topk', type=int, default=0)
     parser.add_argument('--snt-topk', type=int, default=200)
     parser.add_argument('--complete-ctx-text', type=bool, default=False)
     parser.add_argument('--hybrid-score', type=bool, default=True)
@@ -59,7 +56,7 @@ def main():
     parser.add_argument('--snt-with-title', type=bool, default=True)
     parser.add_argument('--llm', type=str, default="llama_70b")
     parser.add_argument('--save-note', type=str, default=None)
-    parser.add_argument('--subset', type=str, default='situatedqa')
+    parser.add_argument('--subset', type=str, default='timeqa')
     parser.add_argument('--save', type=bool, default=True)
     parser.add_argument('--load-keywords', type=bool, default=False)
 
@@ -83,10 +80,31 @@ def main():
     if args.m2:
         name = args.m3 if args.m2 == 'metriever' else args.m2
         if 'gemma' in name:
+            from FlagEmbedding import FlagLLMReranker
             args.model = FlagLLMReranker(name, use_fp16=True, device='cuda:2')
         elif 'bge' in name:
+            from FlagEmbedding import FlagReranker
             args.model = FlagReranker(name, use_fp16=True)
+        elif 'nv' in name:
+            from transformers import AutoModel
+            from torch.nn import DataParallel
+            import torch
+            embedding_model = AutoModel.from_pretrained(name, trust_remote_code=True, torch_dtype=torch.float16)
+            for module_key, module in embedding_model._modules.items():
+                embedding_model._modules[module_key] = DataParallel(module).to('cuda')
+            args.model = embedding_model
+        elif 'jina' in name:
+            from transformers import AutoModelForSequenceClassification
+            model = AutoModelForSequenceClassification.from_pretrained(
+                name,
+                torch_dtype="auto",
+                trust_remote_code=True,
+            )
+            model.to('cuda')
+            model.eval()
+            args.model = model
         else:
+            from sentence_transformers import CrossEncoder
             args.model = CrossEncoder(name)
 
     # load examples
@@ -243,13 +261,37 @@ def main():
 
     if args.m2 and args.m2 != 'metriever':
         # benchmark baselines
-        flg = 'bge' in args.stage2_model
+        flg = 'bge' in args.stage2_model or 'jina' in args.stage2_model
         for ex in tqdm(examples, desc="Reranking contexts"):
             question = ex['question']
             latest_ctxs = deepcopy(ex[ctx_key])
             latest_ctxs = latest_ctxs[:args.ctx_topk]
-            model_inputs = [[question, ctx["title"]+" "+ctx["text"]] for ctx in latest_ctxs]
-            scores = args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)   
+
+            if 'nv' not in args.m2:
+                model_inputs = [[question, ctx["title"]+" "+ctx["text"]] for ctx in latest_ctxs]
+                scores = args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)
+            else:
+                import torch.nn.functional as F
+                task_name_to_instruct = {"example": "Given a question, retrieve passages that answer the question",}
+
+                query_prefix = "Instruct: "+task_name_to_instruct["example"]+"\nQuery: "
+                queries = [question]
+                passage_prefix = ""
+                passages = [ctx["title"]+" "+ctx["text"] for ctx in latest_ctxs]
+
+                # get the embeddings
+                max_length = 4096
+                query_embeddings = args.model.encode(queries, instruction=query_prefix, max_length=max_length)
+                passage_embeddings = args.model.encode(passages, instruction=passage_prefix, max_length=max_length)
+
+                # normalize embeddings
+                query_embeddings = F.normalize(query_embeddings, p=2, dim=1)
+                passage_embeddings = F.normalize(passage_embeddings, p=2, dim=1)
+
+                scores = (query_embeddings @ passage_embeddings.T)
+                scores = scores.tolist()
+                scores = scores[0]
+
             for i, ctx in enumerate(latest_ctxs):
                 ctx["score"] = float(scores[i])
             latest_ctxs = sorted(latest_ctxs, key=lambda x: x['score'], reverse=True)

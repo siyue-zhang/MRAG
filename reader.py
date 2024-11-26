@@ -1,7 +1,7 @@
 import os
 # os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
-# os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
-os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6,7"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
 
 
 from utils import *
@@ -277,14 +277,14 @@ def main():
     parser.add_argument('--ctx-topk', type=int, default=5)
     parser.add_argument('--param-pred', type=bool, default=False)
     parser.add_argument('--param-cot', type=bool, default=False)
-    parser.add_argument('--not-save', type=bool, default=False)
-    parser.add_argument('--save-note', type=str, default=None)
+    parser.add_argument('--not-save', type=bool, default=True)
+    parser.add_argument('--save-note', type=str, default='only_grade')
     parser.add_argument(
         '--stage1-model',
         choices=['bm25', 'contriever','hybrid'], 
         default='contriever', #
     )
-    parser.add_argument('--reader', type=str, default='llama_70b', choices=['llama', 'timo', 'timellama','llama_70b','llama_8b'])
+    parser.add_argument('--reader', type=str, default='timo', choices=['llama', 'timo', 'timellama','llama_70b','llama_8b'])
     parser.add_argument('--paradigm', type=str, default='fusion', choices=['fusion', 'concat'])
 
     args = parser.parse_args()
@@ -311,7 +311,7 @@ def main():
         args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=20000)
     else:
         mx_len = 2048 if args.reader=='timo' else 20000
-        args.llm = LLM(args.l, tensor_parallel_size=4, max_model_len=mx_len)
+        args.llm = LLM(args.l, tensor_parallel_size=2, max_model_len=mx_len)
 
     # load examples
     if 'retrieved' not in args.retriever_output:
@@ -324,12 +324,12 @@ def main():
     if args.max_examples:
         examples = examples[:min(len(examples),args.max_examples)]
 
-    # x = "What was the official name of Tinkoff (cycling team) in 2003?"
+    # x = "Who was the last to win the Kentucky Derby in under 2 minutes between 1973 and 2010?"
     # examples = [ex for ex in examples if x in ex['question']]
 
     examples = [ex for ex in examples if ex['time_relation'] != '']
     if len(examples)==0:
-        print(f'find no example in top {args.max_examples}.')
+        print(f'\n!! find no example in top {args.max_examples}.')
     
     ########  QA  ######## 
     if args.param_pred:
@@ -395,79 +395,116 @@ def main():
         checker_results = ['yes' in res.lower() for res in checker_responses]
         print('\nstarted reader.\n')
 
-        generation_prompts = []
-        questions = []
+
+        prompts, texts = [], []
         for ex in examples:
+            ctx_list=[]
             question = ex['question']
             normalized_question = ex['normalized_question']
             for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
                 checker_result = checker_results.pop(0)
                 if checker_result:
-                    doc = ctx['title'] + ' | ' + ctx['text'].strip()
-                    generation_prompt = LLMGenerations(doc, normalized_question, args.reader=='timo')
-                    generation_prompts.append(generation_prompt)
-                    questions.append(question)
-        generation_responses = call_pipeline(args, generation_prompts, 400)
-        buf = {}
-        for question, gen in zip(questions, generation_responses):
-            if question not in buf:
-                buf[question] = []
-            if gen not in buf[question]:
-                if len(gen.split())<50:
-                    buf[question].append(gen)
+                    ctx_list.append(ctx)
 
-        for question in buf:
-            summarizations = buf[question]
-            years = [year_identifier(s) for s in summarizations]
-            filtered_data = [(s, y) for s, y in zip(summarizations, years) if y is not None]
-            filtered_data = [(s, min(y)) for s,y in filtered_data]
-            sorted_data = sorted(filtered_data, key=lambda pair: pair[1])
-            sorted_summarizations, sorted_years = zip(*sorted_data) if sorted_data else ([], [])
-            buf[question] = sorted_summarizations
+            text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'].strip() for ctx in ctx_list[:min(3,len(ctx_list))]])
+            texts.append(text)
+            prompt = c_prompt(ex['question'], text)
+            prompts.append(prompt)
 
-        combined_prompts = []
-        for ex in examples:
-            question = ex['question']
-            normalized_question = ex['normalized_question']
-            if question not in buf:
-                buf[question] = []
-            combined_prompt = CombinedReader('\n\n'.join(buf[question]), question, args.reader=='timo')
-            combined_prompts.append(combined_prompt)
-        combined_responses = call_pipeline(args, combined_prompts, 400)
-        for k, ex in enumerate(examples):
-            question = ex['question']
-            if len(buf[question])==0:
-                combined_responses[k]=''
+        rag_preds = call_pipeline(args, prompts, 500)
+
+        print(f'{tmp_key} top {args.ctx_topk} contexts prediction finished.')
+        # import ipdb; ipdb.set_trace()
 
         for k, ex in enumerate(examples):
             question = ex['question']
             gold_evidences = ex['gold_evidences']
-            rag_pred = combined_responses[k]
-            rag_pred = force_string(rag_pred)
-            print(f'\n----{k}-----')
-            if check_no_knowledge(rag_pred):
-                print('parallel read no knowledge.')
-                text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'].strip() for ctx in ex[tmp_key][:args.ctx_topk]])
-                prompt = c_prompt(ex['question'], text)
-                rag_pred = call_pipeline(args, [prompt], 500)[0]
-                rag_pred = force_string(rag_pred)
-                if len(rag_pred.split())>50:
-                    rag_pred=''
-
-            if check_no_knowledge(rag_pred):
-                print('concat read no knowledge.')
-                prompt = zc_cot_prompt(question)
-                param_pred = call_pipeline(args, [prompt], 400)[0]
-                rag_pred = force_string(param_pred)
-                if len(rag_pred.split())>50:
-                    rag_pred=''
-
+            rag_pred = rag_preds[k]
             ex['rag_pred'] = rag_pred
+            if isinstance(rag_pred, list):
+                if len(rag_pred)>0:
+                    rag_pred = str(rag_pred[0])
+                else:
+                    rag_pred = ''
+            assert isinstance(rag_pred, str), rag_pred
             ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
             ex['rag_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(rag_pred))
-            print(question)
-            print(combined_prompts[k].split('Now your question and context knowledge are')[-1])
-            print('\n',rag_pred, ex['rag_acc'])
+
+
+
+        # generation_prompts = []
+        # questions = []
+        # for ex in examples:
+        #     question = ex['question']
+        #     normalized_question = ex['normalized_question']
+        #     for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
+        #         checker_result = checker_results.pop(0)
+        #         if checker_result:
+        #             doc = ctx['title'] + ' | ' + ctx['text'].strip()
+        #             generation_prompt = LLMGenerations(doc, normalized_question, args.reader=='timo')
+        #             generation_prompts.append(generation_prompt)
+        #             questions.append(question)
+        # generation_responses = call_pipeline(args, generation_prompts, 400, ver=True)
+        # buf = {}
+        # for question, gen in zip(questions, generation_responses):
+        #     if question not in buf:
+        #         buf[question] = []
+        #     if gen not in buf[question]:
+        #         if len(gen.split())<50:
+        #             buf[question].append(gen)
+
+        # for question in buf:
+        #     summarizations = buf[question]
+        #     years = [year_identifier(s) for s in summarizations]
+        #     filtered_data = [(s, y) for s, y in zip(summarizations, years) if y is not None]
+        #     filtered_data = [(s, min(y)) for s,y in filtered_data]
+        #     sorted_data = sorted(filtered_data, key=lambda pair: pair[1])
+        #     sorted_summarizations, sorted_years = zip(*sorted_data) if sorted_data else ([], [])
+        #     buf[question] = sorted_summarizations
+
+        # combined_prompts = []
+        # for ex in examples:
+        #     question = ex['question']
+        #     normalized_question = ex['normalized_question']
+        #     if question not in buf:
+        #         buf[question] = []
+        #     combined_prompt = CombinedReader('\n\n'.join(buf[question]), question, args.reader=='timo')
+        #     combined_prompts.append(combined_prompt)
+        # combined_responses = call_pipeline(args, combined_prompts, 400)
+        # for k, ex in enumerate(examples):
+        #     question = ex['question']
+        #     if len(buf[question])==0:
+        #         combined_responses[k]=''
+
+        # for k, ex in enumerate(examples):
+        #     question = ex['question']
+        #     gold_evidences = ex['gold_evidences']
+        #     rag_pred = combined_responses[k]
+        #     rag_pred = force_string(rag_pred)
+        #     print(f'\n----{k}-----')
+        #     if check_no_knowledge(rag_pred):
+        #         print('parallel read no knowledge.')
+        #         text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'].strip() for ctx in ex[tmp_key][:args.ctx_topk]])
+        #         prompt = c_prompt(ex['question'], text)
+        #         rag_pred = call_pipeline(args, [prompt], 500)[0]
+        #         rag_pred = force_string(rag_pred)
+        #         if len(rag_pred.split())>50:
+        #             rag_pred=''
+
+        #     if check_no_knowledge(rag_pred):
+        #         print('concat read no knowledge.')
+        #         prompt = zc_cot_prompt(question)
+        #         param_pred = call_pipeline(args, [prompt], 400)[0]
+        #         rag_pred = force_string(param_pred)
+        #         if len(rag_pred.split())>50:
+        #             rag_pred=''
+
+        #     ex['rag_pred'] = rag_pred
+        #     ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
+        #     ex['rag_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(rag_pred))
+        #     print(question)
+        #     print(combined_prompts[k].split('Now your question and context knowledge are')[-1])
+        #     print('\n',rag_pred, ex['rag_acc'])
 
 
     to_save=[]

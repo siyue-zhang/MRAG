@@ -92,8 +92,12 @@ def retrival_model_names(m):
         m = 'BAAI/bge-reranker-large'
     elif m == 'bgegemma':
         m = 'BAAI/bge-reranker-v2-gemma'
+    elif m=='nv':
+        m = 'nvidia/NV-Embed-v1'
     elif m=='electra':
         m = 'cross-encoder/ms-marco-electra-base'
+    elif m=='jina':
+        m = 'jinaai/jina-reranker-v2-base-multilingual'
     return m
 
 def llm_names(l, instruct=False):
