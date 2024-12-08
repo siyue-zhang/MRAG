@@ -675,13 +675,13 @@ Yes
 </Response>
 
 <Context>
-Abbey Christian Brothers' Grammar School | Frank Aiken (1898-1983) TD, Irish Republican Army commander, Tánaiste and served as Minister for Defence (1932–39), Minister for the Co-ordination of Defensive Measures (1939–45), Minister for Finance (1945–48) and Minister for External Affairs (1951–54; 1957–69) ; Séamus Mallon (1936-2020), Member of Parliament (MP) for Newry & Armagh (1986-2005)
+Abbey Christian Brothers' Grammar School | Frank Aiken (1898-1983) TD, Irish Republican Army commander, Tánaiste, Minister for the Co-ordination of Defensive Measures (1939–45), Minister for Finance (1945–48) and Minister for External Affairs (1951–54; 1957–69) ; Séamus Mallon (1936-2020), Member of Parliament (MP) for Newry & Armagh (1986-2005)
 </Context>
 <Question>
 Who is the Minister for Defence in Ireland?
 </Question>
 <Thought>
-The question asks who the Minister for Defence in Ireland is. The context paragraph talks about Frank Aiken and Séamus Mallon. Frank Aiken was Irish Republican Army commander, Tánaiste and served as Minister for Defence from 1932 to 1939, Minister for the Co-ordination of Defensive Measures from 1939 to 1945, Minister for Finance from 1945 to 1948, and Minister for External Affairs from 1951 to 1954 and from 1957 to 1969. Séamus Mallon was Member of Parliament (MP) for Newry & Armagh from 1986 to 2005. Frank Aiken and Séamus Mallon were not the Minister for Defence in Ireland. The context paragraph does not tell who the the Minister for Defence in Ireland is. Therefore, the response is "No".
+The question asks who the Minister for Defence in Ireland is. The context paragraph talks about Frank Aiken and Séamus Mallon. Frank Aiken was Irish Republican Army commander, Tánaiste, Minister for the Co-ordination of Defensive Measures from 1939 to 1945, Minister for Finance from 1945 to 1948, and Minister for External Affairs from 1951 to 1954 and from 1957 to 1969. Séamus Mallon was Member of Parliament (MP) for Newry & Armagh from 1986 to 2005. The context paragraph does not tell who the the Minister for Defence in Ireland is. Therefore, the response is "No".
 </Thought>
 <Response>
 No
