@@ -98,6 +98,8 @@ def retrival_model_names(m):
         m = 'cross-encoder/ms-marco-electra-base'
     elif m=='jina':
         m = 'jinaai/jina-reranker-v2-base-multilingual'
+    elif m=='sfr':
+        m = 'Salesforce/SFR-Embedding-Mistral'
     return m
 
 def llm_names(l, instruct=False):

@@ -1,7 +1,7 @@
 import os
 # os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6"
 # os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
-# os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
 
 from utils import *
 from prompts import *
@@ -13,6 +13,9 @@ from copy import deepcopy
 from vllm import LLM
 
 from nltk.tokenize import sent_tokenize
+from torch import Tensor
+import torch
+import torch.nn.functional as F
 
 debug = None
 debug_question = None
@@ -34,7 +37,7 @@ def main():
     )
     parser.add_argument(
         '--stage2-model', 
-        choices=['metriever','minilm6','minilm12','bge','tinybert','bgegemma','electra','nv','jina', None], 
+        choices=['metriever','minilm6','minilm12','bge','tinybert','bgegemma','electra','nv','jina', 'sfr', None], 
         default='nv', #
         # default='bgegemma', #
         help='Choose a model for stage 2 re-ranking'
@@ -82,13 +85,20 @@ def main():
         if 'gemma' in name:
             from FlagEmbedding import FlagLLMReranker
             args.model = FlagLLMReranker(name, use_fp16=True, device='cuda:2')
+        elif 'sfr' in name.lower():
+            from transformers import AutoTokenizer, AutoModel
+            from torch.nn import DataParallel
+            # load model and tokenizer
+            tokenizer = AutoTokenizer.from_pretrained(name)
+            model = AutoModel.from_pretrained(name, trust_remote_code=True, torch_dtype=torch.float16, device_map='auto').eval()
+            args.model = model
+            args.tokenizer = tokenizer
         elif 'bge' in name:
             from FlagEmbedding import FlagReranker
             args.model = FlagReranker(name, use_fp16=True)
         elif 'nv' in name:
             from transformers import AutoModel
             from torch.nn import DataParallel
-            import torch
             embedding_model = AutoModel.from_pretrained(name, trust_remote_code=True, torch_dtype=torch.float16)
             for module_key, module in embedding_model._modules.items():
                 embedding_model._modules[module_key] = DataParallel(module).to('cuda')
@@ -178,15 +188,10 @@ def main():
         for ex in examples:
             ex['question'] = ex['ori_question']
 
-    if args.max_examples:
-        examples = examples[:min(len(examples),args.max_examples)]
-
-    if debug_question:
-        examples = [ex for ex in examples if ex['question']==debug_question]
 
     # examples = examples[300:365]
     # examples = [ex for ex in examples if 'he married Marjorie Ivatt?' not in ex['question']]
- 
+
     # only keep situatedqa and timeqa samples for this code
     if args.subset == 'timeqa':
         examples = [ex for ex in examples if ex["source"] == 'timeqa']
@@ -194,6 +199,12 @@ def main():
     elif args.subset == 'situatedqa':
         examples = [ex for ex in examples if ex["source"] == 'situatedqa']
         print('\nkeep only SituatedQA subset.')
+
+    if debug_question:
+        examples = [ex for ex in examples if ex['question']==debug_question]
+
+    if args.max_examples:
+        examples = examples[:min(len(examples),args.max_examples)]
 
     # complete ctx head and tail sentences
     if args.complete_ctx_text:
@@ -232,12 +243,12 @@ def main():
                 complete_ctxs.append(ctx)
             ex[ctx_key] = complete_ctxs
 
-
     # separate samples into different types for comparison
     examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
 
     #####################################################################################################################
     # Baselines 
+
     if args.m2 == None or args.m2 != 'metriever':
         print(f'--- Stage 1: {args.stage1_model} ---\n')
         print('\n**** Answers ****')
@@ -267,27 +278,44 @@ def main():
             latest_ctxs = deepcopy(ex[ctx_key])
             latest_ctxs = latest_ctxs[:args.ctx_topk]
 
-            if 'nv' not in args.m2:
+            if 'sfr' in args.m2.lower():
+                task = 'Given a web search query, retrieve relevant passages that answer the query'
+                queries = [get_detailed_instruct(task, question)]
+                # No need to add instruction for retrieval documents
+                passages = [ctx["title"]+" "+ctx["text"] for ctx in latest_ctxs]
+                # get the embeddings
+                max_length = 512
+                input_texts = queries + passages
+                batch_dict = args.tokenizer(input_texts, max_length=max_length, padding=True, truncation=True, return_tensors="pt").to('cuda')
+                with torch.no_grad():
+                    outputs = args.model(**batch_dict)
+                embeddings = last_token_pool(outputs.last_hidden_state, batch_dict['attention_mask'])
+                # normalize embeddings
+                embeddings = F.normalize(embeddings, p=2, dim=1)
+                # Calculate similarity scores between the query and each passage
+                query_embedding = embeddings[0]  # The first embedding is the query
+                passage_embeddings = embeddings[1:]  # The rest are the passages
+                # Compute similarity scores (cosine similarity)
+                scores = (query_embedding @ passage_embeddings.T) 
+                scores = scores.tolist()
+
+            elif 'nv' not in args.m2:
                 model_inputs = [[question, ctx["title"]+" "+ctx["text"]] for ctx in latest_ctxs]
                 scores = args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)
+            
             else:
-                import torch.nn.functional as F
                 task_name_to_instruct = {"example": "Given a question, retrieve passages that answer the question",}
-
                 query_prefix = "Instruct: "+task_name_to_instruct["example"]+"\nQuery: "
                 queries = [question]
                 passage_prefix = ""
                 passages = [ctx["title"]+" "+ctx["text"] for ctx in latest_ctxs]
-
                 # get the embeddings
-                max_length = 4096
+                max_length = 512
                 query_embeddings = args.model.encode(queries, instruction=query_prefix, max_length=max_length)
                 passage_embeddings = args.model.encode(passages, instruction=passage_prefix, max_length=max_length)
-
                 # normalize embeddings
                 query_embeddings = F.normalize(query_embeddings, p=2, dim=1)
                 passage_embeddings = F.normalize(passage_embeddings, p=2, dim=1)
-
                 scores = (query_embeddings @ passage_embeddings.T)
                 scores = scores.tolist()
                 scores = scores[0]
@@ -768,6 +796,20 @@ def get_temporal_coeffs(years, sentence_tuples, time_relation_type, implicit_con
             coeff = 0.5
         temporal_coeffs.append(coeff)
     return temporal_coeffs
+
+# for SFR
+def last_token_pool(last_hidden_states: Tensor,
+                 attention_mask: Tensor) -> Tensor:
+    left_padding = (attention_mask[:, -1].sum() == attention_mask.shape[0])
+    if left_padding:
+        return last_hidden_states[:, -1]
+    else:
+        sequence_lengths = attention_mask.sum(dim=1) - 1
+        batch_size = last_hidden_states.shape[0]
+        return last_hidden_states[torch.arange(batch_size, device=last_hidden_states.device), sequence_lengths]
+
+def get_detailed_instruct(task_description: str, query: str) -> str:
+    return f'Instruct: {task_description}\nQuery: {query}'
 
 
 if __name__ == "__main__":

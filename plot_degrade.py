@@ -103,7 +103,7 @@ title_size = 22  # Title font size
 # Top-left: Answer Recall for SituatedQA
 axs[0, 0].bar(index, answer_recall_situatedqa_normal, bar_width, label='Original', color='#1f77b4')
 axs[0, 0].bar(index + bar_width, answer_recall_situatedqa_perturbed, bar_width, label='Perturbed', color='#1f77b4', alpha=0.4)
-# axs[0, 0].set_title('SituatedQA', fontsize=title_size+3)
+axs[0, 0].set_title('SituatedQA', fontsize=title_size+3)
 axs[0, 0].set_xticks(index + bar_width / 2)
 axs[0, 0].set_xticklabels(recall_labels)
 axs[0, 0].set_ylim(0,100)
@@ -119,7 +119,7 @@ axs[0, 1].set_xticks(index + bar_width / 2)
 axs[0, 1].set_xticklabels(recall_labels)
 axs[0, 1].set_ylim(0,100)
 axs[0, 1].set_yticklabels([])
-# axs[0, 1].legend(fontsize=14)
+axs[0, 1].legend(fontsize=16, loc='lower right')
 axs[0, 1].tick_params(axis='both', which='major', labelsize=font_size)
 
 # Bottom-left: Gold Evidence Recall for SituatedQA
@@ -141,11 +141,11 @@ axs[1, 1].set_xticks(index + bar_width / 2)
 axs[1, 1].set_xticklabels(recall_labels)
 axs[1, 1].set_ylim(0,100)
 axs[1, 1].set_yticklabels([])
-# axs[1, 1].legend(fontsize=14)
+axs[1, 1].legend(fontsize=16, loc='lower right')
 axs[1, 1].tick_params(axis='both', which='major', labelsize=font_size)
 
 # Adjust layout to prevent overlap
 plt.tight_layout()
 
 # Save the figure
-plt.savefig('retriever_perf.png', dpi=300)
+plt.savefig('retriever_perf.pdf')
