@@ -88,7 +88,7 @@ gold_recall_timeqa_perturbed = [26.0, 66.6, 71.6, 73.2]   # Perturbed case
 recall_labels = ['R@1', 'R@5', 'R@10', 'R@20']
 
 # Set up the figure and subplots (2 rows x 2 columns)
-fig, axs = plt.subplots(2, 2, figsize=(12, 7))  # Increased the figure size for better readability
+fig, axs = plt.subplots(2, 1, figsize=(6, 6))  # Increased the figure size for better readability
 
 # Define bar width and x-axis positions
 bar_width = 0.35
@@ -101,51 +101,53 @@ title_size = 22  # Title font size
 # === Plotting ===
 
 # Answer Recall for SituatedQA
-axs[0, 1].bar(index, answer_recall_situatedqa_normal, bar_width, label='Original', color='#ff7f0e')
-axs[0, 1].bar(index + bar_width, answer_recall_situatedqa_perturbed, bar_width, label='Perturbed', color='#ff7f0e', alpha=0.4)
-axs[0, 1].set_title('SituatedQA', fontsize=title_size+3)
-axs[0, 1].set_xticks(index + bar_width / 2)
-axs[0, 1].set_xticklabels(recall_labels)
-axs[0, 1].set_ylim(0,100)
-axs[0, 1].set_yticklabels([])
-axs[0, 1].legend(fontsize=16, loc='lower right')
-axs[0, 1].tick_params(axis='both', which='major', labelsize=font_size)
+axs[0].bar(index, answer_recall_situatedqa_normal, bar_width, label='Original', color='#1f77b4')
+axs[0].bar(index + bar_width, answer_recall_situatedqa_perturbed, bar_width, label='Perturbed', color='#1f77b4', alpha=0.4)
+# axs[0].set_title('SituatedQA', fontsize=title_size+3)
+axs[0].set_xticks(index + bar_width / 2)
+axs[0].set_xticklabels(recall_labels)
+axs[0].set_ylim(0,100)
+axs[0].set_ylabel('Answer Recall (%)', fontsize=title_size-1)
+# axs[0].set_yticklabels([])
+axs[0].legend(fontsize=16, loc='lower right')
+axs[0].tick_params(axis='both', which='major', labelsize=font_size)
 
 # Answer Recall for TimeQA
-axs[0, 0].bar(index, answer_recall_timeqa_normal, bar_width, label='Original', color='#1f77b4')
-axs[0, 0].bar(index + bar_width, answer_recall_timeqa_perturbed, bar_width, label='Perturbed', color='#1f77b4', alpha=0.4)
-axs[0, 0].set_title('TimeQA', fontsize=title_size+3)
-axs[0, 0].set_xticks(index + bar_width / 2)
-axs[0, 0].set_xticklabels(recall_labels)
-axs[0, 0].set_ylim(0,100)
-axs[0, 0].set_ylabel('Answer Recall (%)', fontsize=title_size)
-axs[0, 0].legend(fontsize=16, loc='lower right')
-axs[0, 0].tick_params(axis='both', which='major', labelsize=font_size)
+# axs[0, 0].bar(index, answer_recall_timeqa_normal, bar_width, label='Original', color='#1f77b4')
+# axs[0, 0].bar(index + bar_width, answer_recall_timeqa_perturbed, bar_width, label='Perturbed', color='#1f77b4', alpha=0.4)
+# axs[0, 0].set_title('TimeQA', fontsize=title_size+3)
+# axs[0, 0].set_xticks(index + bar_width / 2)
+# axs[0, 0].set_xticklabels(recall_labels)
+# axs[0, 0].set_ylim(0,100)
+# axs[0, 0].set_ylabel('Answer Recall (%)', fontsize=title_size)
+# axs[0, 0].legend(fontsize=16, loc='lower right')
+# axs[0, 0].tick_params(axis='both', which='major', labelsize=font_size)
 
 # Gold Evidence Recall for SituatedQA
-axs[1, 1].bar(index, gold_recall_situatedqa_normal, bar_width, label='Original', color='tan')
-axs[1, 1].bar(index + bar_width, gold_recall_situatedqa_perturbed, bar_width, label='Perturbed', color='tan', alpha=0.4)
-# axs[1, 1].set_title('SituatedQA', fontsize=title_size)
-axs[1, 1].set_xticks(index + bar_width / 2)
-axs[1, 1].set_xticklabels(recall_labels)
-axs[1, 1].set_ylim(0,100)
-axs[1, 1].set_yticklabels([])
-axs[1, 1].legend(fontsize=16, loc='lower right')
-axs[1, 1].tick_params(axis='both', which='major', labelsize=font_size)
+axs[1].bar(index, gold_recall_situatedqa_normal, bar_width, label='Original', color='cadetblue')
+axs[1].bar(index + bar_width, gold_recall_situatedqa_perturbed, bar_width, label='Perturbed', color='cadetblue', alpha=0.4)
+# axs[1].set_title('SituatedQA', fontsize=title_size)
+axs[1].set_xticks(index + bar_width / 2)
+axs[1].set_xticklabels(recall_labels)
+axs[1].set_ylim(0,100)
+# axs[1].set_yticklabels([])
+axs[1].set_ylabel('Evidence Recall (%)', fontsize=title_size-1)
+axs[1].legend(fontsize=16, loc='lower right')
+axs[1].tick_params(axis='both', which='major', labelsize=font_size)
 
 # Gold Evidence Recall for TimeQA
-axs[1, 0].bar(index, gold_recall_timeqa_normal, bar_width, label='Original', color='cadetblue')
-axs[1, 0].bar(index + bar_width, gold_recall_timeqa_perturbed, bar_width, label='Perturbed', color='cadetblue', alpha=0.4)
-# axs[1, 0].set_title('TimeQA', fontsize=title_size)
-axs[1, 0].set_xticks(index + bar_width / 2)
-axs[1, 0].set_xticklabels(recall_labels)
-axs[1, 0].set_ylim(0,100)
-axs[1, 0].set_ylabel('Evidence Recall (%)', fontsize=title_size)
-axs[1, 0].legend(fontsize=16, loc='lower right')
-axs[1, 0].tick_params(axis='both', which='major', labelsize=font_size)
+# axs[1, 0].bar(index, gold_recall_timeqa_normal, bar_width, label='Original', color='cadetblue')
+# axs[1, 0].bar(index + bar_width, gold_recall_timeqa_perturbed, bar_width, label='Perturbed', color='cadetblue', alpha=0.4)
+# # axs[1, 0].set_title('TimeQA', fontsize=title_size)
+# axs[1, 0].set_xticks(index + bar_width / 2)
+# axs[1, 0].set_xticklabels(recall_labels)
+# axs[1, 0].set_ylim(0,100)
+# axs[1, 0].set_ylabel('Evidence Recall (%)', fontsize=title_size)
+# axs[1, 0].legend(fontsize=16, loc='lower right')
+# axs[1, 0].tick_params(axis='both', which='major', labelsize=font_size)
 
 # Adjust layout to prevent overlap
 plt.tight_layout()
 
 # Save the figure
-plt.savefig('retriever_perf.pdf')
+plt.savefig('retriever_perf_s.pdf')

@@ -271,11 +271,11 @@ Now your question and context knowledge are
 
 def main():
     parser = argparse.ArgumentParser(description="Reader")
-    parser.add_argument('--max-examples', type=int, default=None)
+    parser.add_argument('--max-examples', type=int, default=100)
     parser.add_argument('--retriever-output', type=str, default="timeqa_contriever_metriever_bgegemma_llama_8b_qfs5_outputs.json")
     # parser.add_argument('--retriever-output', type=str, default="situatedqa_contriever_bgegemma_outputs.json")
     parser.add_argument('--ctx-topk', type=int, default=3)
-    parser.add_argument('--param-pred', type=bool, default=False)
+    parser.add_argument('--param-pred', type=bool, default=True)
     parser.add_argument('--param-cot', type=bool, default=False)
     parser.add_argument('--not-save', type=bool, default=False)
     parser.add_argument('--save-note', type=str, default=None)
@@ -284,8 +284,8 @@ def main():
         choices=['bm25', 'contriever','hybrid'], 
         default='contriever', #
     )
-    parser.add_argument('--reader', type=str, default='timo', choices=['llama', 'timo', 'timellama','llama_70b','llama_8b'])
-    parser.add_argument('--paradigm', type=str, default='fusion', choices=['fusion', 'concat'])
+    parser.add_argument('--reader', type=str, default='gpt', choices=['llama', 'timo', 'timellama','llama_70b','llama_8b', 'gpt'])
+    parser.add_argument('--paradigm', type=str, default='concat', choices=['fusion', 'concat'])
 
     args = parser.parse_args()
     assert args.stage1_model in args.retriever_output
@@ -307,11 +307,15 @@ def main():
     args.llm_name = args.reader
     args.l = llm_names(args.reader, instruct=True)
     flg = '70b' in args.llm_name
-    if flg:
-        args.llm = LLM(args.l, tensor_parallel_size=4, quantization="AWQ", max_model_len=20000)
+
+    if 'gpt' in args.l.lower():
+        pass
     else:
-        mx_len = 2048 if args.reader=='timo' else 20000
-        args.llm = LLM(args.l, tensor_parallel_size=2, max_model_len=mx_len)
+        if flg:
+            args.llm = LLM(args.l, tensor_parallel_size=4, quantization="AWQ", max_model_len=20000)
+        else:
+            mx_len = 2048 if args.reader=='timo' else 20000
+            args.llm = LLM(args.l, tensor_parallel_size=2, max_model_len=mx_len)
 
     # load examples
     if 'retrieved' not in args.retriever_output:
@@ -342,77 +346,26 @@ def main():
 
     tmp_key = args.ctx_key_s2 if args.ctx_key_s2 else args.ctx_key_s1
 
-    if args.paradigm=='concat':
-
-        prompts, texts = [], []
-        for ex in examples:
-            text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'].strip() for ctx in ex[tmp_key][:args.ctx_topk]])
-            texts.append(text)
-            prompt = c_prompt(ex['question'], text)
-            prompts.append(prompt)
-
-        rag_preds = call_pipeline(args, prompts, 500)
-
-        print(f'{tmp_key} top {args.ctx_topk} contexts prediction finished.')
-        # import ipdb; ipdb.set_trace()
-
+    if 'gpt' in args.l.lower():
         for k, ex in enumerate(examples):
-            question = ex['question']
-            gold_evidences = ex['gold_evidences']
-            rag_pred = rag_preds[k]
-            ex['rag_pred'] = rag_pred
-            if isinstance(rag_pred, list):
-                if len(rag_pred)>0:
-                    rag_pred = str(rag_pred[0])
-                else:
-                    rag_pred = ''
-            assert isinstance(rag_pred, str), rag_pred
-            ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
-            ex['rag_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(rag_pred))
-    
-    else: 
-        # checker & reader
-        print('\nstarted checker.\n')
-        checker_prompts = []
+            ex['rag_pred'] = ''
+            ex['rag_acc'] = 0
+            ex['rag_f1'] = 0
+    else:
+        if args.paradigm=='concat':
 
-        for ex in examples:
-            question = ex['question']
-            normalized_question = ex['normalized_question']
-
-            if question.startswith('How many'):
-                if 'How many times' in question:
-                    normalized_question = normalized_question.replace('How many times', 'When')
-                else:
-                    normalized_question = normalized_question.replace('How many', 'What')
-                ex['normalized_question'] = normalized_question
-
-            for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
-                context = f"{ctx['title']} | {ctx['text']}"
-                checker_prompt = GradeDocuments(context, normalized_question)
-                checker_prompts.append(checker_prompt)
-
-        checker_responses = call_pipeline(args, checker_prompts, 400)
-        checker_results = ['yes' in res.lower() for res in checker_responses]
-        print('\nstarted reader.\n')
-
-        if args.reader=='timo':
             prompts, texts = [], []
             for ex in examples:
-                ctx_list=[]
-                question = ex['question']
-                normalized_question = ex['normalized_question']
-                for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
-                    checker_result = checker_results.pop(0)
-                    if checker_result:
-                        ctx_list.append(ctx)
-
-                text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'].strip() for ctx in ctx_list[:min(3,len(ctx_list))]])
+                text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'].strip() for ctx in ex[tmp_key][:args.ctx_topk]])
                 texts.append(text)
                 prompt = c_prompt(ex['question'], text)
                 prompts.append(prompt)
 
             rag_preds = call_pipeline(args, prompts, 500)
+
             print(f'{tmp_key} top {args.ctx_topk} contexts prediction finished.')
+            # import ipdb; ipdb.set_trace()
+
             for k, ex in enumerate(examples):
                 question = ex['question']
                 gold_evidences = ex['gold_evidences']
@@ -426,81 +379,138 @@ def main():
                 assert isinstance(rag_pred, str), rag_pred
                 ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
                 ex['rag_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(rag_pred))
+        
+        else: 
+            # checker & reader
+            print('\nstarted checker.\n')
+            checker_prompts = []
 
-        else:
-            generation_prompts = []
-            questions = []
             for ex in examples:
                 question = ex['question']
                 normalized_question = ex['normalized_question']
+
+                if question.startswith('How many'):
+                    if 'How many times' in question:
+                        normalized_question = normalized_question.replace('How many times', 'When')
+                    else:
+                        normalized_question = normalized_question.replace('How many', 'What')
+                    ex['normalized_question'] = normalized_question
+
                 for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
-                    checker_result = checker_results.pop(0)
-                    if checker_result:
-                        doc = ctx['title'] + ' | ' + ctx['text'].strip()
-                        generation_prompt = LLMGenerations(doc, normalized_question, args.reader=='timo')
-                        generation_prompts.append(generation_prompt)
-                        questions.append(question)
-            generation_responses = call_pipeline(args, generation_prompts, 400, ver=True)
-            buf = {}
-            for question, gen in zip(questions, generation_responses):
-                if question not in buf:
-                    buf[question] = []
-                if gen not in buf[question]:
-                    if len(gen.split())<50:
-                        buf[question].append(gen)
+                    context = f"{ctx['title']} | {ctx['text']}"
+                    checker_prompt = GradeDocuments(context, normalized_question)
+                    checker_prompts.append(checker_prompt)
 
-            for question in buf:
-                summarizations = buf[question]
-                years = [year_identifier(s) for s in summarizations]
-                filtered_data = [(s, y) for s, y in zip(summarizations, years) if y is not None]
-                filtered_data = [(s, min(y)) for s,y in filtered_data]
-                sorted_data = sorted(filtered_data, key=lambda pair: pair[1])
-                sorted_summarizations, sorted_years = zip(*sorted_data) if sorted_data else ([], [])
-                buf[question] = sorted_summarizations
+            checker_responses = call_pipeline(args, checker_prompts, 400)
+            checker_results = ['yes' in res.lower() for res in checker_responses]
+            print('\nstarted reader.\n')
 
-            combined_prompts = []
-            for ex in examples:
-                question = ex['question']
-                normalized_question = ex['normalized_question']
-                if question not in buf:
-                    buf[question] = []
-                combined_prompt = CombinedReader('\n\n'.join(buf[question]), question, args.reader=='timo')
-                combined_prompts.append(combined_prompt)
-            combined_responses = call_pipeline(args, combined_prompts, 400)
-            for k, ex in enumerate(examples):
-                question = ex['question']
-                if len(buf[question])==0:
-                    combined_responses[k]=''
+            if args.reader=='timo':
+                prompts, texts = [], []
+                for ex in examples:
+                    ctx_list=[]
+                    question = ex['question']
+                    normalized_question = ex['normalized_question']
+                    for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
+                        checker_result = checker_results.pop(0)
+                        if checker_result:
+                            ctx_list.append(ctx)
 
-            for k, ex in enumerate(examples):
-                question = ex['question']
-                gold_evidences = ex['gold_evidences']
-                rag_pred = combined_responses[k]
-                rag_pred = force_string(rag_pred)
-                print(f'\n----{k}-----')
-                if check_no_knowledge(rag_pred):
-                    print('parallel read no knowledge.')
-                    text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'].strip() for ctx in ex[tmp_key][:args.ctx_topk]])
+                    text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'].strip() for ctx in ctx_list[:min(3,len(ctx_list))]])
+                    texts.append(text)
                     prompt = c_prompt(ex['question'], text)
-                    rag_pred = call_pipeline(args, [prompt], 500)[0]
+                    prompts.append(prompt)
+
+                rag_preds = call_pipeline(args, prompts, 500)
+                print(f'{tmp_key} top {args.ctx_topk} contexts prediction finished.')
+                for k, ex in enumerate(examples):
+                    question = ex['question']
+                    gold_evidences = ex['gold_evidences']
+                    rag_pred = rag_preds[k]
+                    ex['rag_pred'] = rag_pred
+                    if isinstance(rag_pred, list):
+                        if len(rag_pred)>0:
+                            rag_pred = str(rag_pred[0])
+                        else:
+                            rag_pred = ''
+                    assert isinstance(rag_pred, str), rag_pred
+                    ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
+                    ex['rag_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(rag_pred))
+
+            else:
+                generation_prompts = []
+                questions = []
+                for ex in examples:
+                    question = ex['question']
+                    normalized_question = ex['normalized_question']
+                    for ctx in ex['snt_hybrid_rank'][:args.ctx_topk]:
+                        checker_result = checker_results.pop(0)
+                        if checker_result:
+                            doc = ctx['title'] + ' | ' + ctx['text'].strip()
+                            generation_prompt = LLMGenerations(doc, normalized_question, args.reader=='timo')
+                            generation_prompts.append(generation_prompt)
+                            questions.append(question)
+                generation_responses = call_pipeline(args, generation_prompts, 400, ver=True)
+                buf = {}
+                for question, gen in zip(questions, generation_responses):
+                    if question not in buf:
+                        buf[question] = []
+                    if gen not in buf[question]:
+                        if len(gen.split())<50:
+                            buf[question].append(gen)
+
+                for question in buf:
+                    summarizations = buf[question]
+                    years = [year_identifier(s) for s in summarizations]
+                    filtered_data = [(s, y) for s, y in zip(summarizations, years) if y is not None]
+                    filtered_data = [(s, min(y)) for s,y in filtered_data]
+                    sorted_data = sorted(filtered_data, key=lambda pair: pair[1])
+                    sorted_summarizations, sorted_years = zip(*sorted_data) if sorted_data else ([], [])
+                    buf[question] = sorted_summarizations
+
+                combined_prompts = []
+                for ex in examples:
+                    question = ex['question']
+                    normalized_question = ex['normalized_question']
+                    if question not in buf:
+                        buf[question] = []
+                    combined_prompt = CombinedReader('\n\n'.join(buf[question]), question, args.reader=='timo')
+                    combined_prompts.append(combined_prompt)
+                combined_responses = call_pipeline(args, combined_prompts, 400)
+                for k, ex in enumerate(examples):
+                    question = ex['question']
+                    if len(buf[question])==0:
+                        combined_responses[k]=''
+
+                for k, ex in enumerate(examples):
+                    question = ex['question']
+                    gold_evidences = ex['gold_evidences']
+                    rag_pred = combined_responses[k]
                     rag_pred = force_string(rag_pred)
-                    if len(rag_pred.split())>50:
-                        rag_pred=''
+                    print(f'\n----{k}-----')
+                    if check_no_knowledge(rag_pred):
+                        print('parallel read no knowledge.')
+                        text = '\n\n'.join([ctx['title'] + ' | ' + ctx['text'].strip() for ctx in ex[tmp_key][:args.ctx_topk]])
+                        prompt = c_prompt(ex['question'], text)
+                        rag_pred = call_pipeline(args, [prompt], 500)[0]
+                        rag_pred = force_string(rag_pred)
+                        if len(rag_pred.split())>50:
+                            rag_pred=''
 
-                if check_no_knowledge(rag_pred):
-                    print('concat read no knowledge.')
-                    prompt = zc_cot_prompt(question)
-                    param_pred = call_pipeline(args, [prompt], 400)[0]
-                    rag_pred = force_string(param_pred)
-                    if len(rag_pred.split())>50:
-                        rag_pred=''
+                    if check_no_knowledge(rag_pred):
+                        print('concat read no knowledge.')
+                        prompt = zc_cot_prompt(question)
+                        param_pred = call_pipeline(args, [prompt], 400)[0]
+                        rag_pred = force_string(param_pred)
+                        if len(rag_pred.split())>50:
+                            rag_pred=''
 
-                ex['rag_pred'] = rag_pred
-                ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
-                ex['rag_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(rag_pred))
-                print(question)
-                print(combined_prompts[k].split('Now your question and context knowledge are')[-1])
-                print('\n',rag_pred, ex['rag_acc'])
+                    ex['rag_pred'] = rag_pred
+                    ex['rag_acc'] = int(normalize(rag_pred) in [normalize(ans) for ans in ex['answers']])
+                    ex['rag_f1'] = max_token_f1([normalize(ans) for ans in ex['answers']], normalize(rag_pred))
+                    print(question)
+                    print(combined_prompts[k].split('Now your question and context knowledge are')[-1])
+                    print('\n',rag_pred, ex['rag_acc'])
 
 
     to_save=[]

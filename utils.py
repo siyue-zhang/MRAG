@@ -427,6 +427,28 @@ def force_string(item):
 
 def call_pipeline(args, prompts, max_tokens=100, return_list=False, ver=False):
 
+    if 'gpt' in args.reader.lower():
+        from openai import OpenAI
+        client = OpenAI()
+        responses = []
+        for prompt in tqdm(prompts, desc="GPT"):
+            completion = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    # {"role": "system", "content": ""},
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            )
+            response = completion.choices[0].message.content
+            print(response)
+            responses.append(response.strip())
+        print('\n\n')
+        return responses
+
+
     if args.reader == None:
         sampling_params = SamplingParams(temperature=0.2, top_p=0.95, max_tokens=max_tokens, seed=0)
         outputs = args.llm.generate(prompts, sampling_params)
