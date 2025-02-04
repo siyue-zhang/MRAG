@@ -1,8 +1,8 @@
 import os
 # os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6"
 # os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
-os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
-
+os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3"
+import time
 from utils import *
 from prompts import *
 # import ipdb; ipdb.set_trace()
@@ -28,7 +28,7 @@ debug_question = None
 
 def main():
     parser = argparse.ArgumentParser(description="Metriever")
-    parser.add_argument('--max-examples', type=int, default=None)
+    parser.add_argument('--max-examples', type=int, default=100)
     parser.add_argument(
         '--stage1-model',
         choices=['bm25', 'contriever','hybrid'], 
@@ -38,8 +38,8 @@ def main():
     parser.add_argument(
         '--stage2-model', 
         choices=['metriever','minilm6','minilm12','bge','tinybert','bgegemma','electra','nv','jina', 'sfr', None], 
-        default='nv', #
-        # default='bgegemma', #
+        # default='nv', #
+        default='metriever', #
         help='Choose a model for stage 2 re-ranking'
     )
     parser.add_argument(
@@ -57,7 +57,7 @@ def main():
     parser.add_argument('--hybrid-score', type=bool, default=True)
     parser.add_argument('--hybrid-base', type=float, default=0)
     parser.add_argument('--snt-with-title', type=bool, default=True)
-    parser.add_argument('--llm', type=str, default="llama_70b")
+    parser.add_argument('--llm', type=str, default="llama_8b")
     parser.add_argument('--save-note', type=str, default=None)
     parser.add_argument('--subset', type=str, default='timeqa')
     parser.add_argument('--save', type=bool, default=True)
@@ -246,6 +246,17 @@ def main():
     # separate samples into different types for comparison
     examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
 
+    # from transformers import GPT2Tokenizer
+    # # Load GPT-2 tokenizer
+    # tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+    # words = []
+    # for ex in examples_not_exact:
+    #     tokenized_text = tokenizer.encode(ex['question'])
+    #     token_length = len(tokenized_text)
+    #     words.append(token_length)
+    # print(np.mean(words))
+    # import ipdb; ipdb.set_trace()
+
     #####################################################################################################################
     # Baselines 
 
@@ -272,7 +283,9 @@ def main():
 
     if args.m2 and args.m2 != 'metriever':
         # benchmark baselines
+
         flg = 'bge' in args.stage2_model or 'jina' in args.stage2_model
+        start_time = time.time()
         for ex in tqdm(examples, desc="Reranking contexts"):
             question = ex['question']
             latest_ctxs = deepcopy(ex[ctx_key])
@@ -324,7 +337,13 @@ def main():
                 ctx["score"] = float(scores[i])
             latest_ctxs = sorted(latest_ctxs, key=lambda x: x['score'], reverse=True)
             ex['reranker_ctxs'] = latest_ctxs
-        # evaluate reranking results    
+        
+        end_time = time.time()
+        duration = end_time - start_time
+        duration /=len(examples)
+        print(f"{args.m2} Baseline Execution Time: {duration:.6f} seconds")
+        
+        # evaluate reranking results
         ctx_key = 'reranker_ctxs'
         examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
 
@@ -355,6 +374,7 @@ def main():
     # Metriever 
 
     # preprocess question about time
+    start_time = time.time()
     for k, ex in enumerate(tqdm(examples, desc="Preprocessing time info", total=len(examples))):
         question = ex['question']
         ex['time_relation'] = ex['time_relation'].strip()
@@ -481,7 +501,13 @@ def main():
     if debug_question:
         examples = [ex for ex in examples if ex['question']==debug_question]
 
+    end_time = time.time()
+    duration = end_time - start_time
+    duration /=len(examples)
+    print(f"Preprocess Execution Time: {duration:.6f} seconds")
+        
     # main reranking loop
+    start_time = time.time()
     print('\nfinished preparation, start modular reranking.')
     all_QFS_prompts = []
     for k, ex in enumerate(examples):
@@ -557,6 +583,12 @@ def main():
 
     all_summary_responses = call_pipeline(args, all_QFS_prompts, 200)
 
+    end_time = time.time()
+    duration = end_time - start_time
+    duration /=len(examples)
+    print(f"Retrieval Execution Time: {duration:.6f} seconds")
+        
+    start_time = time.time()
     for k, ex in enumerate(examples):
 
         question = ex['question']
@@ -665,7 +697,11 @@ def main():
                     print(f'#{l} {tp}')
             
         #####################################################################################################################
-
+    end_time = time.time()
+    duration = end_time - start_time
+    duration /=len(examples)
+    print(f"Hybrid Execution Time: {duration:.6f} seconds")
+    assert 1==2
 
     examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
 

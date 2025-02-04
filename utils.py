@@ -21,6 +21,9 @@ import sys
 sys.path.append('../')
 from contriever.src.evaluation import SimpleTokenizer, has_answer
 
+from openai import OpenAI
+# client = OpenAI()
+
 EXCL = ['time', 'years', 'for', 'new', 'recent', 'current', 'whom', 'who', 'out', 'place', 'not']
 
 lemmatizer = WordNetLemmatizer()
@@ -425,26 +428,82 @@ def force_string(item):
         item = ''
     return item
 
-def call_pipeline(args, prompts, max_tokens=100, return_list=False, ver=False):
+import threading
 
-    if 'gpt' in args.reader.lower():
-        from openai import OpenAI
-        client = OpenAI()
-        responses = []
-        for prompt in tqdm(prompts, desc="GPT"):
+
+def fetch_completion(client, prompt, timeout=10):
+    """
+    Fetch a completion from the API with a timeout mechanism.
+    
+    Args:
+        client: The API client.
+        prompt: The prompt to send to the API.
+        timeout: The time (in seconds) to wait before retrying.
+    
+    Returns:
+        The API response content or an error message if retries fail.
+    """
+    result = {"response": None}
+    event = threading.Event()
+
+    def api_call():
+        try:
             completion = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    # {"role": "system", "content": ""},
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": prompt}
                 ]
             )
-            response = completion.choices[0].message.content
+            result["response"] = completion.choices[0].message.content
+        except Exception as e:
+            result["response"] = f"Error: {e}"
+        finally:
+            event.set()
+
+    # Start the API call in a separate thread
+    thread = threading.Thread(target=api_call)
+    thread.start()
+
+    # Wait for the API call to finish or timeout
+    event.wait(timeout)
+
+    if not event.is_set():
+        # Timeout occurred
+        thread.join(0)  # Attempt to clean up the thread
+        return "Timeout: API request took too long, retrying..."
+    
+    return result["response"]
+
+
+
+def call_pipeline(args, prompts, max_tokens=100, return_list=False, ver=False):
+
+    if 'gpt' in args.reader.lower():
+
+        responses = []
+        for prompt in tqdm(prompts, desc="GPT"):
+            # completion = client.chat.completions.create(
+            #     model="gpt-4o-mini",
+            #     messages=[
+            #         {"role": "system", "content": "You are a helpful assistant that answers questions concisely."},
+            #         {
+            #             "role": "user",
+            #             "content": prompt
+            #         }
+            #     ]
+            # )
+            # response = completion.choices[0].message.content
+            # print(response)
+            # responses.append(response.strip())
+
+            for attempt in range(5):  # Retry up to 3 times
+                response = fetch_completion(client, prompt, timeout=10)
+                if "Timeout" not in response:
+                    break
             print(response)
             responses.append(response.strip())
+
         print('\n\n')
         return responses
 
