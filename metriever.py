@@ -1,7 +1,7 @@
 import os
 # os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6"
 # os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,6"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4,3,2"
 import time
 from utils import *
 from prompts import *
@@ -77,7 +77,7 @@ def main():
         if flg:
             args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=4096)
         else:
-            args.llm = LLM(args.l, tensor_parallel_size=2, max_model_len=4096)
+            args.llm = LLM(args.l, tensor_parallel_size=1, max_model_len=4096)
         
     # load semantic ranker for stage 2 / metriever
     if args.m2:

@@ -479,7 +479,7 @@ def fetch_completion(client, prompt, timeout=10):
 
 def call_pipeline(args, prompts, max_tokens=100, return_list=False, ver=False):
 
-    if 'gpt' in args.reader.lower():
+    if args.reader and 'gpt' in args.reader.lower():
 
         responses = []
         for prompt in tqdm(prompts, desc="GPT"):
