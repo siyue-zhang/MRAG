@@ -1,7 +1,7 @@
 import os
 # os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6"
 # os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
-os.environ["CUDA_VISIBLE_DEVICES"] = "4,3,2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 import time
 from utils import *
 from prompts import *
@@ -28,7 +28,7 @@ debug_question = None
 
 def main():
     parser = argparse.ArgumentParser(description="Metriever")
-    parser.add_argument('--max-examples', type=int, default=100)
+    parser.add_argument('--max-examples', type=int, default=None)
     parser.add_argument(
         '--stage1-model',
         choices=['bm25', 'contriever','hybrid'], 
@@ -37,21 +37,21 @@ def main():
     )
     parser.add_argument(
         '--stage2-model', 
-        choices=['metriever','minilm6','minilm12','bge','tinybert','bgegemma','electra','nv','jina', 'sfr', None], 
-        # default='nv', #
+        choices=['metriever','minilm6','minilm12','bge','tinybert','bgegemma','electra','nv','nv2','jina', 'sfr', None], 
+        # default='nv2', #
         default='metriever', #
         help='Choose a model for stage 2 re-ranking'
     )
     parser.add_argument(
         '--metriever-model', 
-        choices=['minilm6','minilm12','bge','tinybert','bgegemma'], 
-        default='bgegemma',
+        choices=['minilm6','minilm12','bge','tinybert','bgegemma','nv2'], 
+        default='nv2',
         help='Choose a model for metriever stage2 re-ranking'
     )
     parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/TempRAGEval.json")
     parser.add_argument('--bm25-output', type=str, default="./TempRAGEval/BM25_output/TempRAGEval.json")
     parser.add_argument('--ctx-topk', type=int, default=100)
-    parser.add_argument('--QFS-topk', type=int, default=0)
+    parser.add_argument('--QFS-topk', type=int, default=5)
     parser.add_argument('--snt-topk', type=int, default=200)
     parser.add_argument('--complete-ctx-text', type=bool, default=False)
     parser.add_argument('--hybrid-score', type=bool, default=True)
@@ -77,7 +77,7 @@ def main():
         if flg:
             args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=4096)
         else:
-            args.llm = LLM(args.l, tensor_parallel_size=1, max_model_len=4096)
+            args.llm = LLM(args.l, tensor_parallel_size=1, max_model_len=4096, device="cuda:0")
         
     # load semantic ranker for stage 2 / metriever
     if args.m2:
@@ -101,7 +101,7 @@ def main():
             from torch.nn import DataParallel
             embedding_model = AutoModel.from_pretrained(name, trust_remote_code=True, torch_dtype=torch.float16)
             for module_key, module in embedding_model._modules.items():
-                embedding_model._modules[module_key] = DataParallel(module).to('cuda')
+                embedding_model._modules[module_key] = DataParallel(module, device_ids=[1])
             args.model = embedding_model
         elif 'jina' in name:
             from transformers import AutoModelForSequenceClassification
@@ -322,16 +322,35 @@ def main():
                 queries = [question]
                 passage_prefix = ""
                 passages = [ctx["title"]+" "+ctx["text"] for ctx in latest_ctxs]
-                # get the embeddings
+
+
                 max_length = 512
-                query_embeddings = args.model.encode(queries, instruction=query_prefix, max_length=max_length)
-                passage_embeddings = args.model.encode(passages, instruction=passage_prefix, max_length=max_length)
-                # normalize embeddings
+                batch_size = 8
+
+                # Encode and normalize the query
+                query_embeddings = args.model.encode(
+                    queries, instruction=query_prefix, max_length=max_length
+                )
+                query_embeddings = torch.tensor(query_embeddings)
                 query_embeddings = F.normalize(query_embeddings, p=2, dim=1)
-                passage_embeddings = F.normalize(passage_embeddings, p=2, dim=1)
-                scores = (query_embeddings @ passage_embeddings.T)
-                scores = scores.tolist()
-                scores = scores[0]
+
+                # Encode passages in batches and compute similarity scores
+                all_scores = []
+
+                for i in range(0, len(passages), batch_size):
+                    batch_passages = passages[i:i + batch_size]
+
+                    passage_embeddings = args.model.encode(
+                        batch_passages, instruction=passage_prefix, max_length=max_length
+                    )
+                    passage_embeddings = torch.tensor(passage_embeddings)
+                    passage_embeddings = F.normalize(passage_embeddings, p=2, dim=1)
+
+                    # Compute cosine similarity between query and current passage batch
+                    scores = (query_embeddings @ passage_embeddings.T).view(-1)
+                    all_scores.extend(scores.tolist())
+
+                scores = all_scores
 
             for i, ctx in enumerate(latest_ctxs):
                 ctx["score"] = float(scores[i])
@@ -555,8 +574,43 @@ def main():
         #####################################################################################################################
         # top 100 ctx_semantic_rank_module
         model_inputs = [[normalized_question, ctx["title"]+ ' ' + ctx["text"]] for ctx in latest_ctxs]
-        flg = 'bge' in args.metriever_model
-        scores = args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)  
+        if 'nv' in args.metriever_model:
+            task_name_to_instruct = {"example": "Given a question, retrieve passages that answer the question",}
+            query_prefix = "Instruct: "+task_name_to_instruct["example"]+"\nQuery: "
+            queries = [normalized_question]
+            passage_prefix = ""
+            passages = [x[1] for x in model_inputs]
+
+            max_length = 512
+            batch_size = 4
+
+            # Encode and normalize the query
+            query_embeddings = args.model.encode(
+                queries, instruction=query_prefix, max_length=max_length
+            )
+            query_embeddings = torch.tensor(query_embeddings)
+            query_embeddings = F.normalize(query_embeddings, p=2, dim=1)
+
+            # Encode passages in batches and compute similarity scores
+            all_scores = []
+
+            for i in range(0, len(passages), batch_size):
+                batch_passages = passages[i:i + batch_size]
+
+                passage_embeddings = args.model.encode(
+                    batch_passages, instruction=passage_prefix, max_length=max_length
+                )
+                passage_embeddings = torch.tensor(passage_embeddings)
+                passage_embeddings = F.normalize(passage_embeddings, p=2, dim=1)
+
+                # Compute cosine similarity between query and current passage batch
+                scores = (query_embeddings @ passage_embeddings.T).view(-1)
+                all_scores.extend(scores.tolist())
+
+            scores = all_scores
+        else:
+            flg = 'bge' in args.metriever_model
+            scores = args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)  
         for i, ctx in enumerate(latest_ctxs):
             ctx["score"] = float(scores[i]) # update contriever score to reranker score
         latest_ctxs = sorted(latest_ctxs, key=lambda x: x["score"], reverse=True)
@@ -658,8 +712,25 @@ def main():
         else:
             # rank by date matching
             model_inputs = [[question, tp[1]] for tp in sentence_tuples]
-        semantic_scores =  args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)
-        semantic_scores = [float(s) for s in semantic_scores]
+
+        if 'nv' in args.metriever_model:
+            task_name_to_instruct = {"example": "Given a question, retrieve passages that answer the question",}
+            query_prefix = "Instruct: "+task_name_to_instruct["example"]+"\nQuery: "
+            queries = [normalized_question]
+            passage_prefix = ""
+            passages = [x[1] for x in model_inputs]
+            # get the embeddings
+            max_length = 512
+            query_embeddings = args.model.encode(queries, instruction=query_prefix, max_length=max_length)
+            passage_embeddings = args.model.encode(passages, instruction=passage_prefix, max_length=max_length)
+            # normalize embeddings
+            query_embeddings = F.normalize(query_embeddings, p=2, dim=1)
+            passage_embeddings = F.normalize(passage_embeddings, p=2, dim=1)
+            scores = (query_embeddings @ passage_embeddings.T)
+            scores = scores.tolist()[0]
+        else:
+            semantic_scores =  args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)
+            semantic_scores = [float(s) for s in semantic_scores]
 
         if len(years)>0 and time_relation_type != 'other' and args.hybrid_score:
             # use temporal-semantic hybrid ranker
@@ -701,7 +772,6 @@ def main():
     duration = end_time - start_time
     duration /=len(examples)
     print(f"Hybrid Execution Time: {duration:.6f} seconds")
-    assert 1==2
 
     examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
 

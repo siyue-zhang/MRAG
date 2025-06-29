@@ -97,6 +97,8 @@ def retrival_model_names(m):
         m = 'BAAI/bge-reranker-v2-gemma'
     elif m=='nv':
         m = 'nvidia/NV-Embed-v1'
+    elif m=='nv2':
+        m = 'nvidia/NV-Embed-v2'
     elif m=='electra':
         m = 'cross-encoder/ms-marco-electra-base'
     elif m=='jina':
