@@ -9,11 +9,11 @@
 #SBATCH --mem=200G
 #SBATCH -c 2
 
-singularity exec --nv --overlay /scratch/sz4651/Projects/UnifiedSKG/overlay-skg2.ext3:ro /scratch/work/public/singularity/cuda12.3.2-cudnn9.0.0-ubuntu-22.04.4.sif /bin/bash -c "
+singularity exec --nv --overlay /scratch/xxx/Projects/UnifiedSKG/overlay-skg2.ext3:ro /scratch/work/public/singularity/cuda12.3.2-cudnn9.0.0-ubuntu-22.04.4.sif /bin/bash -c "
 source ~/.bashrc \
 && export VLLM_WORKER_MULTIPROC_METHOD=spawn \
-&& conda activate /scratch/sz4651/Projects/ext3/miniconda3/envs/metriever \
-&& cd /scratch/sz4651/Projects/metriever_final \
+&& conda activate /scratch/xxx/Projects/ext3/miniconda3/envs/metriever \
+&& cd /scratch/xxx/Projects/metriever_final \
 && python reader.py --retriever-output timeqa_contriever_metriever_minilm12_llama_8b_qfs5_outputs.json --paradigm concat --reader llama_8b --ctx-topk 1 --param-cot False --param-pred True"
 
 
