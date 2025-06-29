@@ -719,15 +719,35 @@ def main():
             queries = [normalized_question]
             passage_prefix = ""
             passages = [x[1] for x in model_inputs]
-            # get the embeddings
+
             max_length = 512
-            query_embeddings = args.model.encode(queries, instruction=query_prefix, max_length=max_length)
-            passage_embeddings = args.model.encode(passages, instruction=passage_prefix, max_length=max_length)
-            # normalize embeddings
+            batch_size = 4
+
+            # Encode and normalize the query
+            query_embeddings = args.model.encode(
+                queries, instruction=query_prefix, max_length=max_length
+            )
+            query_embeddings = torch.tensor(query_embeddings)
             query_embeddings = F.normalize(query_embeddings, p=2, dim=1)
-            passage_embeddings = F.normalize(passage_embeddings, p=2, dim=1)
-            scores = (query_embeddings @ passage_embeddings.T)
-            scores = scores.tolist()[0]
+
+            # Encode passages in batches and compute similarity scores
+            all_scores = []
+
+            for i in range(0, len(passages), batch_size):
+                batch_passages = passages[i:i + batch_size]
+
+                passage_embeddings = args.model.encode(
+                    batch_passages, instruction=passage_prefix, max_length=max_length
+                )
+                passage_embeddings = torch.tensor(passage_embeddings)
+                passage_embeddings = F.normalize(passage_embeddings, p=2, dim=1)
+
+                # Compute cosine similarity between query and current passage batch
+                scores = (query_embeddings @ passage_embeddings.T).view(-1)
+                all_scores.extend(scores.tolist())
+
+            semantic_scores = all_scores
+
         else:
             semantic_scores =  args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)
             semantic_scores = [float(s) for s in semantic_scores]
