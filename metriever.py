@@ -1,6 +1,8 @@
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "5"
-
+# os.environ["CUDA_VISIBLE_DEVICES"] = "4,5,6"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "6,7"
+os.environ["CUDA_VISIBLE_DEVICES"] = "4,3,2"
+import time
 from utils import *
 from prompts import *
 # import ipdb; ipdb.set_trace()
@@ -8,12 +10,12 @@ from prompts import *
 
 import argparse
 from copy import deepcopy
-from vllm import LLM, SamplingParams
-
-from sentence_transformers import CrossEncoder
-from FlagEmbedding import FlagReranker, FlagLLMReranker
+from vllm import LLM
 
 from nltk.tokenize import sent_tokenize
+from torch import Tensor
+import torch
+import torch.nn.functional as F
 
 debug = None
 debug_question = None
@@ -26,7 +28,7 @@ debug_question = None
 
 def main():
     parser = argparse.ArgumentParser(description="Metriever")
-    parser.add_argument('--max-examples', type=int, default=None)
+    parser.add_argument('--max-examples', type=int, default=100)
     parser.add_argument(
         '--stage1-model',
         choices=['bm25', 'contriever','hybrid'], 
@@ -35,29 +37,29 @@ def main():
     )
     parser.add_argument(
         '--stage2-model', 
-        choices=['metriever','minilm6','minilm12','bge','tinybert','bigegemma','monot5', None], 
+        choices=['metriever','minilm6','minilm12','bge','tinybert','bgegemma','electra','nv','jina', 'sfr', None], 
+        # default='nv', #
         default='metriever', #
-        # default='bge', #
         help='Choose a model for stage 2 re-ranking'
     )
     parser.add_argument(
         '--metriever-model', 
         choices=['minilm6','minilm12','bge','tinybert','bgegemma'], 
-        default='minilm12',
+        default='bgegemma',
         help='Choose a model for metriever stage2 re-ranking'
     )
     parser.add_argument('--contriever-output', type=str, default="./TempRAGEval/contriever_output/TempRAGEval.json")
     parser.add_argument('--bm25-output', type=str, default="./TempRAGEval/BM25_output/TempRAGEval.json")
     parser.add_argument('--ctx-topk', type=int, default=100)
-    parser.add_argument('--QFS-topk', type=int, default=10)
+    parser.add_argument('--QFS-topk', type=int, default=0)
     parser.add_argument('--snt-topk', type=int, default=200)
     parser.add_argument('--complete-ctx-text', type=bool, default=False)
     parser.add_argument('--hybrid-score', type=bool, default=True)
     parser.add_argument('--hybrid-base', type=float, default=0)
     parser.add_argument('--snt-with-title', type=bool, default=True)
-    parser.add_argument('--llm', type=str, default="llama_70b")
+    parser.add_argument('--llm', type=str, default="llama_8b")
     parser.add_argument('--save-note', type=str, default=None)
-    parser.add_argument('--subset', type=str, default='situatedqa')
+    parser.add_argument('--subset', type=str, default='timeqa')
     parser.add_argument('--save', type=bool, default=True)
     parser.add_argument('--load-keywords', type=bool, default=False)
 
@@ -75,23 +77,44 @@ def main():
         if flg:
             args.llm = LLM(args.l, tensor_parallel_size=2, quantization="AWQ", max_model_len=4096)
         else:
-            args.llm = LLM(args.l, tensor_parallel_size=1, dtype='half', max_model_len=4096)
+            args.llm = LLM(args.l, tensor_parallel_size=1, max_model_len=4096)
         
     # load semantic ranker for stage 2 / metriever
     if args.m2:
         name = args.m3 if args.m2 == 'metriever' else args.m2
         if 'gemma' in name:
-            args.model = FlagLLMReranker(name, use_fp16=True)
+            from FlagEmbedding import FlagLLMReranker
+            args.model = FlagLLMReranker(name, use_fp16=True, device='cuda:2')
+        elif 'sfr' in name.lower():
+            from transformers import AutoTokenizer, AutoModel
+            from torch.nn import DataParallel
+            # load model and tokenizer
+            tokenizer = AutoTokenizer.from_pretrained(name)
+            model = AutoModel.from_pretrained(name, trust_remote_code=True, torch_dtype=torch.float16, device_map='auto').eval()
+            args.model = model
+            args.tokenizer = tokenizer
         elif 'bge' in name:
+            from FlagEmbedding import FlagReranker
             args.model = FlagReranker(name, use_fp16=True)
-        elif 'monot5' in name:
-            pass
-            # from pygaggle.rerank.base import Query, Text
-            # from pygaggle.rerank.transformer import MonoT5
-            # import os
-            # os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-            # return MonoT5()
+        elif 'nv' in name:
+            from transformers import AutoModel
+            from torch.nn import DataParallel
+            embedding_model = AutoModel.from_pretrained(name, trust_remote_code=True, torch_dtype=torch.float16)
+            for module_key, module in embedding_model._modules.items():
+                embedding_model._modules[module_key] = DataParallel(module).to('cuda')
+            args.model = embedding_model
+        elif 'jina' in name:
+            from transformers import AutoModelForSequenceClassification
+            model = AutoModelForSequenceClassification.from_pretrained(
+                name,
+                torch_dtype="auto",
+                trust_remote_code=True,
+            )
+            model.to('cuda')
+            model.eval()
+            args.model = model
         else:
+            from sentence_transformers import CrossEncoder
             args.model = CrossEncoder(name)
 
     # load examples
@@ -102,7 +125,7 @@ def main():
     elif args.stage1_model == 'bm25':
         ctx_key = 'bm25_ctxs'
         path = args.bm25_output
-        with open(path, 'r') as file:
+        with open(path, 'r', encoding="utf-8") as file:
             examples = json.load(file)
     else:
         # hybrid
@@ -165,15 +188,10 @@ def main():
         for ex in examples:
             ex['question'] = ex['ori_question']
 
-    if args.max_examples:
-        examples = examples[:min(len(examples),args.max_examples)]
-
-    if debug_question:
-        examples = [ex for ex in examples if ex['question']==debug_question]
 
     # examples = examples[300:365]
-    examples = [ex for ex in examples if 'he married Marjorie Ivatt?' not in ex['question']]
- 
+    # examples = [ex for ex in examples if 'he married Marjorie Ivatt?' not in ex['question']]
+
     # only keep situatedqa and timeqa samples for this code
     if args.subset == 'timeqa':
         examples = [ex for ex in examples if ex["source"] == 'timeqa']
@@ -181,6 +199,12 @@ def main():
     elif args.subset == 'situatedqa':
         examples = [ex for ex in examples if ex["source"] == 'situatedqa']
         print('\nkeep only SituatedQA subset.')
+
+    if debug_question:
+        examples = [ex for ex in examples if ex['question']==debug_question]
+
+    if args.max_examples:
+        examples = examples[:min(len(examples),args.max_examples)]
 
     # complete ctx head and tail sentences
     if args.complete_ctx_text:
@@ -219,12 +243,23 @@ def main():
                 complete_ctxs.append(ctx)
             ex[ctx_key] = complete_ctxs
 
-
     # separate samples into different types for comparison
     examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
 
+    # from transformers import GPT2Tokenizer
+    # # Load GPT-2 tokenizer
+    # tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+    # words = []
+    # for ex in examples_not_exact:
+    #     tokenized_text = tokenizer.encode(ex['question'])
+    #     token_length = len(tokenized_text)
+    #     words.append(token_length)
+    # print(np.mean(words))
+    # import ipdb; ipdb.set_trace()
+
     #####################################################################################################################
     # Baselines 
+
     if args.m2 == None or args.m2 != 'metriever':
         print(f'--- Stage 1: {args.stage1_model} ---\n')
         print('\n**** Answers ****')
@@ -248,29 +283,67 @@ def main():
 
     if args.m2 and args.m2 != 'metriever':
         # benchmark baselines
-        if args.stage2_model=='monot5':
-            pass
-            # for example in examples:
-            #     query = Query(example["question"])
-            #     passages = example[ctx_key][:100]
-            #     texts = [Text(p["text"], {"id": p["id"], "title": p["title"], "hasanswer": p["hasanswer"]}, p["score"]) for p in passages]
-            #     reranked = model.rerank(query, texts)
-            #     latest_ctxs = [{"id": ex.metadata["id"], "title": ex.metadata["title"], "text": ex.text, "score": ex.score, "hasanswer": ex.metadata["hasanswer"]} for ex in reranked]
-            #     latest_ctxs = sorted(latest_ctxs, key=lambda x: x["score"], reverse=True)
-            #     example['reranker_ctxs'] = latest_ctxs
-        else:
-            flg = 'bge' in args.stage2_model
-            for ex in tqdm(examples, desc="Reranking contexts"):
-                question = ex['question']
-                latest_ctxs = deepcopy(ex[ctx_key])
-                latest_ctxs = latest_ctxs[:args.ctx_topk]
+
+        flg = 'bge' in args.stage2_model or 'jina' in args.stage2_model
+        start_time = time.time()
+        for ex in tqdm(examples, desc="Reranking contexts"):
+            question = ex['question']
+            latest_ctxs = deepcopy(ex[ctx_key])
+            latest_ctxs = latest_ctxs[:args.ctx_topk]
+
+            if 'sfr' in args.m2.lower():
+                task = 'Given a web search query, retrieve relevant passages that answer the query'
+                queries = [get_detailed_instruct(task, question)]
+                # No need to add instruction for retrieval documents
+                passages = [ctx["title"]+" "+ctx["text"] for ctx in latest_ctxs]
+                # get the embeddings
+                max_length = 512
+                input_texts = queries + passages
+                batch_dict = args.tokenizer(input_texts, max_length=max_length, padding=True, truncation=True, return_tensors="pt").to('cuda')
+                with torch.no_grad():
+                    outputs = args.model(**batch_dict)
+                embeddings = last_token_pool(outputs.last_hidden_state, batch_dict['attention_mask'])
+                # normalize embeddings
+                embeddings = F.normalize(embeddings, p=2, dim=1)
+                # Calculate similarity scores between the query and each passage
+                query_embedding = embeddings[0]  # The first embedding is the query
+                passage_embeddings = embeddings[1:]  # The rest are the passages
+                # Compute similarity scores (cosine similarity)
+                scores = (query_embedding @ passage_embeddings.T) 
+                scores = scores.tolist()
+
+            elif 'nv' not in args.m2:
                 model_inputs = [[question, ctx["title"]+" "+ctx["text"]] for ctx in latest_ctxs]
-                scores = args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)   
-                for i, ctx in enumerate(latest_ctxs):
-                    ctx["score"] = float(scores[i])
-                latest_ctxs = sorted(latest_ctxs, key=lambda x: x['score'], reverse=True)
-                ex['reranker_ctxs'] = latest_ctxs
-        # evaluate reranking results    
+                scores = args.model.compute_score(model_inputs) if flg else args.model.predict(model_inputs)
+            
+            else:
+                task_name_to_instruct = {"example": "Given a question, retrieve passages that answer the question",}
+                query_prefix = "Instruct: "+task_name_to_instruct["example"]+"\nQuery: "
+                queries = [question]
+                passage_prefix = ""
+                passages = [ctx["title"]+" "+ctx["text"] for ctx in latest_ctxs]
+                # get the embeddings
+                max_length = 512
+                query_embeddings = args.model.encode(queries, instruction=query_prefix, max_length=max_length)
+                passage_embeddings = args.model.encode(passages, instruction=passage_prefix, max_length=max_length)
+                # normalize embeddings
+                query_embeddings = F.normalize(query_embeddings, p=2, dim=1)
+                passage_embeddings = F.normalize(passage_embeddings, p=2, dim=1)
+                scores = (query_embeddings @ passage_embeddings.T)
+                scores = scores.tolist()
+                scores = scores[0]
+
+            for i, ctx in enumerate(latest_ctxs):
+                ctx["score"] = float(scores[i])
+            latest_ctxs = sorted(latest_ctxs, key=lambda x: x['score'], reverse=True)
+            ex['reranker_ctxs'] = latest_ctxs
+        
+        end_time = time.time()
+        duration = end_time - start_time
+        duration /=len(examples)
+        print(f"{args.m2} Baseline Execution Time: {duration:.6f} seconds")
+        
+        # evaluate reranking results
         ctx_key = 'reranker_ctxs'
         examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
 
@@ -301,6 +374,7 @@ def main():
     # Metriever 
 
     # preprocess question about time
+    start_time = time.time()
     for k, ex in enumerate(tqdm(examples, desc="Preprocessing time info", total=len(examples))):
         question = ex['question']
         ex['time_relation'] = ex['time_relation'].strip()
@@ -427,7 +501,13 @@ def main():
     if debug_question:
         examples = [ex for ex in examples if ex['question']==debug_question]
 
+    end_time = time.time()
+    duration = end_time - start_time
+    duration /=len(examples)
+    print(f"Preprocess Execution Time: {duration:.6f} seconds")
+        
     # main reranking loop
+    start_time = time.time()
     print('\nfinished preparation, start modular reranking.')
     all_QFS_prompts = []
     for k, ex in enumerate(examples):
@@ -496,13 +576,19 @@ def main():
         # generate summaries
         QFS_prompts = []
         for ctx in latest_ctxs[:args.QFS_topk]:
-            qfs_prompt = get_QFS_prompt(normalized_question, ctx['title'], ctx['text'])
+            qfs_prompt = LLMGenerations(ctx['title']+' | '+ctx['text'],  normalized_question)
+            # qfs_prompt = get_QFS_prompt(normalized_question, ctx['title'], ctx['text'])
             QFS_prompts.append(qfs_prompt)
         all_QFS_prompts += QFS_prompts
 
     all_summary_responses = call_pipeline(args, all_QFS_prompts, 200)
-        # import ipdb; ipdb.set_trace()
 
+    end_time = time.time()
+    duration = end_time - start_time
+    duration /=len(examples)
+    print(f"Retrieval Execution Time: {duration:.6f} seconds")
+        
+    start_time = time.time()
     for k, ex in enumerate(examples):
 
         question = ex['question']
@@ -611,7 +697,11 @@ def main():
                     print(f'#{l} {tp}')
             
         #####################################################################################################################
-
+    end_time = time.time()
+    duration = end_time - start_time
+    duration /=len(examples)
+    print(f"Hybrid Execution Time: {duration:.6f} seconds")
+    assert 1==2
 
     examples_notime, examples_exact, examples_not_exact = separate_samples(examples)
 
@@ -644,7 +734,7 @@ def main():
         save_name = save_name.replace('_outputs', f'_{args.save_note}_outputs')
     if debug==None and args.save==True:
         save_json_file(save_name, examples)
-        print('Retrieved result saved.')
+        print('Retrieved result saved. ', save_name)
     return
 
 
@@ -681,17 +771,25 @@ def get_spline_function(time_relation_type, implicit_condition, question_years):
         y_points = np.array([low, 1])
     linear_interp_function = interp1d(x_points, y_points, kind='linear')
 
-    # x_fine = np.linspace(start, end, 10)
-    # y_fine = linear_interp_function(x_fine)
-
+    x_fine = np.linspace(start, end, 10)
+    y_fine = linear_interp_function(x_fine)
+    x_fine = [start-30, start-0.1] + list(x_fine) + [end+0.1, end+30]
+    y_fine = [0.5, 0.5] + list(y_fine) + [0.5, 0.5]
+    
     # # Plot the original points and the interpolated straight lines
-    # plt.plot(x_points, y_points, 'o', label='Original points')
-    # plt.plot(x_fine, y_fine, label='Linear interpolation')
-    # plt.xlabel('x')
-    # plt.ylabel('y')
-    # plt.title('Linear Interpolation')
-    # plt.legend()
+    # # plt.plot(x_points, y_points, 'o', label='Original points')
+    # plt.figure(figsize=(4, 3))
+    # plt.plot(x_fine, y_fine)
+    # plt.ylim(0.2, 1.1)
+    # plt.yticks(np.arange(0.2, 1.1, 0.2))
+    # # plt.xlabel('x')
+    # # plt.ylabel('y')
+    # title = ', '.join([str(s) for s in question_years])
+    # plt.title(f'{implicit_condition} - {time_relation_type} - {title}')
+    # # plt.grid(True, linestyle='-', color='lightgrey', axis='y')
+    # plt.tight_layout()
     # plt.savefig('spline_plot.png')
+    # import ipdb; ipdb.set_trace()
 
     return linear_interp_function
 
@@ -734,6 +832,20 @@ def get_temporal_coeffs(years, sentence_tuples, time_relation_type, implicit_con
             coeff = 0.5
         temporal_coeffs.append(coeff)
     return temporal_coeffs
+
+# for SFR
+def last_token_pool(last_hidden_states: Tensor,
+                 attention_mask: Tensor) -> Tensor:
+    left_padding = (attention_mask[:, -1].sum() == attention_mask.shape[0])
+    if left_padding:
+        return last_hidden_states[:, -1]
+    else:
+        sequence_lengths = attention_mask.sum(dim=1) - 1
+        batch_size = last_hidden_states.shape[0]
+        return last_hidden_states[torch.arange(batch_size, device=last_hidden_states.device), sequence_lengths]
+
+def get_detailed_instruct(task_description: str, query: str) -> str:
+    return f'Instruct: {task_description}\nQuery: {query}'
 
 
 if __name__ == "__main__":

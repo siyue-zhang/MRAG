@@ -21,6 +21,9 @@ import sys
 sys.path.append('../')
 from contriever.src.evaluation import SimpleTokenizer, has_answer
 
+from openai import OpenAI
+# client = OpenAI()
+
 EXCL = ['time', 'years', 'for', 'new', 'recent', 'current', 'whom', 'who', 'out', 'place', 'not']
 
 lemmatizer = WordNetLemmatizer()
@@ -92,6 +95,14 @@ def retrival_model_names(m):
         m = 'BAAI/bge-reranker-large'
     elif m == 'bgegemma':
         m = 'BAAI/bge-reranker-v2-gemma'
+    elif m=='nv':
+        m = 'nvidia/NV-Embed-v1'
+    elif m=='electra':
+        m = 'cross-encoder/ms-marco-electra-base'
+    elif m=='jina':
+        m = 'jinaai/jina-reranker-v2-base-multilingual'
+    elif m=='sfr':
+        m = 'Salesforce/SFR-Embedding-Mistral'
     return m
 
 def llm_names(l, instruct=False):
@@ -107,12 +118,12 @@ def llm_names(l, instruct=False):
     elif l=="timo":
         l="Warrieryes/timo-13b-hf"
     elif l=="timellama":
-        l="chrisyuan45/TimeLlama-13b"
+        l="chrisyuan45/TimeLlama-7b-chat"
     return l
 
 def load_contriever_output(path):
     examples = []
-    with open(path, 'r') as file:
+    with open(path, 'r', encoding="utf-8") as file:
         print(f'loaded: {path}')
         for line in file:
             examples.append(json.loads(line))
@@ -392,9 +403,110 @@ def eval_reader(to_save, param_pred, subset='situatedqa', metric='acc'):
     print(f'    all date {metric} : {round(np.mean(not_exact_rag + exact_rag),4) if len(not_exact_rag + exact_rag)>0 else 0}')
 
 
+def check_no_knowledge(string):
+    assert isinstance(string, str)
+    flg=False
+    if len(string)==0:
+        flg=True
+    else:
+        string=string.lower()
+        if 'not' in string.split():
+            flg=True
+        else:
+            phrases = ['unknown', 'none', "unable", "no information", "no answer", "don't have"]
+            flg = any([p in string for p in phrases])
+    return flg
+
+def force_string(item):
+    if isinstance(item, str):
+        return item
+    if isinstance(item, list):
+        item =item[0] if len(item)>0 else ''
+    try:
+        item = str(item)
+    except Exception as e:
+        item = ''
+    return item
+
+import threading
 
 
-def call_pipeline(args, prompts, max_tokens=100):
+def fetch_completion(client, prompt, timeout=10):
+    """
+    Fetch a completion from the API with a timeout mechanism.
+    
+    Args:
+        client: The API client.
+        prompt: The prompt to send to the API.
+        timeout: The time (in seconds) to wait before retrying.
+    
+    Returns:
+        The API response content or an error message if retries fail.
+    """
+    result = {"response": None}
+    event = threading.Event()
+
+    def api_call():
+        try:
+            completion = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": prompt}
+                ]
+            )
+            result["response"] = completion.choices[0].message.content
+        except Exception as e:
+            result["response"] = f"Error: {e}"
+        finally:
+            event.set()
+
+    # Start the API call in a separate thread
+    thread = threading.Thread(target=api_call)
+    thread.start()
+
+    # Wait for the API call to finish or timeout
+    event.wait(timeout)
+
+    if not event.is_set():
+        # Timeout occurred
+        thread.join(0)  # Attempt to clean up the thread
+        return "Timeout: API request took too long, retrying..."
+    
+    return result["response"]
+
+
+
+def call_pipeline(args, prompts, max_tokens=100, return_list=False, ver=False):
+
+    if args.reader and 'gpt' in args.reader.lower():
+
+        responses = []
+        for prompt in tqdm(prompts, desc="GPT"):
+            # completion = client.chat.completions.create(
+            #     model="gpt-4o-mini",
+            #     messages=[
+            #         {"role": "system", "content": "You are a helpful assistant that answers questions concisely."},
+            #         {
+            #             "role": "user",
+            #             "content": prompt
+            #         }
+            #     ]
+            # )
+            # response = completion.choices[0].message.content
+            # print(response)
+            # responses.append(response.strip())
+
+            for attempt in range(5):  # Retry up to 3 times
+                response = fetch_completion(client, prompt, timeout=10)
+                if "Timeout" not in response:
+                    break
+            print(response)
+            responses.append(response.strip())
+
+        print('\n\n')
+        return responses
+
 
     if args.reader == None:
         sampling_params = SamplingParams(temperature=0.2, top_p=0.95, max_tokens=max_tokens, seed=0)
@@ -404,31 +516,50 @@ def call_pipeline(args, prompts, max_tokens=100):
             responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
         return responses
     else:
-        if args.reader in ['timellama']:
-            outputs = args.llm(prompts, do_sample=True, max_new_tokens=100, num_return_sequences=1, temperature=0.2, top_p=0.95)
-            outputs = [r[0]['generated_text'] for r in outputs]
-            responses = [outputs[i].replace(prompts[i],'') for i in range(len(prompts))]
-            # print('//////')
-            # print(prompts[0])
-            # print('//////')
-            # print(responses[0])
-        else:
-            sampling_params = SamplingParams(temperature=0.2, top_p=0.95, max_tokens=max_tokens, seed=0)
-            outputs = args.llm.generate(prompts, sampling_params)
-            responses = [output.outputs[0].text for output in outputs]
-            # print('//////')
-            # print(prompts[0])
-            # print('//////')
-            # print(responses[0])
+        # if args.reader in ['timellama']:
+        #     outputs = args.llm(prompts, do_sample=True, max_new_tokens=100, num_return_sequences=1, temperature=0.2, top_p=0.95)
+        #     outputs = [r[0]['generated_text'] for r in outputs]
+        #     responses = [outputs[i].replace(prompts[i],'') for i in range(len(prompts))]
+        #     print('//////')
+        #     print(prompts[0])
+        #     print('//////')
+        #     print(responses[0])
+        #     import ipdb; ipdb.set_trace()
+        # else:
+        sampling_params = SamplingParams(temperature=0.2, top_p=0.95, max_tokens=max_tokens, seed=0)
+        outputs = args.llm.generate(prompts, sampling_params)
+        responses = [output.outputs[0].text for output in outputs]
+        if ver:
+            for x, y in zip(prompts, responses):
+                # print(x.split('Now your context paragraph and question are')[-1])
+                print(x.split('Now your document and question are')[-1])
+                print(y.split('</Summarization>')[0])
+                # print(y.split('</Response>')[0])
+                # print(y.split('</Answer>')[0])
+                print('//////\n')
+        # print(prompts[0])
+        # print('//////')
+        # print(responses[0])
+        # import ipdb; ipdb.set_trace()
 
         for stopper in ['</Keywords>', '</Summarization>', '</Answer>', '</Info>', '</Sentences>', '</Sentence>', '</Response>']:
             responses = [res.split(stopper)[0] if stopper in res else res for res in responses]
 
-        if '<Thought>' in prompts[0]:
+        if return_list and '<Thought>' in prompts[0]:
+            output = []
+            for res in responses:
+                res = res.split('\n</Answer>')[0]
+                res = res.split('<Answer>\n')[-1]
+                res = res.split('- ')
+                res = [r.replace('\n','').strip() for r in res]
+                res = [r for r in res if len(r)>0 ] # and len(r.split())<30
+                output.append(res)
+            return output
+        elif '<Thought>' in prompts[0]:
             for mid_stopper in ['</Thought>', '<Answer>', '<Response>']:
                 responses = [res.split(mid_stopper)[-1].replace('\n','').strip() if mid_stopper in res else res for res in responses]
         else:
-            if '- ' in responses[0]:
+            if return_list:
                 responses = [res.split('- ') for res in responses]
                 tmp = []
                 for res in responses:
@@ -437,5 +568,13 @@ def call_pipeline(args, prompts, max_tokens=100):
                     tmp.append([r for r in res if r !=''])
                 responses = tmp
             else:
-                responses = [r.split('\n')[0].strip() for r in responses]
+                tmp=[]
+                for r in responses:
+                    ans = r.split('\n')
+                    ans = [rr for rr in ans if len(rr)>0]
+                    if len(ans)>0:
+                        tmp.append(ans[0].strip())
+                    else:
+                        tmp.append('')
+                responses = tmp
         return responses
